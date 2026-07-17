@@ -8,10 +8,11 @@ export interface IUser {
   lastName: string;
   email: string;
   password: string;
+  passwordHistory:string[];
   avatar?: string | null;
   role: UserRole;
-  isVerified: boolean;
+  isEmailVerified: boolean;
   accountStatus: AccountStatus;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }

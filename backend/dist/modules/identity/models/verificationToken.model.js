@@ -23,5 +23,5 @@ verificationTokenSchema.index({
 }, {
     expireAfterSeconds: 0,
 });
-const verificationToken = (0, mongoose_1.model)("VerificationToken", verificationTokenSchema);
-exports.default = verificationToken;
+const VerificationToken = (0, mongoose_1.model)("VerificationToken", verificationTokenSchema);
+exports.default = VerificationToken;

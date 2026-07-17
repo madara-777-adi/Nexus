@@ -11,9 +11,14 @@ const envSchema = zod_1.z.object({
     NODE_ENV: zod_1.z
         .enum(["development", "production", "test"])
         .default("development"),
-    MONGO_URI: zod_1.z.string().min(32, "JWT_SECRET must be 32 charecters long"),
-    //   RESEND_API_KEY: z.string().min(1),
-    //   EMAIL_FROM: z.email(),
+    MONGO_URI: zod_1.z.string().min(1),
+    JWT_ACCESS_SECRET: zod_1.z.string().min(32),
+    JWT_REFRESH_SECRET: zod_1.z.string().min(32),
+    JWT_ACCESS_EXPIRES_IN: zod_1.z.string(),
+    JWT_REFRESH_EXPIRES_IN: zod_1.z.string(),
+    RESEND_API_KEY: zod_1.z.string().min(1),
+    EMAIL_FROM: zod_1.z.string().min(1),
+    FRONTEND_URL: zod_1.z.string().url(),
 });
 const env = envSchema.parse(process.env);
 exports.default = env;

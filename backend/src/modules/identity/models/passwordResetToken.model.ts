@@ -24,9 +24,9 @@ const passwordResetTokenSchema = new Schema<IPasswordResetToken>(
 );
 
 passwordResetTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-
+passwordResetTokenSchema.index({ user: 1 }, { unique: true });
 const PasswordResetToken = model<IPasswordResetToken>(
-  "ResetPasswordToken",
+  "PasswordResetToken",
   passwordResetTokenSchema,
 );
 

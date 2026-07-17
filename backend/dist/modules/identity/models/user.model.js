@@ -17,7 +17,9 @@ const userSchema = new mongoose_1.Schema({
     },
     lastName: {
         type: String,
+        required: true,
         trim: true,
+        minlength: 2,
         maxlength: 50,
     },
     email: {
@@ -26,12 +28,17 @@ const userSchema = new mongoose_1.Schema({
         unique: true,
         lowercase: true,
         trim: true,
-        match: [/^\S+@\S+\.\S+$/, "Invalid email address"],
+        match: [/^\S+@\S+\.\S+$/, "Invalid email address."],
     },
     password: {
         type: String,
         required: true,
         minlength: 8,
+        select: false,
+    },
+    passwordHistory: {
+        type: [String],
+        default: [],
         select: false,
     },
     avatar: {
@@ -43,13 +50,13 @@ const userSchema = new mongoose_1.Schema({
         enum: ["USER", "ADMIN"],
         default: "USER",
     },
-    isVerified: {
+    isEmailVerified: {
         type: Boolean,
         default: false,
     },
     accountStatus: {
         type: String,
-        enum: ["PENDING_VERIFICATION", "ACTIVE", "SUSPENDED",],
+        enum: ["PENDING_VERIFICATION", "ACTIVE", "SUSPENDED"],
         default: "PENDING_VERIFICATION",
     },
 }, {

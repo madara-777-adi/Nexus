@@ -11,11 +11,21 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
 
-  MONGO_URI: z.string().min(32, "JWT_SECRET must be 32 charecters long"),
+  MONGO_URI: z.string().min(1),
 
-//   RESEND_API_KEY: z.string().min(1),
+  JWT_ACCESS_SECRET: z.string().min(32),
 
-//   EMAIL_FROM: z.email(),
+  JWT_REFRESH_SECRET: z.string().min(32),
+
+  JWT_ACCESS_EXPIRES_IN: z.string(),
+
+  JWT_REFRESH_EXPIRES_IN: z.string(),
+
+  RESEND_API_KEY: z.string().min(1),
+
+  EMAIL_FROM: z.string().min(1),
+
+  FRONTEND_URL: z.string().url(),
 });
 
 const env = envSchema.parse(process.env);

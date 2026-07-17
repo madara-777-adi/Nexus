@@ -1,10 +1,6 @@
 import { Schema, model } from "mongoose";
 
-import {
-  IUser,
-  UserRole,
-  AccountStatus,
-} from "../types/user.types";
+import { IUser } from "../types/user.types";
 
 const userSchema = new Schema<IUser>(
   {
@@ -25,7 +21,9 @@ const userSchema = new Schema<IUser>(
 
     lastName: {
       type: String,
+      required: true,
       trim: true,
+      minlength: 2,
       maxlength: 50,
     },
 
@@ -35,13 +33,19 @@ const userSchema = new Schema<IUser>(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/^\S+@\S+\.\S+$/, "Invalid email address"],
+      match: [/^\S+@\S+\.\S+$/, "Invalid email address."],
     },
 
     password: {
       type: String,
       required: true,
       minlength: 8,
+      select: false,
+    },
+
+    passwordHistory: {
+      type: [String],
+      default: [],
       select: false,
     },
 
@@ -52,24 +56,24 @@ const userSchema = new Schema<IUser>(
 
     role: {
       type: String,
-      enum: ["USER","ADMIN"],
+      enum: ["USER", "ADMIN"],
       default: "USER",
     },
 
-    isVerified: {
+    isEmailVerified: {
       type: Boolean,
       default: false,
     },
 
     accountStatus: {
       type: String,
-      enum: ["PENDING_VERIFICATION","ACTIVE","SUSPENDED",],
+      enum: ["PENDING_VERIFICATION", "ACTIVE", "SUSPENDED"],
       default: "PENDING_VERIFICATION",
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const User = model<IUser>("User", userSchema);

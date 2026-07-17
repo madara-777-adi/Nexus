@@ -1,8 +1,8 @@
 import { Schema, model } from "mongoose";
 
-import { IVerificationToken } from "../types/verificationToken.types";
+import { IRefreshToken } from "../types/refreshToken.types";
 
-const verificationTokenSchema = new Schema<IVerificationToken>(
+const refreshTokenSchema = new Schema<IRefreshToken>(
   {
     user: {
       type: Schema.Types.ObjectId,
@@ -25,7 +25,7 @@ const verificationTokenSchema = new Schema<IVerificationToken>(
   },
 );
 
-verificationTokenSchema.index(
+refreshTokenSchema.index(
   {
     expiresAt: 1,
   },
@@ -34,9 +34,6 @@ verificationTokenSchema.index(
   },
 );
 
-const VerificationToken = model<IVerificationToken>(
-  "VerificationToken",
-  verificationTokenSchema,
-);
+const RefreshToken = model<IRefreshToken>("RefreshToken", refreshTokenSchema);
 
-export default VerificationToken;
+export default RefreshToken;
