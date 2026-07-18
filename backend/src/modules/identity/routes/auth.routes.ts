@@ -22,6 +22,8 @@ import { logoutSchema } from "../validators/logout.validator";
 import authMiddleware from "../../../middleware/auth.middleware";
 
 import getCurrentUser from "../controllers/me.controller";
+import { updateProfileSchema } from "../validators/update-profile.validator";
+import { updateProfileController } from "../controllers/update-profile.controller";
 
 const authRoutes = Router();
 
@@ -60,6 +62,13 @@ authRoutes.post(
 );
 
 authRoutes.get("/me", authMiddleware, getCurrentUser);
+
+authRoutes.patch(
+  "/me",
+  authMiddleware,
+  validate(updateProfileSchema),
+  updateProfileController,
+);
 
 authRoutes.post(
   "/logout",
