@@ -3,7 +3,8 @@ export type UserRole = "USER" | "ADMIN";
 export type AccountStatus = "PENDING_VERIFICATION" | "ACTIVE" | "SUSPENDED";
 
 export interface IUser {
-  userId: string;
+  userId
+: string;
   firstName: string;
   lastName: string;
   email: string;

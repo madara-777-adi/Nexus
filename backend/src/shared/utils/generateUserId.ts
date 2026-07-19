@@ -1,7 +1,8 @@
 import { ADJECTIVES } from "../constants/adjectives";
 import { NOUNS } from "../constants/nouns";
 
-const generateUserId = (): string => {
+const generateUserId
+ = (): string => {
   const adjective = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
   const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
 
@@ -12,4 +13,5 @@ const generateUserId = (): string => {
   return `${adjective}${noun}${number}`;
 };
 
-export default generateUserId;
+export default generateUserId
+;
