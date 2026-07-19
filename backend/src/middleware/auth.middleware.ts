@@ -34,7 +34,7 @@ const authMiddleware = async (
       });
       return;
     }
-    const user = await User.findById(payload.sub);
+    const user = await User.findOne({ userId: payload.sub });
     if (!user) {
       res.status(401).json({
         success: false,

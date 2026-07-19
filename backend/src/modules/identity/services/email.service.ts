@@ -24,7 +24,7 @@ class EmailService {
     firstName: string,
     token: string,
   ): Promise<void> {
-    const resetPasswordUrl = `${env.FRONTEND_URL}/reset-email/${token}`;
+    const resetPasswordUrl = `${env.FRONTEND_URL}/reset-password/${token}`;
     const html = passwordResetEmailTemplate(firstName, resetPasswordUrl);
     await resend.emails.send({
       from: env.EMAIL_FROM,

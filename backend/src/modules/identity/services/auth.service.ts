@@ -12,12 +12,12 @@ import VerificationToken from "../models/verificationToken.model";
 
 // Validators
 import {
-  loginSchema,
   registerSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   resendVerificationSchema,
 } from "../validators/auth.validator";
+import { loginSchema } from "../validators/login.validator";
 import { refreshTokenRequestSchema } from "../validators/refresh-token.validator";
 import { logoutSchema } from "../validators/logout.validator";
 
@@ -174,30 +174,34 @@ class AuthService {
       };
     }
     if (!user.isEmailVerified) {
-      const { token, tokenHash } = generateVerificationToken();
-      const existingResetToken = await PasswordResetToken.findOneAndUpdate(
-        {
-          user: user._id,
-        },
-        {
-          tokenHash,
-          expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
-        },
-        {
-          upsert: true,
-          returnDocument: `after`,
-        },
+      throw new Error(
+        "Please verify your email before resetting your password",
       );
-      await emailService.sendPasswordResetEmail(
-        user.email,
-        user.firstName,
-        token,
-      );
-      return {
-        message:
-          "if an account with this email exists, password reset instructions have been sent.",
-      };
     }
+
+    const { token, tokenHash } = generateVerificationToken();
+    const existingResetToken = await PasswordResetToken.findOneAndUpdate(
+      {
+        user: user._id,
+      },
+      {
+        tokenHash,
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      },
+      {
+        upsert: true,
+        returnDocument: "after",
+      },
+    );
+    await emailService.sendPasswordResetEmail(
+      user.email,
+      user.firstName,
+      token,
+    );
+    return {
+      message:
+        "if an account with this email exists, password reset instructions have been sent.",
+    };
   }
 
   async refreshToken(data: RefreshTokenInput) {
@@ -350,8 +354,7 @@ class AuthService {
     // Cooldown check
     if (verificationToken) {
       const nextAllowedResend = new Date(
-        verificationToken.updatedAt.getTime() +
-          15 * 60 * 1000,
+        verificationToken.updatedAt.getTime() + 15 * 60 * 1000,
       );
 
       if (new Date() < nextAllowedResend) {
@@ -365,9 +368,7 @@ class AuthService {
     const { token, tokenHash } = generateVerificationToken();
 
     // Calculate expiry
-    const expiresAt = new Date(
-      Date.now() + 15 * 60 * 1000,
-    );
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     // Update existing document or create a new one
     await VerificationToken.findOneAndUpdate(
@@ -375,7 +376,7 @@ class AuthService {
         user: user._id,
       },
       {
-        tokenHash: tokenHash,
+        tokenHash,
         expiresAt,
       },
       {
@@ -385,11 +386,7 @@ class AuthService {
     );
 
     // Send verification email
-    await emailService.sendPasswordResetEmail(
-      user.email,
-      user.firstName,
-      token,
-    );
+    await emailService.sendVerificationEmail(user.email, user.firstName, token);
 
     return {
       message: "A verification email has been sent successfully.",
