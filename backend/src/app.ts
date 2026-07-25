@@ -1,6 +1,6 @@
 import express from "express";
 
-import authRoutes from "../src/modules/identity/routes/auth.routes";
+import authRoutes from "./modules/identity/routes/auth.routes";
 
 const app = express();
 
