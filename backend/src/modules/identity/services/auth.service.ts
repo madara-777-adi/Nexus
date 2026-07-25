@@ -9,6 +9,7 @@ import env from "../../../config/env";
 import RefreshToken from "../models/refreshToken.model";
 import User from "../models/user.model";
 import VerificationToken from "../models/verificationToken.model";
+import { ConflictError } from "../../../shared/errors/ConflictError";
 
 // Validators
 import {
@@ -45,7 +46,7 @@ class AuthService {
     });
 
     if (existingUser) {
-      throw new Error("This email is already registered with another account.");
+      throw new ConflictError("This email is already registered with another account.");
     }
 
     const hashedPassword = await bcrypt.hash(data.password, 12);
