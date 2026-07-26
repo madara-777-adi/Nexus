@@ -1,17 +1,12 @@
-import z from "zod";
 import User from "../models/user.model";
-import { updateProfileSchema } from "../validators/update-profile.validator";
+import { NotFoundError } from "../../../shared/errors/NotFoundError";
+import type { UpdateProfileDTO } from "../types/identity.dto.js";
 
-type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
-
-export const updateProfile = async (
-  userId: string,
-  data: UpdateProfileInput,
-) => {
+export const updateProfile = async (userId: string, data: UpdateProfileDTO) => {
   const user = await User.findById(userId);
 
   if (!user) {
-    throw new Error("User not found.");
+    throw new NotFoundError("User not found.");
   }
 
   if (data.firstName !== undefined) {
@@ -20,6 +15,10 @@ export const updateProfile = async (
 
   if (data.lastName !== undefined) {
     user.lastName = data.lastName;
+  }
+
+  if (data.bio !== undefined) {
+    user.bio = data.bio;
   }
 
   await user.save();

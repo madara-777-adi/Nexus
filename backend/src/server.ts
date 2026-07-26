@@ -3,16 +3,16 @@ import app from "./app";
 import env from "./config/env";
 
 import connectDB from "./config/database";
+import logger from "./shared/logger/logger";
 
 const startServer = async (): Promise<void> => {
   try {
     await connectDB();
     app.listen(env.PORT, () => {
-      console.log(`Server running on port ${env.PORT}`);
+      logger.info({ port: env.PORT }, "Server started");
     });
   } catch (error) {
-    console.error("Failed to start server");
-    console.error(error);
+    logger.error({ err: error }, "Server startup failed");
     process.exit(1);
   }
 };

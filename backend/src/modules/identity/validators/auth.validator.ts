@@ -7,6 +7,7 @@ const nameSchema = z
   .max(50, "Name cannot exceed 50 characters.");
 
 const emailSchema = z
+  .string()
   .email("Please enter a valid email address.")
   .trim()
   .toLowerCase();
@@ -41,5 +42,5 @@ export const resetPasswordSchema = z.object({
 });
 
 export const resendVerificationSchema = z.object({
-  email: z.email("Please enter a valid email address."),
+  email: z.string().email("Please enter a valid email address."),
 });

@@ -1,9 +1,19 @@
 import { Request, Response } from "express";
 
 import authService from "../services/auth.service";
+import type {
+  ForgotPasswordDTO,
+  LoginDTO,
+  LogoutDTO,
+  RefreshTokenDTO,
+  RegisterDTO,
+  ResendVerificationDTO,
+  ResetPasswordDTO,
+  VerifyEmailParamsDTO,
+} from "../types/identity.dto.js";
 
 class AuthController {
-  async register(req: Request, res: Response) {
+  async register(req: Request<{}, {}, RegisterDTO>, res: Response) {
     const result = await authService.register(req.body);
 
     return res.status(201).json({
@@ -13,8 +23,8 @@ class AuthController {
     });
   }
 
-  async verifyEmail(req: Request, res: Response) {
-    const token = req.params.token as string;
+  async verifyEmail(req: Request<VerifyEmailParamsDTO>, res: Response) {
+    const token = req.params.token;
 
     const result = await authService.verifyEmail(token);
 
@@ -25,7 +35,7 @@ class AuthController {
     });
   }
 
-  async login(req: Request, res: Response) {
+  async login(req: Request<{}, {}, LoginDTO>, res: Response) {
     const result = await authService.login(req.body);
 
     const { message, ...data } = result;
@@ -37,7 +47,7 @@ class AuthController {
     });
   }
 
-  async refreshToken(req: Request, res: Response) {
+  async refreshToken(req: Request<{}, {}, RefreshTokenDTO>, res: Response) {
     const result = await authService.refreshToken(req.body);
 
     const { message, ...data } = result;
@@ -49,7 +59,7 @@ class AuthController {
     });
   }
 
-  async forgotPassword(req: Request, res: Response) {
+  async forgotPassword(req: Request<{}, {}, ForgotPasswordDTO>, res: Response) {
     const result = await authService.forgotPassword(req.body);
 
     return res.status(200).json({
@@ -59,7 +69,7 @@ class AuthController {
     });
   }
 
-  async resetPassword(req: Request, res: Response) {
+  async resetPassword(req: Request<{}, {}, ResetPasswordDTO>, res: Response) {
     const result = await authService.resetPassword(req.body);
 
     return res.status(200).json({
@@ -69,13 +79,20 @@ class AuthController {
     });
   }
 
-  async resendVerification(req: Request, res: Response): Promise<void> {
+  async resendVerification(
+    req: Request<{}, {}, ResendVerificationDTO>,
+    res: Response,
+  ) {
     const result = await authService.resendVerification(req.body);
 
-    res.status(200).json(result);
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      data: null,
+    });
   }
 
-  async logout(req: Request, res: Response) {
+  async logout(req: Request<{}, {}, LogoutDTO>, res: Response) {
     const result = await authService.logout(req.body);
 
     const { message, ...data } = result;

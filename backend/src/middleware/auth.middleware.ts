@@ -3,6 +3,8 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 
 import env from "../config/env";
 import User from "../modules/identity/models/user.model";
+import { UnauthorizedError } from "../shared/errors/UnauthorizedError";
+import { ForbiddenError } from "../shared/errors/ForbiddenError";
 
 const authMiddleware = async (
   req: Request,
@@ -11,45 +13,32 @@ const authMiddleware = async (
 ): Promise<void> => {
   const authorizationHeader = req.headers.authorization;
   if (!authorizationHeader) {
-    res.status(401).json({
-      success: false,
-      message: "Authentication required",
-    });
-    return;
+    throw new UnauthorizedError("Authentication required");
   }
   const [scheme, token] = authorizationHeader.split(" ");
   if (scheme !== "Bearer" || !token) {
-    res.status(401).json({
-      success: false,
-      message: "Invalid authentication header",
-    });
-    return;
+    throw new UnauthorizedError("Invalid authentication header");
   }
-  try {
-    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtPayload;
-    if (!payload.sub) {
-      res.status(401).json({
-        success: false,
-        message: "Invalid access token.",
-      });
-      return;
-    }
-    const user = await User.findOne({ userId: payload.sub });
-    if (!user) {
-      res.status(401).json({
-        success: false,
-        message: "User not found.",
-      });
-      return;
-    }
-    (req as Request & { user: typeof user }).user = user;
 
-    next();
+  let payload: JwtPayload;
+  try {
+    payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtPayload;
   } catch (_error) {
-    res.status(401).json({
-      success: false,
-      message: "Invalid or expired access token.",
-    });
+    throw new UnauthorizedError("Invalid or expired access token.");
   }
+
+  if (!payload.sub) {
+    throw new UnauthorizedError("Invalid access token.");
+  }
+
+  const user = await User.findOne({ userId: payload.sub });
+  if (!user) {
+    throw new UnauthorizedError("User not found.");
+  }
+  
+
+  (req as Request & { user: typeof user }).user = user;
+
+  next();
 };
 export default authMiddleware;

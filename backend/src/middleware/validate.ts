@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 
 import {  ZodSchema } from "zod";
+import { ValidationError } from "../shared/errors/ValidationError";
 
 const validate = (
   schema: ZodSchema,
@@ -9,11 +10,9 @@ const validate = (
   return (req: Request, res: Response, next: NextFunction): void => {
     const result = schema.safeParse(req[source]);
     if (!result.success) {
-      res.status(400).json({
-        success: false,
-        errors: result.error.issues,
+      throw new ValidationError("Validation failed.", {
+        details: result.error.issues,
       });
-      return;
     }
     req[source] = result.data;
     next();

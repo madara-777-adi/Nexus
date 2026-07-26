@@ -60,6 +60,12 @@ const userSchema = new Schema<IUser>(
       enum: ["USER", "ADMIN"],
       default: "USER",
     },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: null,
+    },
 
     isEmailVerified: {
       type: Boolean,

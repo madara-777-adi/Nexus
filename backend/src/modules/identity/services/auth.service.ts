@@ -1,7 +1,6 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { z } from "zod";
 
 import env from "../../../config/env";
 
@@ -10,17 +9,10 @@ import RefreshToken from "../models/refreshToken.model";
 import User from "../models/user.model";
 import VerificationToken from "../models/verificationToken.model";
 import { ConflictError } from "../../../shared/errors/ConflictError";
-
-// Validators
-import {
-  registerSchema,
-  forgotPasswordSchema,
-  resetPasswordSchema,
-  resendVerificationSchema,
-} from "../validators/auth.validator";
-import { loginSchema } from "../validators/login.validator";
-import { refreshTokenRequestSchema } from "../validators/refresh-token.validator";
-import { logoutSchema } from "../validators/logout.validator";
+import { BadRequestError } from "../../../shared/errors/BadRequestError";
+import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
+import { NotFoundError } from "../../../shared/errors/NotFoundError";
+import { UnauthorizedError } from "../../../shared/errors/UnauthorizedError";
 
 // Services
 import emailService from "./email.service";
@@ -30,23 +22,26 @@ import generateTokens from "../../../shared/utils/generateTokens";
 import generateUserId from "../../../shared/utils/generateUserId";
 import generateVerificationToken from "../../../shared/utils/generateVerificationToken";
 import PasswordResetToken from "../models/passwordResetToken.model";
-
-type RegisterInput = z.infer<typeof registerSchema>;
-type LoginInput = z.infer<typeof loginSchema>;
-type RefreshTokenInput = z.infer<typeof refreshTokenRequestSchema>;
-type LogoutInput = z.infer<typeof logoutSchema>;
-type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
-type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
-type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
+import type {
+  ForgotPasswordDTO,
+  LoginDTO,
+  LogoutDTO,
+  RefreshTokenDTO,
+  RegisterDTO,
+  ResendVerificationDTO,
+  ResetPasswordDTO,
+} from "../types/identity.dto.js";
 
 class AuthService {
-  async register(data: RegisterInput) {
+  async register(data: RegisterDTO) {
     const existingUser = await User.findOne({
       email: data.email,
     });
 
     if (existingUser) {
-      throw new ConflictError("This email is already registered with another account.");
+      throw new ConflictError(
+        "This email is already registered with another account.",
+      );
     }
 
     const hashedPassword = await bcrypt.hash(data.password, 12);
@@ -89,24 +84,25 @@ class AuthService {
     });
 
     if (!verificationRecord) {
-      throw new Error("Invalid or expired verification link.");
+      throw new BadRequestError("Invalid or expired verification link.");
     }
 
     if (verificationRecord.expiresAt < new Date()) {
-      throw new Error("Expired verification link.");
+      throw new BadRequestError("Expired verification link.");
     }
 
     const user = await User.findById(verificationRecord.user);
 
     if (!user) {
-      throw new Error("User not found.");
+      throw new NotFoundError("User not found.");
     }
 
     if (user.isEmailVerified) {
-      throw new Error("Email already verified.");
+      throw new ConflictError("Email already verified.");
     }
 
     user.isEmailVerified = true;
+    user.accountStatus = "ACTIVE";
 
     await user.save();
 
@@ -119,23 +115,23 @@ class AuthService {
     };
   }
 
-  async login(data: LoginInput) {
+  async login(data: LoginDTO) {
     const user = await User.findOne({
       email: data.email,
     }).select("+password");
 
     if (!user) {
-      throw new Error("Invalid email or password.");
+      throw new UnauthorizedError("Invalid email or password.");
     }
 
     const isPasswordValid = await bcrypt.compare(data.password, user.password);
 
     if (!isPasswordValid) {
-      throw new Error("Invalid email or password.");
+      throw new UnauthorizedError("Invalid email or password.");
     }
 
     if (!user.isEmailVerified) {
-      throw new Error("Please verify your email before logging in.");
+      throw new ForbiddenError("Please verify your email before logging in.");
     }
 
     const tokens = generateTokens({
@@ -164,7 +160,7 @@ class AuthService {
     };
   }
 
-  async forgotPassword(data: ForgotPasswordInput) {
+  async forgotPassword(data: ForgotPasswordDTO) {
     const user = await User.findOne({
       email: data.email,
     });
@@ -175,7 +171,7 @@ class AuthService {
       };
     }
     if (!user.isEmailVerified) {
-      throw new Error(
+      throw new ForbiddenError(
         "Please verify your email before resetting your password",
       );
     }
@@ -187,7 +183,7 @@ class AuthService {
       },
       {
         tokenHash,
-        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+        expiresAt: new Date(Date.now() + 1000 * 60 * 30),
       },
       {
         upsert: true,
@@ -205,14 +201,19 @@ class AuthService {
     };
   }
 
-  async refreshToken(data: RefreshTokenInput) {
-    const decoded = jwt.verify(
-      data.refreshToken,
-      env.JWT_REFRESH_SECRET,
-    ) as JwtPayload;
+  async refreshToken(data: RefreshTokenDTO) {
+    let decoded : JwtPayload;
+    try {
+      decoded = jwt.verify(
+        data.refreshToken,
+        env.JWT_REFRESH_SECRET,
+      ) as JwtPayload;
+    } catch (_error) {
+      throw new UnauthorizedError("Invalid or expired refresh token.");
+    }
 
     if (!decoded.sub) {
-      throw new Error("Invalid refresh token.");
+      throw new UnauthorizedError("Invalid refresh token.");
     }
 
     const tokenHash = crypto
@@ -220,35 +221,29 @@ class AuthService {
       .update(data.refreshToken)
       .digest("hex");
 
-    const storedRefreshToken = await RefreshToken.findOne({
-      tokenHash,
-    });
+    const storedRefreshToken = await RefreshToken.findOne({ tokenHash });
 
     if (!storedRefreshToken) {
-      throw new Error("Invalid refresh token.");
+      throw new UnauthorizedError("Invalid refresh token.");
     }
 
     if (storedRefreshToken.expiresAt < new Date()) {
-      throw new Error("Refresh token expired.");
+      throw new UnauthorizedError("Refresh token expired.");
     }
 
     const user = await User.findById(storedRefreshToken.user);
 
     if (!user) {
-      throw new Error("User not found.");
+      throw new NotFoundError("User not found.");
     }
 
     if (decoded.sub !== user.userId) {
-      throw new Error("Invalid refresh token.");
+      throw new UnauthorizedError("Invalid refresh token.");
     }
 
-    const tokens = generateTokens({
-      sub: user.userId,
-    });
+    const tokens = generateTokens({ sub: user.userId });
 
-    await RefreshToken.deleteOne({
-      _id: storedRefreshToken._id,
-    });
+    await RefreshToken.deleteOne({ _id: storedRefreshToken._id });
 
     const newRefreshTokenHash = crypto
       .createHash("sha256")
@@ -267,7 +262,7 @@ class AuthService {
     };
   }
 
-  async resetPassword(data: ResetPasswordInput) {
+  async resetPassword(data: ResetPasswordDTO) {
     const tokenHash = crypto
       .createHash("sha256")
       .update(data.token)
@@ -276,16 +271,16 @@ class AuthService {
       tokenHash,
     });
     if (!passwordResetToken) {
-      throw new Error("Invalid or expired password reset link.");
+      throw new BadRequestError("Invalid or expired password reset link.");
     }
     if (passwordResetToken.expiresAt < new Date()) {
-      throw new Error("Password reset link has expired.");
+      throw new BadRequestError("Password reset link has expired.");
     }
     const user = await User.findById(passwordResetToken.user).select(
       "+password +passwordHistory",
     );
     if (!user) {
-      throw new Error("User not found.");
+      throw new NotFoundError("User not found.");
     }
     const isCurrentPassword = await bcrypt.compare(
       data.password,
@@ -293,7 +288,7 @@ class AuthService {
     );
 
     if (isCurrentPassword) {
-      throw new Error(
+      throw new ConflictError(
         "Your new password must be different from your current password.",
       );
     }
@@ -304,7 +299,9 @@ class AuthService {
       );
 
       if (isReusedPassword) {
-        throw new Error("You cannot reuse any of your last five passwords.");
+        throw new ConflictError(
+          "You cannot reuse any of your last five passwords.",
+        );
       }
     }
     const hashedPassword = await bcrypt.hash(data.password, 12);
@@ -326,7 +323,7 @@ class AuthService {
     };
   }
 
-  async resendVerification(data: ResendVerificationInput) {
+  async resendVerification(data: ResendVerificationDTO) {
     // Find the user
     const user = await User.findOne({
       email: data.email.toLowerCase(),
@@ -394,7 +391,7 @@ class AuthService {
     };
   }
 
-  async logout(data: LogoutInput) {
+  async logout(data: LogoutDTO) {
     const tokenHash = crypto
       .createHash("sha256")
       .update(data.refreshToken)
@@ -405,7 +402,7 @@ class AuthService {
     });
 
     if (deletedToken.deletedCount === 0) {
-      throw new Error("Invalid refresh token.");
+      throw new UnauthorizedError("Invalid refresh token.");
     }
 
     return {
