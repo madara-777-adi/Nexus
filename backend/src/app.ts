@@ -15,12 +15,21 @@ import aiRoutes from "./modules/ai/routes/ai.routes";
 
 const app = express();
 
-// Combine local development origins and production FRONTEND_URL
+// Combine development origins, both production domain variants (apex & www), and env.FRONTEND_URL
+const rawOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://nexusspace.tech",
+  "https://www.nexusspace.tech",
+  env.FRONTEND_URL,
+];
+
+// Clean up trailing slashes and remove falsy/duplicate values
 const allowedOrigins = Array.from(
   new Set(
-    ["http://localhost:5173", "http://localhost:3000", env.FRONTEND_URL].filter(
-      Boolean,
-    ),
+    rawOrigins
+      .filter((origin): origin is string => Boolean(origin))
+      .map((origin) => (origin.endsWith("/") ? origin.slice(0, -1) : origin)),
   ),
 );
 
