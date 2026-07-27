@@ -1,5 +1,4 @@
 import { z } from "zod";
-
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -26,8 +25,21 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().min(1),
 
   FRONTEND_URL: z.string().url(),
+
+  // Gemini AI Key
+  GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
+
+  // Google OAuth
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  GOOGLE_CALLBACK_URL: z.string().url(),
+
+  // GitHub OAuth
+  GITHUB_CLIENT_ID: z.string().min(1),
+  GITHUB_CLIENT_SECRET: z.string().min(1),
+  GITHUB_CALLBACK_URL: z.string().url(),
 });
 
-const env = envSchema.parse(process.env);
+export const env = envSchema.parse(process.env);
 
 export default env;

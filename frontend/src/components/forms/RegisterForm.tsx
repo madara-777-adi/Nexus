@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { registerSchema, type RegisterFormData } from "../../utils/auth.schemas";
+import {
+  registerSchema,
+  type RegisterFormData,
+} from "../../utils/auth.schemas";
 import { useAuth } from "../../contexts/AuthContext";
+import { SocialAuthButtons } from "./SocialAuthButtons";
 
 export function RegisterForm() {
   const { register: registerUser } = useAuth();
@@ -25,7 +29,9 @@ export function RegisterForm() {
     setSuccessMsg(null);
     try {
       const message = await registerUser(data);
-      setSuccessMsg(message || "Registration successful! Please check your email.");
+      setSuccessMsg(
+        message || "Registration successful! Please check your email.",
+      );
       reset();
     } catch (err: any) {
       setError(err.response?.data?.message || "Registration failed.");
@@ -122,6 +128,9 @@ export function RegisterForm() {
         >
           {isSubmitting ? "Registering..." : "Sign Up"}
         </button>
+
+        {/* Social OAuth Buttons */}
+        <SocialAuthButtons />
       </form>
     </div>
   );

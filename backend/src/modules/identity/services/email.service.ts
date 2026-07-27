@@ -2,6 +2,7 @@ import env from "../../../config/env";
 import resend from "../../../config/resend";
 import verificationEmailTemplate from "../../../shared/templates/verificationEmail";
 import passwordResetEmailTemplate from "../../../shared/templates/passwordResetEmail";
+import welcomeEmailTemplate from "../../../shared/templates/welcomeEmail";
 
 class EmailService {
   async sendVerificationEmail(
@@ -9,7 +10,6 @@ class EmailService {
     firstName: string,
     token: string,
   ): Promise<void> {
-    // Ensure the backend builds the link with ?token=
     const verificationUrl = `${env.FRONTEND_URL}/verify-email?token=${token}`;
     const html = verificationEmailTemplate(firstName, verificationUrl);
     await resend.emails.send({
@@ -34,5 +34,23 @@ class EmailService {
       html,
     });
   }
+
+  async sendWelcomeEmail(email: string, firstName: string): Promise<void> {
+    const dashboardUrl = `${env.FRONTEND_URL}/dashboard`;
+    const html = welcomeEmailTemplate(firstName, dashboardUrl);
+
+    try {
+      await resend.emails.send({
+        from: env.EMAIL_FROM,
+        to: email,
+        subject: "Welcome aboard to NexusSpace! 🚀",
+        html,
+      });
+    } catch (error) {
+      // Non-blocking catch so email provider hiccups don't break authentication
+      console.error("Failed to send welcome email:", error);
+    }
+  }
 }
+
 export default new EmailService();

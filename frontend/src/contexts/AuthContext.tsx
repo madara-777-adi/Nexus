@@ -16,6 +16,8 @@ export interface IUser {
   firstName: string;
   lastName: string;
   email: string;
+  avatar?: string | null;
+  provider?: "LOCAL" | "GOOGLE" | "GITHUB";
   role: "USER" | "ADMIN";
   bio?: string;
   isEmailVerified: boolean;
@@ -37,33 +39,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<IUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Hydrate user state on app mount if token exists
+  // Hydrate user state on app mount using HttpOnly cookie
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem("accessToken");
-      if (token) {
-        try {
-          const res = await authApi.getCurrentUser();
-          setUser(res.data);
-        } catch (_err) {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-          setUser(null);
-        }
+      try {
+        // 1. Refresh access token via HttpOnly cookie
+        await authApi.refreshToken();
+
+        // 2. Fetch authenticated user profile
+        const res = await authApi.getCurrentUser();
+        
+        // Unwraps user object safely regardless of backend envelope structure
+        const userData = res.data?.user || res.data;
+        setUser(userData);
+      } catch (_err) {
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     initAuth();
   }, []);
 
   const login = async (credentials: LoginPayload) => {
-    // authApi.login persists tokens to localStorage automatically
-    await authApi.login(credentials);
+    const res = await authApi.login(credentials);
 
-    // Fetch authenticated profile with token in headers
-    const profileRes = await authApi.getCurrentUser();
-    setUser(profileRes.data);
+    const userData = res.data?.user || res.data;
+
+    if (userData && userData.userId) {
+      setUser(userData);
+    } else {
+      // Fallback fetch if profile wasn't fully included in login response
+      const profileRes = await authApi.getCurrentUser();
+      const fetchedUserData = profileRes.data?.user || profileRes.data;
+      setUser(fetchedUserData);
+    }
   };
 
   const register = async (payload: RegisterPayload): Promise<string> => {
@@ -73,15 +84,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
-      const refreshToken = localStorage.getItem("refreshToken");
-      if (refreshToken) {
-        await authApi.logout({ refreshToken });
-      }
+      await authApi.logout();
     } catch (_err) {
-      console.warn("Server logout failed, clearing local session anyway.");
+      console.warn(
+        "Server logout failed, clearing local session state anyway.",
+      );
     } finally {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
       setUser(null);
     }
   };

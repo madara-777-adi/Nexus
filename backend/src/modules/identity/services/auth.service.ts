@@ -8,6 +8,9 @@ import env from "../../../config/env";
 import RefreshToken from "../models/refreshToken.model";
 import User from "../models/user.model";
 import VerificationToken from "../models/verificationToken.model";
+import PasswordResetToken from "../models/passwordResetToken.model";
+
+// Errors
 import { ConflictError } from "../../../shared/errors/ConflictError";
 import { BadRequestError } from "../../../shared/errors/BadRequestError";
 import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
@@ -21,7 +24,8 @@ import emailService from "./email.service";
 import generateTokens from "../../../shared/utils/generateTokens";
 import generateUserId from "../../../shared/utils/generateUserId";
 import generateVerificationToken from "../../../shared/utils/generateVerificationToken";
-import PasswordResetToken from "../models/passwordResetToken.model";
+
+// Types
 import type {
   ForgotPasswordDTO,
   LoginDTO,
@@ -81,22 +85,15 @@ class AuthService {
       throw new BadRequestError("Verification token is required.");
     }
 
-    // Clean whitespace/line breaks from URL parameters
     const cleanToken = token.trim();
     const tokenHash = crypto
       .createHash("sha256")
       .update(cleanToken)
       .digest("hex");
 
-    // 🔍 Debug Logs - Check your backend terminal when clicking the link
-    console.log("👉 Received Raw Token:", cleanToken);
-    console.log("👉 Computed Token Hash:", tokenHash);
-
     const verificationRecord = await VerificationToken.findOne({
       tokenHash,
     });
-
-    console.log("👉 Found DB Record:", verificationRecord ? "YES" : "NO");
 
     if (!verificationRecord) {
       throw new BadRequestError("Invalid or expired verification link.");
@@ -139,6 +136,13 @@ class AuthService {
       throw new UnauthorizedError("Invalid email or password.");
     }
 
+    // Handle OAuth users trying to log in via password form
+    if (!user.password) {
+      throw new UnauthorizedError(
+        `This account was created using ${user.provider}. Please sign in using ${user.provider}.`,
+      );
+    }
+
     const isPasswordValid = await bcrypt.compare(data.password, user.password);
 
     if (!isPasswordValid) {
@@ -158,7 +162,6 @@ class AuthService {
       .update(tokens.refreshToken)
       .digest("hex");
 
-    // Allow only one active refresh token per user
     await RefreshToken.deleteMany({
       user: user._id,
     });
@@ -175,6 +178,33 @@ class AuthService {
     };
   }
 
+  async handleOAuthSuccess(user: any) {
+    const tokens = generateTokens({
+      sub: user.userId,
+    });
+
+    const refreshTokenHash = crypto
+      .createHash("sha256")
+      .update(tokens.refreshToken)
+      .digest("hex");
+
+    // Allow only one active refresh token session
+    await RefreshToken.deleteMany({
+      user: user._id,
+    });
+
+    await RefreshToken.create({
+      user: user._id,
+      tokenHash: refreshTokenHash,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+    });
+
+    return {
+      message: "OAuth authentication successful.",
+      ...tokens,
+    };
+  }
+
   async forgotPassword(data: ForgotPasswordDTO) {
     const user = await User.findOne({
       email: data.email,
@@ -182,17 +212,17 @@ class AuthService {
     if (!user) {
       return {
         message:
-          "if an account with this email exists, password reset instructions have been sent.",
+          "If an account with this email exists, password reset instructions have been sent.",
       };
     }
     if (!user.isEmailVerified) {
       throw new ForbiddenError(
-        "Please verify your email before resetting your password",
+        "Please verify your email before resetting your password.",
       );
     }
 
     const { token, tokenHash } = generateVerificationToken();
-    const existingResetToken = await PasswordResetToken.findOneAndUpdate(
+    await PasswordResetToken.findOneAndUpdate(
       {
         user: user._id,
       },
@@ -212,7 +242,7 @@ class AuthService {
     );
     return {
       message:
-        "if an account with this email exists, password reset instructions have been sent.",
+        "If an account with this email exists, password reset instructions have been sent.",
     };
   }
 
@@ -297,35 +327,43 @@ class AuthService {
     if (!user) {
       throw new NotFoundError("User not found.");
     }
-    const isCurrentPassword = await bcrypt.compare(
-      data.password,
-      user.password,
-    );
 
-    if (isCurrentPassword) {
-      throw new ConflictError(
-        "Your new password must be different from your current password.",
-      );
-    }
-    for (const oldPasswordHash of user.passwordHistory) {
-      const isReusedPassword = await bcrypt.compare(
+    if (user.password) {
+      const isCurrentPassword = await bcrypt.compare(
         data.password,
-        oldPasswordHash,
+        user.password,
       );
 
-      if (isReusedPassword) {
+      if (isCurrentPassword) {
         throw new ConflictError(
-          "You cannot reuse any of your last five passwords.",
+          "Your new password must be different from your current password.",
         );
       }
+      for (const oldPasswordHash of user.passwordHistory || []) {
+        const isReusedPassword = await bcrypt.compare(
+          data.password,
+          oldPasswordHash,
+        );
+
+        if (isReusedPassword) {
+          throw new ConflictError(
+            "You cannot reuse any of your last five passwords.",
+          );
+        }
+      }
     }
+
     const hashedPassword = await bcrypt.hash(data.password, 12);
-    user.passwordHistory.push(user.password);
-    if (user.passwordHistory.length > 5) {
-      user.passwordHistory.shift();
+    if (user.password) {
+      if (!user.passwordHistory) user.passwordHistory = [];
+      user.passwordHistory.push(user.password);
+      if (user.passwordHistory.length > 5) {
+        user.passwordHistory.shift();
+      }
     }
     user.password = hashedPassword;
     await user.save();
+
     await PasswordResetToken.deleteOne({
       _id: passwordResetToken._id,
     });
@@ -339,12 +377,10 @@ class AuthService {
   }
 
   async resendVerification(data: ResendVerificationDTO) {
-    // Find the user
     const user = await User.findOne({
       email: data.email.toLowerCase(),
     });
 
-    // Unknown email
     if (!user) {
       return {
         message:
@@ -352,19 +388,16 @@ class AuthService {
       };
     }
 
-    // Already verified
     if (user.isEmailVerified) {
       return {
         message: "Your email address is already verified.",
       };
     }
 
-    // Find existing verification token
     const verificationToken = await VerificationToken.findOne({
       user: user._id,
     });
 
-    // Cooldown check
     if (verificationToken) {
       const nextAllowedResend = new Date(
         verificationToken.updatedAt.getTime() + 15 * 60 * 1000,
@@ -377,13 +410,9 @@ class AuthService {
       }
     }
 
-    // Generate a new verification token
     const { token, tokenHash } = generateVerificationToken();
-
-    // Calculate expiry
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
-    // Update existing document or create a new one
     await VerificationToken.findOneAndUpdate(
       {
         user: user._id,
@@ -398,7 +427,6 @@ class AuthService {
       },
     );
 
-    // Send verification email
     await emailService.sendVerificationEmail(user.email, user.firstName, token);
 
     return {

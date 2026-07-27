@@ -1,8 +1,9 @@
 import { Router } from "express";
 
 import authController from "../controllers/auth.controller";
-
 import validate from "../../../middleware/validate";
+import passport from "../../../config/passport";
+import env from "../../../config/env";
 
 import {
   forgotPasswordSchema,
@@ -10,19 +11,12 @@ import {
   resendVerificationSchema,
   resetPasswordSchema,
 } from "../validators/auth.validator";
-
 import { verifyEmailSchema } from "../validators/verifyEmail.validator";
-
 import { loginSchema } from "../validators/login.validator";
-
-import { refreshTokenRequestSchema } from "../validators/refresh-token.validator";
-
-import { logoutSchema } from "../validators/logout.validator";
+import { updateProfileSchema } from "../validators/update-profile.validator";
 
 import authMiddleware from "../../../middleware/auth.middleware";
-
 import getCurrentUser from "../controllers/me.controller";
-import { updateProfileSchema } from "../validators/update-profile.validator";
 import { updateProfileController } from "../controllers/update-profile.controller";
 
 const authRoutes = Router();
@@ -37,11 +31,7 @@ authRoutes.get(
 
 authRoutes.post("/login", validate(loginSchema), authController.login);
 
-authRoutes.post(
-  "/refresh-token",
-  validate(refreshTokenRequestSchema),
-  authController.refreshToken,
-);
+authRoutes.post("/refresh-token", authController.refreshToken);
 
 authRoutes.post(
   "/forgot-password",
@@ -61,6 +51,46 @@ authRoutes.post(
   authController.resendVerification,
 );
 
+// --- OAuth Routes ---
+
+// Google OAuth
+authRoutes.get(
+  "/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    session: false,
+  }),
+);
+
+authRoutes.get(
+  "/google/callback",
+  passport.authenticate("google", {
+    session: false,
+    failureRedirect: `${env.FRONTEND_URL}/login?error=google_auth_failed`,
+  }),
+  authController.oauthCallback,
+);
+
+// GitHub OAuth
+authRoutes.get(
+  "/github",
+  passport.authenticate("github", {
+    scope: ["user:email"],
+    session: false,
+  }),
+);
+
+authRoutes.get(
+  "/github/callback",
+  passport.authenticate("github", {
+    session: false,
+    failureRedirect: `${env.FRONTEND_URL}/login?error=github_auth_failed`,
+  }),
+  authController.oauthCallback,
+);
+
+// --- Protected User Routes ---
+
 authRoutes.get("/me", authMiddleware, getCurrentUser);
 
 authRoutes.patch(
@@ -70,11 +100,6 @@ authRoutes.patch(
   updateProfileController,
 );
 
-authRoutes.post(
-  "/logout",
-  authMiddleware,
-  validate(logoutSchema),
-  authController.logout,
-);
+authRoutes.post("/logout", authMiddleware, authController.logout);
 
 export default authRoutes;

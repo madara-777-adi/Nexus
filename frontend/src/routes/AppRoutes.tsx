@@ -3,7 +3,7 @@ import { HomePage } from "../pages/HomePage";
 import { LoginPage } from "../pages/auth/LoginPage";
 import { RegisterPage } from "../pages/auth/RegisterPage";
 import { VerifyEmailPage } from "../pages/auth/VerifyEmailPage";
-import { DashboardPage } from "../pages/dashboard/DashboardPage";
+import { Dashboard } from "../pages/dashboard/DashboardPage";
 import { ProtectedRoute } from "../components/common/ProtectedRoute";
 
 export function AppRoutes() {
@@ -15,7 +15,7 @@ export function AppRoutes() {
       <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Route>
     </Routes>
   );

@@ -1,4 +1,4 @@
-import api from "./axios";
+import api, { setAccessToken } from "./axios";
 
 export interface RegisterPayload {
   firstName: string;
@@ -12,10 +12,6 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface LogoutPayload {
-  refreshToken?: string;
-}
-
 export const authApi = {
   register: async (payload: RegisterPayload) => {
     const response = await api.post("/auth/register", payload);
@@ -25,8 +21,15 @@ export const authApi = {
   login: async (payload: LoginPayload) => {
     const response = await api.post("/auth/login", payload);
     if (response.data.data?.accessToken) {
-      localStorage.setItem("accessToken", response.data.data.accessToken);
-      localStorage.setItem("refreshToken", response.data.data.refreshToken);
+      setAccessToken(response.data.data.accessToken);
+    }
+    return response.data;
+  },
+
+  refreshToken: async () => {
+    const response = await api.post("/auth/refresh-token");
+    if (response.data.data?.accessToken) {
+      setAccessToken(response.data.data.accessToken);
     }
     return response.data;
   },
@@ -36,13 +39,11 @@ export const authApi = {
     return response.data;
   },
 
-  logout: async (payload?: LogoutPayload) => {
-    const refreshToken =
-      payload?.refreshToken || localStorage.getItem("refreshToken");
-    if (refreshToken) {
-      await api.post("/auth/logout", { refreshToken });
+  logout: async () => {
+    try {
+      await api.post("/auth/logout");
+    } finally {
+      setAccessToken(null);
     }
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
   },
 };

@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { SocialAuthButtons } from "./SocialAuthButtons";
 
 export function LoginForm() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -12,6 +14,18 @@ export function LoginForm() {
   });
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  // Catch OAuth redirect errors from backend query params
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam === "google_auth_failed") {
+      setErrorMessage("Google authentication failed. Please try again.");
+    } else if (errorParam === "github_auth_failed") {
+      setErrorMessage("GitHub authentication failed. Please try again.");
+    } else if (errorParam === "oauth_processing_failed") {
+      setErrorMessage("Could not complete social sign-in. Please try again.");
+    }
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -30,7 +44,9 @@ export function LoginForm() {
       navigate("/dashboard");
     } catch (err: any) {
       setErrorMessage(
-        err.response?.data?.message || err.message || "Invalid email or password."
+        err.response?.data?.message ||
+          err.message ||
+          "Invalid email or password.",
       );
     } finally {
       setLoading(false);
@@ -50,7 +66,9 @@ export function LoginForm() {
       )}
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-400 font-medium">Email Address</label>
+        <label className="text-xs text-gray-400 font-medium">
+          Email Address
+        </label>
         <input
           type="email"
           name="email"
@@ -82,6 +100,9 @@ export function LoginForm() {
       >
         {loading ? "Signing In..." : "Sign In"}
       </button>
+
+      {/* Social OAuth Buttons */}
+      <SocialAuthButtons />
     </form>
   );
 }

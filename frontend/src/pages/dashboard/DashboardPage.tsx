@@ -1,83 +1,188 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { workspaceApi } from "../../api/workspace.api";
+import { CreateWorkspaceModal } from "../../components/workspace/CreateWorkspaceModal";
+import type { IWorkspace } from "../../types/workspace.types";
 
-export function DashboardPage() {
-  const navigate = useNavigate();
+export function Dashboard() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/login");
+  const [workspaces, setWorkspaces] = useState<IWorkspace[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [error, setError] = useState("");
+
+  // Fetch workspaces on component mount
+  useEffect(() => {
+    const fetchWorkspaces = async () => {
+      try {
+        const response = await workspaceApi.getAllWorkspaces();
+        setWorkspaces(response.data);
+      } catch (err: any) {
+        setError(
+          err.response?.data?.message || "Failed to load workspaces.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkspaces();
+  }, []);
+
+  const handleWorkspaceCreated = (newWorkspace: IWorkspace) => {
+    setWorkspaces((prev) => [newWorkspace, ...prev]);
   };
 
   return (
-    <div className="min-h-screen bg-midnight text-white p-8 flex flex-col items-center justify-center font-sans">
-      <div className="bg-surface border border-surface-border p-8 rounded-3xl max-w-2xl w-full shadow-2xl flex flex-col gap-6">
-        <div className="flex justify-between items-center border-b border-surface-border pb-4">
-          <div>
-            <span className="font-merkur text-neon-lime text-lg block">
-              Identity Authenticated
+    <div className="min-h-screen bg-midnight text-white flex flex-col">
+      {/* Top Navigation */}
+      <header className="border-b border-surface-border bg-[#0d1117]/80 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="font-neovision text-neon-lime text-xl tracking-wider uppercase font-bold">
+            NexusSpace
+          </span>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {/* User Info & Avatar */}
+          <div className="flex items-center gap-3">
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.firstName}
+                className="w-8 h-8 rounded-full border border-neon-lime/40 object-cover"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-surface-border text-neon-lime flex items-center justify-center font-bold text-xs uppercase">
+                {user?.firstName?.[0] || "U"}
+              </div>
+            )}
+            <span className="text-xs text-gray-300 font-medium hidden sm:inline">
+              {user?.firstName} {user?.lastName}
             </span>
-            <h1 className="font-neovision text-3xl tracking-wider text-white">
-              NEXUS DASHBOARD
-            </h1>
           </div>
+
           <button
-            onClick={handleLogout}
-            className="bg-red-500/10 text-red-400 border border-red-500/30 font-neovision px-6 py-2.5 rounded-xl hover:bg-red-500 hover:text-white transition-all cursor-pointer uppercase text-sm tracking-wider"
+            onClick={logout}
+            className="text-xs text-gray-400 hover:text-red-400 border border-surface-border hover:border-red-500/40 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
           >
-            Log Out
+            Logout
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 flex flex-col gap-8">
+        {/* Welcome Section & CTA */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-surface-border/50">
+          <div>
+            <h1 className="font-neovision text-2xl md:text-3xl text-white tracking-wide">
+              WORKSPACES
+            </h1>
+            <p className="text-xs text-gray-400 mt-1">
+              Select or create a workspace to manage your knowledge nodes.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-neon-lime text-midnight font-bold text-xs uppercase tracking-wider px-5 py-3 rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-neon-lime/10"
+          >
+            <span>+</span> New Workspace
           </button>
         </div>
 
-        {user && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="bg-midnight p-4 rounded-xl border border-surface-border">
-              <span className="text-gray-400 block text-xs mb-1">
-                User Identifier
-              </span>
-              <span className="font-mono text-neon-lime font-semibold">
-                {user.userId}
-              </span>
-            </div>
-
-            <div className="bg-midnight p-4 rounded-xl border border-surface-border">
-              <span className="text-gray-400 block text-xs mb-1">
-                Full Name
-              </span>
-              <span className="text-white font-medium">
-                {user.firstName} {user.lastName}
-              </span>
-            </div>
-
-            <div className="bg-midnight p-4 rounded-xl border border-surface-border">
-              <span className="text-gray-400 block text-xs mb-1">
-                Email Address
-              </span>
-              <span className="text-white font-medium">{user.email}</span>
-            </div>
-
-            <div className="bg-midnight p-4 rounded-xl border border-surface-border">
-              <span className="text-gray-400 block text-xs mb-1">
-                Account Status
-              </span>
-              <span className="text-neon-lime font-medium uppercase text-xs">
-                {user.accountStatus}
-              </span>
-            </div>
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-500/20 text-red-400 border border-red-500/30 p-4 rounded-xl text-xs font-semibold">
+            {error}
           </div>
         )}
 
-        <div className="bg-midnight/60 border border-neon-lime/20 p-6 rounded-2xl flex flex-col gap-2">
-          <h2 className="font-neovision text-lg text-neon-lime">
-            WORKSPACE MODULE PLACEHOLDER
-          </h2>
-          <p className="text-gray-400 text-xs leading-relaxed">
-            Frontend & Backend Identity Modules are 100% complete and connected.
-            Next: Workspace construction!
-          </p>
-        </div>
-      </div>
+        {/* Loading State Skeleton */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className="bg-[#0d1117] border border-surface-border/50 rounded-2xl p-5 animate-pulse flex flex-col gap-3 h-40"
+              >
+                <div className="h-5 bg-surface-border/40 rounded w-1/2"></div>
+                <div className="h-4 bg-surface-border/20 rounded w-3/4"></div>
+                <div className="mt-auto h-3 bg-surface-border/30 rounded w-1/4"></div>
+              </div>
+            ))}
+          </div>
+        ) : workspaces.length === 0 ? (
+          /* Empty State */
+          <div className="bg-[#0d1117] border border-dashed border-surface-border rounded-2xl p-12 text-center flex flex-col items-center justify-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-surface-border/30 flex items-center justify-center text-neon-lime text-xl">
+              📂
+            </div>
+            <div>
+              <h3 className="text-white text-base font-semibold">
+                No Workspaces Found
+              </h3>
+              <p className="text-gray-400 text-xs mt-1 max-w-sm">
+                You haven't created any workspaces yet. Click below to start building your knowledge base.
+              </p>
+            </div>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="mt-2 bg-neon-lime text-midnight font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity cursor-pointer"
+            >
+              Create Workspace
+            </button>
+          </div>
+        ) : (
+          /* Workspace Cards Grid */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {workspaces.map((ws) => (
+              <div
+                key={ws.workspaceId}
+                onClick={() => navigate(`/workspace/${ws.workspaceId}`)}
+                className="group bg-[#0d1117] border border-surface-border hover:border-neon-lime/60 rounded-2xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between hover:shadow-xl hover:shadow-neon-lime/5"
+              >
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-white font-bold text-base group-hover:text-neon-lime transition-colors line-clamp-1">
+                      {ws.title}
+                    </h3>
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider border ${
+                        ws.visibility === "PUBLIC"
+                          ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                          : "bg-surface-border/50 text-gray-400 border-surface-border"
+                      }`}
+                    >
+                      {ws.visibility}
+                    </span>
+                  </div>
+
+                  <p className="text-gray-400 text-xs line-clamp-2 leading-relaxed">
+                    {ws.description || "No description provided."}
+                  </p>
+                </div>
+
+                <div className="mt-6 pt-3 border-t border-surface-border/40 flex items-center justify-between text-[11px] text-gray-500">
+                  <span>ID: {ws.workspaceId}</span>
+                  <span>{new Date(ws.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Create Workspace Modal */}
+      <CreateWorkspaceModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onWorkspaceCreated={handleWorkspaceCreated}
+      />
     </div>
   );
 }

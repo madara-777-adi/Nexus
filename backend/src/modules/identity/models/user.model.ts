@@ -39,7 +39,7 @@ const userSchema = new Schema<IUser>(
 
     password: {
       type: String,
-      required: true,
+      required: false, // Made optional to allow OAuth users without passwords
       minlength: 8,
       select: false,
     },
@@ -48,6 +48,24 @@ const userSchema = new Schema<IUser>(
       type: [String],
       default: [],
       select: false,
+    },
+
+    provider: {
+      type: String,
+      enum: ["LOCAL", "GOOGLE", "GITHUB"],
+      default: "LOCAL",
+    },
+
+    googleId: {
+      type: String,
+      default: null,
+      sparse: true, // Sparse allows multiple documents to have 'null' without unique constraint collisions
+    },
+
+    githubId: {
+      type: String,
+      default: null,
+      sparse: true,
     },
 
     avatar: {
@@ -60,6 +78,7 @@ const userSchema = new Schema<IUser>(
       enum: ["USER", "ADMIN"],
       default: "USER",
     },
+
     bio: {
       type: String,
       trim: true,
