@@ -8,9 +8,18 @@ import { errorMiddleware } from "./middleware/error.middleware";
 
 const app = express();
 
+// Combine local development origins and production FRONTEND_URL
+const allowedOrigins = Array.from(
+  new Set(
+    ["http://localhost:5173", "http://localhost:3000", env.FRONTEND_URL].filter(
+      Boolean,
+    ),
+  ),
+);
+
 app.use(
   cors({
-    origin: env.FRONTEND_URL,
+    origin: allowedOrigins,
     credentials: true,
   }),
 );

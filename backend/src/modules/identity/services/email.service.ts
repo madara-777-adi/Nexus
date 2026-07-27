@@ -9,7 +9,8 @@ class EmailService {
     firstName: string,
     token: string,
   ): Promise<void> {
-    const verificationUrl = `${env.FRONTEND_URL}/verify-email/${token}`;
+    // Ensure the backend builds the link with ?token=
+    const verificationUrl = `${env.FRONTEND_URL}/verify-email?token=${token}`;
     const html = verificationEmailTemplate(firstName, verificationUrl);
     await resend.emails.send({
       from: env.EMAIL_FROM,

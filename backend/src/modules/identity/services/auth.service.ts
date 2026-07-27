@@ -77,11 +77,26 @@ class AuthService {
   }
 
   async verifyEmail(token: string) {
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    if (!token) {
+      throw new BadRequestError("Verification token is required.");
+    }
+
+    // Clean whitespace/line breaks from URL parameters
+    const cleanToken = token.trim();
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(cleanToken)
+      .digest("hex");
+
+    // 🔍 Debug Logs - Check your backend terminal when clicking the link
+    console.log("👉 Received Raw Token:", cleanToken);
+    console.log("👉 Computed Token Hash:", tokenHash);
 
     const verificationRecord = await VerificationToken.findOne({
       tokenHash,
     });
+
+    console.log("👉 Found DB Record:", verificationRecord ? "YES" : "NO");
 
     if (!verificationRecord) {
       throw new BadRequestError("Invalid or expired verification link.");
@@ -202,7 +217,7 @@ class AuthService {
   }
 
   async refreshToken(data: RefreshTokenDTO) {
-    let decoded : JwtPayload;
+    let decoded: JwtPayload;
     try {
       decoded = jwt.verify(
         data.refreshToken,

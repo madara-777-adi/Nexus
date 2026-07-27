@@ -12,6 +12,10 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface LogoutPayload {
+  refreshToken?: string;
+}
+
 export const authApi = {
   register: async (payload: RegisterPayload) => {
     const response = await api.post("/auth/register", payload);
@@ -32,8 +36,9 @@ export const authApi = {
     return response.data;
   },
 
-  logout: async () => {
-    const refreshToken = localStorage.getItem("refreshToken");
+  logout: async (payload?: LogoutPayload) => {
+    const refreshToken =
+      payload?.refreshToken || localStorage.getItem("refreshToken");
     if (refreshToken) {
       await api.post("/auth/logout", { refreshToken });
     }
