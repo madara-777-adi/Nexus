@@ -5,6 +5,7 @@ import { RegisterPage } from "../pages/auth/RegisterPage";
 import { VerifyEmailPage } from "../pages/auth/VerifyEmailPage";
 import { Dashboard } from "../pages/dashboard/DashboardPage";
 import { ProtectedRoute } from "../components/common/ProtectedRoute";
+import { WorkspacePage } from "../pages/workspace/WorkspacePage";
 
 export function AppRoutes() {
   return (
@@ -16,6 +17,7 @@ export function AppRoutes() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/workspaces/:workspaceId" element={<WorkspacePage />} />
       </Route>
     </Routes>
   );
