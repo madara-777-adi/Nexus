@@ -1,83 +1,116 @@
-import { useState, useCallback } from "react";
-import { type TeacherContext } from "../types/ai.types";
-import { type TeacherLesson } from "../types/ai.types";
+import { useState, useCallback, useRef } from "react";
+import api, { getAccessToken } from "../api/axios";
+
+interface StreamOptions {
+  conceptId: string;
+  workspaceId: string;
+  prompt?: string;
+}
 
 export function useTeacherStream() {
-  const [lessonText, setLessonText] = useState<string>("");
-  const [parsedLesson, setParsedLesson] = useState<Partial<TeacherLesson> | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [content, setContent] = useState<string>("");
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Abort controller ref to cancel ongoing streams when switching concepts
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const streamLesson = useCallback(async (context: TeacherContext) => {
-    setIsLoading(true);
+  const startStream = useCallback(async ({ conceptId, workspaceId, prompt }: StreamOptions) => {
+    // 1. Cancel any active stream before starting a new one
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setIsStreaming(true);
+    setContent("");
     setError(null);
-    setLessonText("");
-    setParsedLesson(null);
-
-    const baseUrl = import.meta.env.VITE_API_URL || "https://api.nexusspace.tech";
 
     try {
-      const response = await fetch(`${baseUrl}/api/v1/ai/teacher/stream`, {
+      const token = getAccessToken();
+      const baseUrl = api.defaults.baseURL;
+
+      const response = await fetch(`${baseUrl}/ai/teacher/stream`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: "include",
-        body: JSON.stringify(context),
+        signal: controller.signal,
+        body: JSON.stringify({ conceptId, workspaceId, prompt }),
       });
 
       if (!response.ok) {
-        throw new Error(`Stream failed with status: ${response.status}`);
+        if (response.status === 401) {
+          throw new Error("Session expired. Please log in again.");
+        }
+        if (response.status === 429) {
+          throw new Error("Quota limit reached. Please wait a few minutes before streaming another lesson.");
+        }
+        throw new Error(`Failed to initialize stream (HTTP ${response.status})`);
       }
 
       if (!response.body) {
-        throw new Error("No readable stream received.");
+        throw new Error("ReadableStream not supported by browser or empty body.");
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
-      let accumulatedText = "";
+      let buffer = "";
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n\n");
+        // Append new network chunk to our carry-over buffer
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Split by SSE message boundary (\n\n)
+        const parts = buffer.split("\n\n");
+        
+        // Retain the last un-delimited part in the buffer for the next iteration
+        buffer = parts.pop() || "";
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const dataStr = line.replace("data: ", "").trim();
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith("data:")) continue;
 
-            if (dataStr === "[DONE]") {
-              break;
-            }
+          const jsonStr = line.replace(/^data:\s*/, "");
+          if (jsonStr === "[DONE]") break;
 
-            try {
-              const { chunk: contentChunk } = JSON.parse(dataStr);
-              if (contentChunk) {
-                accumulatedText += contentChunk;
-                setLessonText(accumulatedText);
-
-                try {
-                  const partialJson = JSON.parse(accumulatedText);
-                  setParsedLesson(partialJson);
-                } catch {
-                  // Buffer is mid-chunk JSON, continue stream accumulation
-                }
-              }
-            } catch {
-              // Ignore line parse noise
-            }
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const chunkText = parsed.text || parsed.content || parsed.delta || "";
+            setContent((prev) => prev + chunkText);
+          } catch {
+            // Buffer safety: Ignore incomplete JSON lines that will settle on next chunk
           }
         }
       }
     } catch (err: any) {
-      setError(err.message || "Failed to stream lesson from teacher.");
+      if (err.name === "AbortError") {
+        // Stream intentionally cancelled due to node switch
+        return;
+      }
+      console.error("Teacher stream error:", err);
+      setError(err.message || "An error occurred while streaming the lesson.");
     } finally {
-      setIsLoading(false);
+      if (abortControllerRef.current === controller) {
+        setIsStreaming(false);
+      }
     }
   }, []);
 
-  return { streamLesson, lessonText, parsedLesson, isLoading, error };
+  const stopStream = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsStreaming(false);
+  }, []);
+
+  return { content, isStreaming, error, startStream, stopStream };
 }

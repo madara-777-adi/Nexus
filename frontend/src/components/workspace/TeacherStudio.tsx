@@ -6,6 +6,7 @@ import { ConceptStatus } from "../../types/learning.types";
 import type { QuizQuestion } from "../../types/ai.types";
 
 interface TeacherStudioProps {
+  workspaceId: string;
   workspaceTitle: string;
   conceptId: string;
   conceptTitle: string;
@@ -15,6 +16,7 @@ interface TeacherStudioProps {
 }
 
 export function TeacherStudio({
+  workspaceId,
   workspaceTitle,
   conceptId,
   conceptTitle,
@@ -22,28 +24,40 @@ export function TeacherStudio({
   onClose,
   onProgressUpdated,
 }: TeacherStudioProps) {
-  const { streamLesson, parsedLesson, isLoading, error } = useTeacherStream();
+  // Destructure stopStream/abort to prevent background SSE races (Flaw #9)
+  const { streamLesson, stopStream, parsedLesson, isLoading, error } = useTeacherStream();
   const [activeTab, setActiveTab] = useState<"lesson" | "quiz">("lesson");
 
-  // Quiz state
+  // Quiz evaluation state
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
   const [evaluationScore, setEvaluationScore] = useState<number | null>(null);
   const [unlockedNodes, setUnlockedNodes] = useState<string[]>([]);
 
   useEffect(() => {
-    // Trigger SSE stream on concept select
+    // 1. Trigger SSE stream on concept select, passing workspaceId for backend quota & auth checks
     streamLesson({
+      workspaceId,
       workspaceTitle,
+      conceptId,
       conceptTitle,
       difficulty: "Intermediate",
       preferredDepth: "Balanced",
     });
-    // Reset state on concept change
+
+    // 2. Reset diagnostic state on concept change
     setUserAnswers({});
     setEvaluationScore(null);
     setUnlockedNodes([]);
-  }, [conceptId, conceptTitle, workspaceTitle, streamLesson]);
+    setActiveTab("lesson");
+
+    // 3. Cleanup: abort active SSE connection if user switches nodes or closes panel (Flaw #9)
+    return () => {
+      if (stopStream) {
+        stopStream();
+      }
+    };
+  }, [workspaceId, workspaceTitle, conceptId, conceptTitle, streamLesson, stopStream]);
 
   const handleOptionSelect = (questionIndex: number, optionIndex: number) => {
     setUserAnswers((prev) => ({ ...prev, [questionIndex]: optionIndex }));
@@ -64,19 +78,21 @@ export function TeacherStudio({
             : "No answer provided",
       }));
 
-      // 1. Send submission to AI Evaluator Engine
+      // 1. Send submission to AI Evaluator Engine (pass workspaceId to enforce ownership)
       const result = await evaluateSubmission({
+        workspaceId,
+        conceptId,
         conceptTitle,
         questions: quizList,
         learnerAnswers,
       });
 
-      const masteryScore = result.evaluation.mastery;
+      const masteryScore = result.evaluation?.mastery ?? 0;
       setEvaluationScore(masteryScore);
 
-      // 2. Record score in deterministic backend Learning Engine & check graph unlock cascade
-      const recordResult = await recordEvaluationResult(conceptId, masteryScore);
-      setUnlockedNodes(recordResult.unlockedDownstreamIds);
+      // 2. Record score in Learning Engine passing workspaceId to prevent horizontal privilege escalation (Flaw #4)
+      const recordResult = await recordEvaluationResult(workspaceId, conceptId, masteryScore);
+      setUnlockedNodes(recordResult?.unlockedDownstreamIds || []);
 
       if (onProgressUpdated) {
         onProgressUpdated();
@@ -89,7 +105,7 @@ export function TeacherStudio({
   };
 
   return (
-    <div className="flex h-full w-full flex-col border-l border-slate-800 bg-[#0B0E14] text-slate-200">
+    <div className="flex h-full w-full flex-col border-l border-slate-800 bg-[#080A0F] text-slate-200">
       {/* Studio Header */}
       <div className="flex items-center justify-between border-b border-slate-800 bg-[#080A0F] p-4">
         <div>
@@ -106,7 +122,10 @@ export function TeacherStudio({
         </div>
 
         <button
-          onClick={onClose}
+          onClick={() => {
+            if (stopStream) stopStream();
+            onClose();
+          }}
           className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-400 transition-colors hover:border-slate-700 hover:text-white"
         >
           ✕
