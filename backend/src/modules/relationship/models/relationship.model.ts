@@ -75,8 +75,8 @@ relationshipSchema.index(
   { unique: true },
 );
 
-// Fast bidirectional graph lookup indexes
-relationshipSchema.index({ workspace: 1, sourceConcept: 1 });
+// Bidirectional graph lookup index for target concepts
+// Note: { workspace: 1, sourceConcept: 1 } is already covered by the unique compound index prefix above.
 relationshipSchema.index({ workspace: 1, targetConcept: 1 });
 
 const RelationshipModel = model<IRelationship>(

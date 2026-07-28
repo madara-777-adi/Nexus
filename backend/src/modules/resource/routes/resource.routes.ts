@@ -6,6 +6,7 @@ import {
   createResourceSchema,
   updateResourceSchema,
   conceptResourceParamsSchema,
+  resourceParamsSchema,
 } from "../validators/resource.validator";
 
 const resourceRoutes = Router({ mergeParams: true });
@@ -29,17 +30,20 @@ resourceRoutes.get(
 // Individual resource endpoints
 resourceRoutes.get(
   "/resources/:resourceId",
+  validate(resourceParamsSchema, "params"),
   resourceController.getOne,
 );
 
 resourceRoutes.patch(
   "/resources/:resourceId",
+  validate(resourceParamsSchema, "params"),
   validate(updateResourceSchema),
   resourceController.update,
 );
 
 resourceRoutes.delete(
   "/resources/:resourceId",
+  validate(resourceParamsSchema, "params"),
   resourceController.delete,
 );
 

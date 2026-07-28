@@ -1,21 +1,46 @@
 import { Router } from "express";
-import aiController from "../controllers/ai.controller";
-import authMiddleware from "../../../middleware/auth.middleware";
-import validate from "../../../middleware/validate";
+import { AIController } from "../controllers/ai.controller";
 import {
-  generateResourceSchema,
-  conceptParamsSchema,
+  validateAIRequest,
+  teacherStreamSchema,
+  evaluatorSchema,
+  plannerSchema,
+  resourceGeneratorSchema,
+  quizGeneratorSchema,
 } from "../validators/ai.validator";
 
-const aiRoutes = Router({ mergeParams: true });
+const router = Router();
 
-aiRoutes.use(authMiddleware);
-
-aiRoutes.post(
-  "/concepts/:conceptId/generate-resource",
-  validate(conceptParamsSchema, "params"),
-  validate(generateResourceSchema),
-  aiController.generateResource,
+// Core AI Operations
+router.post(
+  "/teacher/stream",
+  validateAIRequest(teacherStreamSchema),
+  AIController.streamLesson
 );
 
-export default aiRoutes;
+router.post(
+  "/evaluator/evaluate",
+  validateAIRequest(evaluatorSchema),
+  AIController.evaluateSubmission
+);
+
+router.post(
+  "/planner/plan",
+  validateAIRequest(plannerSchema),
+  AIController.planPath
+);
+
+// Content Generation Operations
+router.post(
+  "/generator/resources",
+  validateAIRequest(resourceGeneratorSchema),
+  AIController.generateResources
+);
+
+router.post(
+  "/generator/quiz",
+  validateAIRequest(quizGeneratorSchema),
+  AIController.generateQuiz
+);
+
+export default router;

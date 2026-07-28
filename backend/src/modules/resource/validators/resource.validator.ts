@@ -29,5 +29,9 @@ export const conceptResourceParamsSchema = z.object({
   conceptId: z.string().min(1, "Concept ID is required"),
 });
 
+export const resourceParamsSchema = z.object({
+  resourceId: z.string().min(1, "Resource ID is required"),
+});
+
 export type CreateResourceDTO = z.infer<typeof createResourceSchema>;
 export type UpdateResourceDTO = z.infer<typeof updateResourceSchema>;

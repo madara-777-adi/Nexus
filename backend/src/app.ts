@@ -12,6 +12,7 @@ import authRoutes from "./modules/identity/routes/auth.routes";
 import notFoundMiddleware from "./middleware/not-found.middleware";
 import { errorMiddleware } from "./middleware/error.middleware";
 import aiRoutes from "./modules/ai/routes/ai.routes";
+import learningRoutes from "./modules/learning/routes/learning.routes";
 
 const app = express();
 
@@ -60,6 +61,8 @@ app.use("/api/v1", relationshipRoutes);
 app.use("/api/v1", resourceRoutes);
 
 app.use("/api/v1", aiRoutes);
+
+app.use("/api/v1", learningRoutes);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

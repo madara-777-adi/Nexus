@@ -92,7 +92,8 @@ const resourceSchema = new Schema<IResource>(
   },
 );
 
-resourceSchema.index({ workspace: 1, concept: 1 });
+// Compound index supporting filtering by concept and sorting by creation date
+resourceSchema.index({ workspace: 1, concept: 1, createdAt: -1 });
 
 const ResourceModel = model<IResource>("Resource", resourceSchema);
 

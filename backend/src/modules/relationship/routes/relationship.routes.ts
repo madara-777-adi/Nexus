@@ -5,6 +5,8 @@ import validate from "../../../middleware/validate";
 import {
   createRelationshipSchema,
   workspaceParamsSchema,
+  conceptParamsSchema,
+  relationshipParamsSchema,
 } from "../validators/relationship.validator";
 
 const relationshipRoutes = Router({ mergeParams: true });
@@ -28,12 +30,14 @@ relationshipRoutes.get(
 // Concept graph neighborhood
 relationshipRoutes.get(
   "/concepts/:conceptId/relationships",
+  validate(conceptParamsSchema, "params"),
   relationshipController.getNeighborhood,
 );
 
 // Delete edge
 relationshipRoutes.delete(
   "/relationships/:relationshipId",
+  validate(relationshipParamsSchema, "params"),
   relationshipController.delete,
 );
 

@@ -100,15 +100,16 @@ class RelationshipService {
       throw new ForbiddenError("Access denied.");
     }
 
+    // Include workspace in query predicates to leverage compound indexes ({ workspace: 1, sourceConcept: 1 }, etc.)
     const [outgoing, incoming] = await Promise.all([
-      RelationshipModel.find({ sourceConcept: concept._id }).populate(
-        "targetConcept",
-        "conceptId title",
-      ),
-      RelationshipModel.find({ targetConcept: concept._id }).populate(
-        "sourceConcept",
-        "conceptId title",
-      ),
+      RelationshipModel.find({
+        workspace: concept.workspace,
+        sourceConcept: concept._id,
+      }).populate("targetConcept", "conceptId title"),
+      RelationshipModel.find({
+        workspace: concept.workspace,
+        targetConcept: concept._id,
+      }).populate("sourceConcept", "conceptId title"),
     ]);
 
     return { conceptId, outgoing, incoming };

@@ -4,7 +4,6 @@ import ResourceModel, {
   ResourceSource,
 } from "../models/resource.model";
 import ConceptModel from "../../concept/models/concept.model";
-import Workspace from "../../workspace/models/workspace.model";
 import {
   CreateResourceDTO,
   UpdateResourceDTO,
@@ -23,14 +22,13 @@ class ResourceService {
       throw new NotFoundError("Target concept not found.");
     }
 
-    const workspace = await Workspace.findById(concept.workspace);
-    if (!workspace || !workspace.owner.equals(userObjectId)) {
+    if (!concept.owner.equals(userObjectId)) {
       throw new ForbiddenError(
         "You do not have access to modify resources for this concept.",
       );
     }
 
-    return { concept, workspace };
+    return { concept, workspaceId: concept.workspace };
   }
 
   async createResource(
@@ -38,7 +36,7 @@ class ResourceService {
     userObjectId: Types.ObjectId,
     dto: CreateResourceDTO,
   ): Promise<IResource> {
-    const { concept, workspace } = await this.verifyConceptOwnership(
+    const { concept, workspaceId } = await this.verifyConceptOwnership(
       conceptId,
       userObjectId,
     );
@@ -50,7 +48,7 @@ class ResourceService {
 
     return ResourceModel.create({
       resourceId,
-      workspace: workspace._id,
+      workspace: workspaceId,
       concept: concept._id,
       owner: userObjectId,
       title: dto.title,
@@ -63,11 +61,14 @@ class ResourceService {
     conceptId: string,
     userObjectId: Types.ObjectId,
   ): Promise<IResource[]> {
-    const { concept } = await this.verifyConceptOwnership(
+    const { concept, workspaceId } = await this.verifyConceptOwnership(
       conceptId,
       userObjectId,
     );
-    return ResourceModel.find({ concept: concept._id }).sort({ createdAt: -1 });
+    return ResourceModel.find({
+      workspace: workspaceId,
+      concept: concept._id,
+    }).sort({ createdAt: -1 });
   }
 
   async getResourceById(
@@ -105,12 +106,13 @@ class ResourceService {
     if (dto.title !== undefined) resource.title = dto.title;
     if (dto.source !== undefined) resource.source = dto.source;
 
-    // Merge updated structured content fields without overwriting untouched ones
+    // Safely merge subdocument using parent document's .toObject()
     if (dto.content !== undefined) {
-      resource.content = {
-        ...resource.content,
+      const plainContent = resource.toObject().content || {};
+      resource.set("content", {
+        ...plainContent,
         ...dto.content,
-      };
+      });
     }
 
     await resource.save();

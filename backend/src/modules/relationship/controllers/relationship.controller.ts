@@ -26,11 +26,24 @@ class RelationshipController {
     res.setHeader("Content-Type", "application/x-ndjson");
     res.setHeader("Transfer-Encoding", "chunked");
 
-    for await (const edge of cursor) {
-      res.write(JSON.stringify(edge) + "\n");
-    }
+    // Handle early client disconnect to clean up DB cursor
+    req.on("close", () => {
+      cursor.close().catch(() => {});
+    });
 
-    res.end();
+    try {
+      for await (const edge of cursor) {
+        res.write(JSON.stringify(edge) + "\n");
+      }
+      res.end();
+    } catch (error) {
+      cursor.close().catch(() => {});
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, message: "Stream failed unexpectedly" });
+      } else {
+        res.end();
+      }
+    }
   }
 
   async getNeighborhood(req: Request<{ conceptId: string }>, res: Response) {

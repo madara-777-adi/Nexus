@@ -12,4 +12,12 @@ export const workspaceParamsSchema = z.object({
   workspaceId: z.string().min(1, "Workspace ID is required"),
 });
 
+export const conceptParamsSchema = z.object({
+  conceptId: z.string().min(1, "Concept ID is required"),
+});
+
+export const relationshipParamsSchema = z.object({
+  relationshipId: z.string().min(1, "Relationship ID is required"),
+});
+
 export type CreateRelationshipDTO = z.infer<typeof createRelationshipSchema>;
