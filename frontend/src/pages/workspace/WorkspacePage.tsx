@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { WorkspaceGraph } from "../../components/workspace/WorkspaceGraph";
 import { TeacherStudio } from "../../components/workspace/TeacherStudio";
+import { ErrorBoundary } from "../../components/common/ErrorBoundary";
 import { initializeWorkspaceProgress } from "../../api/learning.api";
 import { ConceptStatus } from "../../types/learning.types";
 
@@ -84,11 +85,19 @@ export function WorkspacePage() {
               Initializing knowledge graph state...
             </div>
           ) : (
-            <WorkspaceGraph
+            // `key` lives on the ErrorBoundary (not just WorkspaceGraph) so that
+            // switching workspaces, or triggering a refresh after a quiz
+            // evaluation, also clears any previously-caught render error —
+            // otherwise a stale crashed state could persist across workspaces.
+            <ErrorBoundary
               key={`${workspaceId}_${graphRefreshKey}`}
-              workspaceId={workspaceId}
-              onSelectConcept={handleSelectConcept}
-            />
+              fallbackTitle="This workspace graph hit a runtime error"
+            >
+              <WorkspaceGraph
+                workspaceId={workspaceId}
+                onSelectConcept={handleSelectConcept}
+              />
+            </ErrorBoundary>
           )}
         </div>
 

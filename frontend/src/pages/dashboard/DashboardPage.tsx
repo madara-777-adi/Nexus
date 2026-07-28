@@ -143,7 +143,7 @@ export function Dashboard() {
             {workspaces.map((ws) => (
               <div
                 key={ws.workspaceId}
-                onClick={() => navigate(`/workspace/${ws.workspaceId}`)}
+                onClick={() => navigate(`/workspaces/${ws.workspaceId}`)}
                 className="group bg-[#0d1117] border border-surface-border hover:border-neon-lime/60 rounded-2xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between hover:shadow-xl hover:shadow-neon-lime/5"
               >
                 <div className="flex flex-col gap-2">
