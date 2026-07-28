@@ -8,25 +8,28 @@ export const setAccessToken = (token: string | null) => {
 
 export const getAccessToken = () => inMemoryAccessToken;
 
-// Resolve base URL from env with fallback to production backend + /api/v1 prefix
-const rawBaseUrl =
+// Resolve and sanitize base URL
+let rawBaseUrl =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
   "https://api.nexusspace.tech";
 
+// Clean up malformed protocol strings (e.g. "https:/api" -> "https://api")
+rawBaseUrl = rawBaseUrl.replace(/^https?:\/*/, "https://").replace(/\/$/, "");
+
+// Ensure /api/v1 suffix exists
 const baseURL = rawBaseUrl.endsWith("/api/v1")
   ? rawBaseUrl
-  : `${rawBaseUrl.replace(/\/$/, "")}/api/v1`;
+  : `${rawBaseUrl}/api/v1`;
 
 const api = axios.create({
   baseURL,
-  withCredentials: true, // Crucial for sending/receiving HttpOnly cookies
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Request interceptor: Attach in-memory access token if available
 api.interceptors.request.use(
   (config) => {
     if (inMemoryAccessToken && config.headers) {
@@ -34,16 +37,14 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor: Silently refresh access token on 401 response
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // Avoid infinite loops on auth endpoints or already retried requests
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
@@ -53,7 +54,6 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Trigger token refresh using HttpOnly cookie automatically
         const res = await api.post("/auth/refresh-token");
         const newAccessToken = res.data.data?.accessToken;
 
@@ -64,7 +64,6 @@ api.interceptors.response.use(
             originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           }
 
-          // Retry original request with fresh token
           return api(originalRequest);
         }
       } catch (refreshError) {
@@ -74,7 +73,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  },
+  }
 );
 
 export default api;
