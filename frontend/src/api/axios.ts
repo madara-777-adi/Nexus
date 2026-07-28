@@ -2,15 +2,24 @@ import axios from "axios";
 
 let inMemoryAccessToken: string | null = null;
 
-// Helper to update the in-memory access token from AuthContext or auth API
 export const setAccessToken = (token: string | null) => {
   inMemoryAccessToken = token;
 };
 
 export const getAccessToken = () => inMemoryAccessToken;
 
+// Resolve base URL from env with fallback to production backend + /api/v1 prefix
+const rawBaseUrl =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  "https://api.nexusspace.tech";
+
+const baseURL = rawBaseUrl.endsWith("/api/v1")
+  ? rawBaseUrl
+  : `${rawBaseUrl.replace(/\/$/, "")}/api/v1`;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL,
   withCredentials: true, // Crucial for sending/receiving HttpOnly cookies
   headers: {
     "Content-Type": "application/json",
