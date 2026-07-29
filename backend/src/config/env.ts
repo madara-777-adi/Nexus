@@ -26,8 +26,6 @@ const envSchema = z.object({
 
   FRONTEND_URL: z.string().url(),
 
-  // Gemini AI Key
-  GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
 
   // Google OAuth
   GOOGLE_CLIENT_ID: z.string().min(1),
