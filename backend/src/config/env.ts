@@ -27,6 +27,12 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url(),
 
 
+  // Groq AI Keys (Dual-Key Routing)
+  GROQ_API_KEY_ORGANIZER: z
+    .string()
+    .min(1, "GROQ_API_KEY_ORGANIZER is required"),
+  GROQ_API_KEY_TEACHER: z.string().min(1, "GROQ_API_KEY_TEACHER is required"),
+
   // Google OAuth
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
