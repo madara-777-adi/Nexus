@@ -1,13 +1,15 @@
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1";
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1"
+).replace(/\/$/, ""); // Ensures no trailing slash
 
 export function SocialAuthButtons() {
   const handleGoogleLogin = () => {
+    // Correctly resolves to /api/v1/auth/google
     window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
   const handleGitHubLogin = () => {
+    // Correctly resolves to /api/v1/auth/github
     window.location.href = `${API_BASE_URL}/auth/github`;
   };
 

@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { StatusCodes } from "http-status-codes";
 import workspaceService from "../services/workspace.service";
 import {
@@ -7,19 +7,34 @@ import {
 } from "../validators/workspace.validator";
 
 class WorkspaceController {
-  async create(req: Request<{}, {}, CreateWorkspaceDTO>, res: Response) {
+  async create(req: Request, res: Response, next: NextFunction) {
+  try {
     const user = (req as any).user;
+
+    // Make sure we fall back to user._id or user.id safely
+    const ownerId = user?._id || user?.id;
+
+    if (!ownerId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: User session not found.",
+      });
+    }
+
     const workspace = await workspaceService.createWorkspace(
-      user._id,
-      req.body,
+      ownerId, // <-- Explicitly pass the owner ID
+      req.body
     );
 
-    return res.status(StatusCodes.CREATED).json({
+    return res.status(201).json({
       success: true,
       message: "Workspace created successfully",
       data: workspace,
     });
+  } catch (error) {
+    next(error);
   }
+}
 
   async getAll(req: Request, res: Response) {
     const user = (req as any).user;
