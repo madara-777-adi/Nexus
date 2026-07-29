@@ -75,6 +75,7 @@ class RelationshipService {
   }
 
   // Stream-ready query for workspace edges (returns Mongoose Cursor for high-throughput streaming)
+  // Stream concepts AND relationships so unlinked nodes still show on the React Flow canvas
   async streamWorkspaceGraph(
     workspaceId: string,
     userObjectId: Types.ObjectId,
@@ -83,10 +84,23 @@ class RelationshipService {
       workspaceId,
       userObjectId,
     );
-    return RelationshipModel.find({ workspace: workspace._id })
+
+    // Fetch all concepts for this workspace
+    const concepts = await ConceptModel.find({
+      workspace: workspace._id,
+    }).select("conceptId title description");
+
+    // Fetch all populated relationships
+    const relationships = await RelationshipModel.find({
+      workspace: workspace._id,
+    })
       .populate("sourceConcept", "conceptId title")
-      .populate("targetConcept", "conceptId title")
-      .cursor();
+      .populate("targetConcept", "conceptId title");
+
+    return {
+      concepts,
+      relationships,
+    };
   }
 
   // Instant bidirectional graph neighborhood for a single concept

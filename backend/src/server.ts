@@ -1,7 +1,6 @@
+import "dotenv/config"; // MUST BE LINE 1!
 import app from "./app";
-
 import env from "./config/env";
-
 import connectDB from "./config/database";
 import logger from "./shared/logger/logger";
 

@@ -23,7 +23,7 @@ export const evaluatorSchema = z.object({
           question: z.string().min(1),
           userAnswer: z.string().min(1, "User answer cannot be empty"),
           correctAnswer: z.string().optional(),
-        })
+        }),
       )
       .min(1, "At least one answer must be submitted"),
   }),
@@ -31,9 +31,7 @@ export const evaluatorSchema = z.object({
 
 export const plannerSchema = z.object({
   body: z.object({
-    graphNodes: z.array(z.string()).min(1, "Graph nodes array cannot be empty"),
-    completedNodes: z.array(z.string()),
-    masteryMap: z.record(z.string(), z.number()),
+    workspaceId: z.string().min(1, "Workspace ID is required"),
     availableTimeMinutes: z.number().positive().optional(),
   }),
 });

@@ -1,3 +1,4 @@
+import "dotenv/config"; // MUST BE LINE 1!
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -16,10 +17,12 @@ import learningRoutes from "./modules/learning/routes/learning.routes";
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 // Combine development origins, both production domain variants (apex & www), and env.FRONTEND_URL
 const rawOrigins = [
   "http://localhost:5173",
-  "http://localhost:3000",
+  "http://localhost:5000",
   "https://nexusspace.tech",
   "https://www.nexusspace.tech",
   env.FRONTEND_URL,
@@ -51,17 +54,11 @@ app.use(passport.initialize());
 
 // Mount identity authentication routes
 app.use("/api/v1/auth", authRoutes);
-
 app.use("/api/v1/workspaces", workspaceRoutes);
-
 app.use("/api/v1", conceptRoutes);
-
 app.use("/api/v1", relationshipRoutes);
-
 app.use("/api/v1", resourceRoutes);
-
-app.use("/api/v1", aiRoutes);
-
+app.use("/api/v1/ai", aiRoutes);
 app.use("/api/v1", learningRoutes);
 
 app.use(notFoundMiddleware);

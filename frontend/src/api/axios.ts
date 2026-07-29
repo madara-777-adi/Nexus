@@ -9,18 +9,18 @@ export const setAccessToken = (token: string | null) => {
 export const getAccessToken = () => inMemoryAccessToken;
 
 // Resolve and sanitize base URL
-let rawBaseUrl =
+const rawBaseUrl =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
-  "https://api.nexusspace.tech";
+  "http://localhost:5000";
 
-// Clean up malformed protocol strings (e.g. "https:/api" -> "https://api")
-rawBaseUrl = rawBaseUrl.replace(/^https?:\/*/, "https://").replace(/\/$/, "");
+// Ensure trailing slashes are removed
+const cleanBaseUrl = rawBaseUrl.replace(/\/$/, "");
 
 // Ensure /api/v1 suffix exists
-const baseURL = rawBaseUrl.endsWith("/api/v1")
-  ? rawBaseUrl
-  : `${rawBaseUrl}/api/v1`;
+const baseURL = cleanBaseUrl.endsWith("/api/v1")
+  ? cleanBaseUrl
+  : `${cleanBaseUrl}/api/v1`;
 
 const api = axios.create({
   baseURL,

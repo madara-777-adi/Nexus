@@ -23,7 +23,7 @@ export const PlannerSchema = {
   ],
 };
 
-// Schema for generating the initial knowledge graph blueprint
+// 2-Tier Knowledge Graph Blueprint Schema (Tier 1 Pillars -> Tier 2 Core Modules)
 export const BlueprintSchema = {
   type: SchemaType.OBJECT,
   properties: {
@@ -35,8 +35,9 @@ export const BlueprintSchema = {
           id: { type: SchemaType.STRING },
           title: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
+          tier: { type: SchemaType.NUMBER }, // 1 = Major Pillar, 2 = Core Module
         },
-        required: ["id", "title", "description"],
+        required: ["id", "title", "description", "tier"],
       },
     },
     relationships: {
@@ -53,4 +54,37 @@ export const BlueprintSchema = {
     },
   },
   required: ["concepts", "relationships"],
+};
+
+// Schema for Lazy Expansion of a Tier 2 node into Tier 3 Atomic Lessons
+export const Tier3ExpansionSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    atomicLessons: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          id: { type: SchemaType.STRING },
+          title: { type: SchemaType.STRING },
+          description: { type: SchemaType.STRING },
+          tier: { type: SchemaType.NUMBER }, // Fixed at 3
+        },
+        required: ["id", "title", "description", "tier"],
+      },
+    },
+    relationships: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          sourceConceptId: { type: SchemaType.STRING },
+          targetConceptId: { type: SchemaType.STRING },
+          type: { type: SchemaType.STRING },
+        },
+        required: ["sourceConceptId", "targetConceptId", "type"],
+      },
+    },
+  },
+  required: ["atomicLessons", "relationships"],
 };

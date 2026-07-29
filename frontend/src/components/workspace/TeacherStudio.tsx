@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTeacherStream } from "../../hooks/useTeacherStream";
 import { evaluateSubmission } from "../../api/ai.api";
-import { recordEvaluationResult } from "../../api/learning.api";
 import { ConceptStatus } from "../../types/learning.types";
 import type { QuizQuestion } from "../../types/ai.types";
 
@@ -24,18 +23,15 @@ export function TeacherStudio({
   onClose,
   onProgressUpdated,
 }: TeacherStudioProps) {
-  // Destructure stopStream/abort to prevent background SSE races (Flaw #9)
   const { streamLesson, stopStream, parsedLesson, isLoading, error } = useTeacherStream();
   const [activeTab, setActiveTab] = useState<"lesson" | "quiz">("lesson");
 
-  // Quiz evaluation state
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
   const [evaluationScore, setEvaluationScore] = useState<number | null>(null);
   const [unlockedNodes, setUnlockedNodes] = useState<string[]>([]);
 
   useEffect(() => {
-    // 1. Trigger SSE stream on concept select, passing workspaceId for backend quota & auth checks
     streamLesson({
       workspaceId,
       workspaceTitle,
@@ -45,13 +41,11 @@ export function TeacherStudio({
       preferredDepth: "Balanced",
     });
 
-    // 2. Reset diagnostic state on concept change
     setUserAnswers({});
     setEvaluationScore(null);
     setUnlockedNodes([]);
     setActiveTab("lesson");
 
-    // 3. Cleanup: abort active SSE connection if user switches nodes or closes panel (Flaw #9)
     return () => {
       if (stopStream) {
         stopStream();
@@ -69,7 +63,6 @@ export function TeacherStudio({
 
     setIsEvaluating(true);
     try {
-      // Build evaluation payload
       const learnerAnswers = quizList.map((q, idx) => ({
         question: q.question,
         userAnswer:
@@ -78,7 +71,7 @@ export function TeacherStudio({
             : "No answer provided",
       }));
 
-      // 1. Send submission to AI Evaluator Engine (pass workspaceId to enforce ownership)
+      // Single unified call for grading and DB update
       const result = await evaluateSubmission({
         workspaceId,
         conceptId,
@@ -90,14 +83,12 @@ export function TeacherStudio({
       const masteryScore = result.evaluation?.mastery ?? 0;
       setEvaluationScore(masteryScore);
 
-      // 2. Record score in Learning Engine passing workspaceId to prevent horizontal privilege escalation (Flaw #4)
-      const recordResult = await recordEvaluationResult(workspaceId, conceptId, masteryScore);
-      setUnlockedNodes(recordResult?.unlockedDownstreamIds || []);
+      setUnlockedNodes(result.unlockedDownstreamIds || []);
 
       if (onProgressUpdated) {
         onProgressUpdated();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Evaluation failed:", err);
     } finally {
       setIsEvaluating(false);
@@ -106,7 +97,6 @@ export function TeacherStudio({
 
   return (
     <div className="flex h-full w-full flex-col border-l border-slate-800 bg-[#080A0F] text-slate-200">
-      {/* Studio Header */}
       <div className="flex items-center justify-between border-b border-slate-800 bg-[#080A0F] p-4">
         <div>
           <div className="flex items-center gap-2">
@@ -132,7 +122,6 @@ export function TeacherStudio({
         </button>
       </div>
 
-      {/* Navigation Tabs */}
       <div className="flex border-b border-slate-800 bg-[#080A0F] px-4">
         <button
           onClick={() => setActiveTab("lesson")}
@@ -156,7 +145,6 @@ export function TeacherStudio({
         </button>
       </div>
 
-      {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {error && (
           <div className="rounded-xl border border-red-500/30 bg-red-950/20 p-4 text-sm text-red-400">
@@ -164,7 +152,6 @@ export function TeacherStudio({
           </div>
         )}
 
-        {/* Tab 1: Streamed AI Lesson */}
         {activeTab === "lesson" && (
           <div className="space-y-6">
             {isLoading && !parsedLesson && (
@@ -239,7 +226,6 @@ export function TeacherStudio({
           </div>
         )}
 
-        {/* Tab 2: Diagnostic Evaluation Quiz */}
         {activeTab === "quiz" && (
           <div className="space-y-6">
             {evaluationScore !== null && (

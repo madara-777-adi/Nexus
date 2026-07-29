@@ -1,60 +1,44 @@
-import { SchemaType } from "@google/generative-ai";
-import { IAIProvider } from "../providers/provider.interface";
+import { groqProvider } from "../providers/groq.provider";
 import { QuizSet, QuizGeneratorContext } from "../types/ai.types";
-
-const StandaloneQuizSchema = {
-  type: SchemaType.OBJECT,
-  properties: {
-    topic: { type: SchemaType.STRING },
-    difficulty: { type: SchemaType.STRING },
-    questions: {
-      type: SchemaType.ARRAY,
-      items: {
-        type: SchemaType.OBJECT,
-        properties: {
-          id: { type: SchemaType.STRING },
-          question: { type: SchemaType.STRING },
-          options: {
-            type: SchemaType.ARRAY,
-            items: { type: SchemaType.STRING },
-          },
-          correctIndex: { type: SchemaType.NUMBER },
-          explanation: { type: SchemaType.STRING },
-          hint: { type: SchemaType.STRING },
-        },
-        required: ["id", "question", "options", "correctIndex", "explanation"],
-      },
-    },
-  },
-  required: ["topic", "difficulty", "questions"],
-};
 
 const QUIZ_SYSTEM_PROMPT = `
 You are the Diagnostic Quiz Generator for NexusSpace.
 Your job is to build conceptual multiple-choice questions that test deep mental understanding rather than memorization.
-Output strictly valid JSON matching the specified schema.
+Output strictly valid JSON matching the specified request structure.
 `;
 
 export class QuizGeneratorService {
-  constructor(private aiProvider: IAIProvider) {}
-
   async generateQuiz(context: QuizGeneratorContext): Promise<QuizSet> {
     const prompt = `
 Generate a conceptual quiz for:
 Concept: "${context.conceptTitle}"
-Number of Questions: ${context.questionCount || 5}
+Number of Questions: ${context.questionCount || 3}
 Target Difficulty: ${context.difficulty || "Intermediate"}
 
-For each question:
-- Offer 4 options.
-- Assign a unique ID string (e.g., "q_1").
-- Provide an intuitive explanation for the correct option.
-- Include an optional subtle hint that guides without giving away the answer.
+Output strictly valid JSON with this exact layout:
+{
+  "topic": "${context.conceptTitle}",
+  "difficulty": "${context.difficulty || "Intermediate"}",
+  "questions": [
+    {
+      "id": "1",
+      "question": "Question text...",
+      "options": ["Option 0", "Option 1", "Option 2", "Option 3"],
+      "correctIndex": 0,
+      "explanation": "Why option 0 is correct...",
+      "hint": "Subtle hint..."
+    }
+  ]
+}
 `;
 
-    return this.aiProvider.generate<QuizSet>(prompt, QUIZ_SYSTEM_PROMPT, {
-      responseSchema: StandaloneQuizSchema,
-      temperature: 0.3,
-    });
+    return groqProvider.generateJSON(
+      prompt,
+      QUIZ_SYSTEM_PROMPT,
+      "teacher",
+      { temperature: 0.3 }
+    );
   }
 }
+
+export const quizGeneratorService = new QuizGeneratorService();

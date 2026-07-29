@@ -13,10 +13,9 @@ import generateUserId from "../../../shared/utils/generateUserId";
 import { NotFoundError } from "../../../shared/errors/NotFoundError";
 import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
 import { PlannerService } from "../../ai/planner/planner.service";
-import { GeminiProvider } from "../../ai/providers/gemini.provider";
 
 // Instantiate the AI Planner Service
-const plannerService = new PlannerService(new GeminiProvider());
+const plannerService = new PlannerService();
 
 class WorkspaceService {
   async createWorkspace(
@@ -50,13 +49,16 @@ class WorkspaceService {
         const conceptDocsToInsert = planResult.concepts.map((c: any) => {
           const _id = new Types.ObjectId();
           const conceptId = `concept_${generateUserId()}`;
-          conceptDocMap.set(c.id || c.title, _id);
+          
+          // Map by ID first, fallback to lowercase title for safety
+          conceptDocMap.set(c.id || (c.title ? c.title.toLowerCase() : ""), _id);
 
           return {
             _id,
             conceptId,
             workspace: workspace._id,
             workspaceId: workspace.workspaceId,
+            owner: ownerObjectId, // <-- FIX: Added missing owner field
             title: c.title,
             description: c.description || "",
           };
@@ -70,12 +72,12 @@ class WorkspaceService {
         // Map relationships and bulk insert
         const relationshipDocsToInsert = planResult.relationships
           .map((r: any) => {
-            const sourceObjectId = conceptDocMap.get(
-              r.sourceConceptId || r.source,
-            );
-            const targetObjectId = conceptDocMap.get(
-              r.targetConceptId || r.target,
-            );
+            // Safely look up IDs or normalized titles
+            const sourceKey = r.sourceConceptId || r.source || (r.sourceTitle ? r.sourceTitle.toLowerCase() : "");
+            const targetKey = r.targetConceptId || r.target || (r.targetTitle ? r.targetTitle.toLowerCase() : "");
+            
+            const sourceObjectId = conceptDocMap.get(sourceKey);
+            const targetObjectId = conceptDocMap.get(targetKey);
 
             if (!sourceObjectId || !targetObjectId) return null;
 

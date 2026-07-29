@@ -5,26 +5,26 @@ export interface AIRequestOptions {
 }
 
 export class GroqProvider {
-  private groqOrganizer: Groq;
-  private groqTeacher: Groq;
+  private groqOrganizer: Groq | null = null;
+  private groqTeacher: Groq | null = null;
 
-  constructor() {
-    const organizerKey =
-      process.env.GROQ_API_KEY_ORGANIZER ||
-      process.env.GROQ_API_KEY ||
-      "placeholder_key";
-
-    const teacherKey =
-      process.env.GROQ_API_KEY_TEACHER ||
-      process.env.GROQ_API_KEY ||
-      "placeholder_key";
-
-    this.groqOrganizer = new Groq({ apiKey: organizerKey });
-    this.groqTeacher = new Groq({ apiKey: teacherKey });
-  }
-
+  // Lazy getter ensures we only instantiate after .env is fully loaded by the server
   private getClient(role: "organizer" | "teacher"): Groq {
-    return role === "organizer" ? this.groqOrganizer : this.groqTeacher;
+    if (role === "organizer") {
+      if (!this.groqOrganizer) {
+        const apiKey = process.env.GROQ_API_KEY_ORGANIZER || process.env.GROQ_API_KEY;
+        if (!apiKey) throw new Error("Missing GROQ_API_KEY_ORGANIZER in .env file");
+        this.groqOrganizer = new Groq({ apiKey });
+      }
+      return this.groqOrganizer;
+    } else {
+      if (!this.groqTeacher) {
+        const apiKey = process.env.GROQ_API_KEY_TEACHER || process.env.GROQ_API_KEY;
+        if (!apiKey) throw new Error("Missing GROQ_API_KEY_TEACHER in .env file");
+        this.groqTeacher = new Groq({ apiKey });
+      }
+      return this.groqTeacher;
+    }
   }
 
   async generateJSON(

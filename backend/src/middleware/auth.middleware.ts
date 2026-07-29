@@ -1,16 +1,19 @@
 import { Request, Response, NextFunction } from "express";
-import jwt, { JwtPayload } from "jsonwebtoken";
+// import jwt, { JwtPayload } from "jsonwebtoken";
 
-import env from "../config/env";
-import User from "../modules/identity/models/user.model";
-import { UnauthorizedError } from "../shared/errors/UnauthorizedError";
-import { ForbiddenError } from "../shared/errors/ForbiddenError";
+// import env from "../config/env";
+// import User from "../modules/identity/models/user.model";
+// import { UnauthorizedError } from "../shared/errors/UnauthorizedError";
+// import { ForbiddenError } from "../shared/errors/ForbiddenError";
 
 const authMiddleware = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
+  /* ==========================================
+   * TEMPORARILY DISABLED FOR LOCAL POSTMAN TESTING
+   * ==========================================
   const authorizationHeader = req.headers.authorization;
   if (!authorizationHeader) {
     throw new UnauthorizedError("Authentication required");
@@ -35,10 +38,17 @@ const authMiddleware = async (
   if (!user) {
     throw new UnauthorizedError("User not found.");
   }
-  
 
   (req as Request & { user: typeof user }).user = user;
+  */
+
+  // Attach mock user object for local route testing
+  (req as any).user = {
+    userId: "test-user-id",
+    email: "test@nexusspace.dev",
+  };
 
   next();
 };
+
 export default authMiddleware;

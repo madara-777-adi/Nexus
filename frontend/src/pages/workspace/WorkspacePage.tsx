@@ -4,6 +4,7 @@ import { WorkspaceGraph } from "../../components/workspace/WorkspaceGraph";
 import { TeacherStudio } from "../../components/workspace/TeacherStudio";
 import { ErrorBoundary } from "../../components/common/ErrorBoundary";
 import { initializeWorkspaceProgress } from "../../api/learning.api";
+import { planNextPath } from "../../api/ai.api"; // <-- Import the new planner API
 import { ConceptStatus } from "../../types/learning.types";
 
 export function WorkspacePage() {
@@ -18,8 +19,8 @@ export function WorkspacePage() {
 
   const [graphRefreshKey, setGraphRefreshKey] = useState<number>(0);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
+  const [isPlanning, setIsPlanning] = useState<boolean>(false); // <-- Planner loading state
 
-  // Initialize learning state when entering a workspace
   useEffect(() => {
     if (!workspaceId) return;
 
@@ -44,9 +45,34 @@ export function WorkspacePage() {
   );
 
   const handleProgressUpdated = useCallback(() => {
-    // Trigger graph state refresh when a quiz evaluation completes
     setGraphRefreshKey((prev) => prev + 1);
   }, []);
+
+  // --- NEW: AI Planner Integration ---
+  const handleAskPlanner = async () => {
+    if (!workspaceId) return;
+    setIsPlanning(true);
+    try {
+      // We only send the workspaceId. The backend database does all the heavy lifting!
+      const plan = await planNextPath({ workspaceId });
+      
+      // If the AI finds an optimal node, automatically open the Teacher Studio for it
+      if (plan && plan.recommendedNodeId) {
+        setSelectedConcept({
+          id: plan.recommendedNodeId,
+          title: plan.recommendedNodeTitle || "Recommended Concept",
+          status: ConceptStatus.UNLOCKED, // Assume unlocked since it's the recommended next step
+        });
+      } else {
+        alert("You've mastered everything in this workspace!");
+      }
+    } catch (error) {
+      console.error("Failed to get AI plan:", error);
+      alert("The AI Planner encountered an issue.");
+    } finally {
+      setIsPlanning(false);
+    }
+  };
 
   if (!workspaceId) {
     return (
@@ -70,11 +96,27 @@ export function WorkspacePage() {
         <span className="text-xs font-mono font-medium text-slate-400">
           NexusSpace Graph Workspace
         </span>
+        <div className="h-4 w-px bg-slate-800" />
+        
+        {/* NEW: The AI Planner Button */}
+        <button
+          onClick={handleAskPlanner}
+          disabled={isPlanning || isInitializing}
+          className="flex items-center gap-2 rounded-lg bg-[#BCFF3C]/10 px-3 py-1.5 text-xs font-bold text-[#BCFF3C] transition-colors hover:bg-[#BCFF3C]/20 disabled:opacity-50"
+        >
+          {isPlanning ? (
+            <>
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#BCFF3C]/30 border-t-[#BCFF3C]" />
+              Consulting AI...
+            </>
+          ) : (
+            "✨ What should I study next?"
+          )}
+        </button>
       </header>
 
       {/* Main Container */}
       <div className="flex h-full w-full">
-        {/* Graph Canvas */}
         <div
           className={`h-full transition-all duration-300 ${
             selectedConcept ? "w-1/2 lg:w-3/5" : "w-full"
@@ -85,10 +127,6 @@ export function WorkspacePage() {
               Initializing knowledge graph state...
             </div>
           ) : (
-            // `key` lives on the ErrorBoundary (not just WorkspaceGraph) so that
-            // switching workspaces, or triggering a refresh after a quiz
-            // evaluation, also clears any previously-caught render error —
-            // otherwise a stale crashed state could persist across workspaces.
             <ErrorBoundary
               key={`${workspaceId}_${graphRefreshKey}`}
               fallbackTitle="This workspace graph hit a runtime error"
@@ -101,11 +139,12 @@ export function WorkspacePage() {
           )}
         </div>
 
-        {/* Sliding AI Teacher Panel */}
         {selectedConcept && (
           <div className="h-full w-1/2 lg:w-2/5 animate-in slide-in-from-right duration-300">
             <TeacherStudio
-              workspaceTitle="Workspace Engine"
+              // NOTE: Update this if you have the actual Workspace Title available in this scope!
+              workspaceTitle="Workspace Engine" 
+              workspaceId={workspaceId}
               conceptId={selectedConcept.id}
               conceptTitle={selectedConcept.title}
               status={selectedConcept.status}

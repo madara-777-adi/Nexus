@@ -13,7 +13,7 @@ const relationshipRoutes = Router({ mergeParams: true });
 
 relationshipRoutes.use(authMiddleware);
 
-// Create edge & Stream full graph
+// Create edge
 relationshipRoutes.post(
   "/workspaces/:workspaceId/relationships",
   validate(workspaceParamsSchema, "params"),
@@ -21,10 +21,11 @@ relationshipRoutes.post(
   relationshipController.create,
 );
 
+// Fetch structured REST JSON 2-level graph
 relationshipRoutes.get(
   "/workspaces/:workspaceId/relationships/stream",
   validate(workspaceParamsSchema, "params"),
-  relationshipController.streamGraph,
+  relationshipController.getGraph,
 );
 
 // Concept graph neighborhood

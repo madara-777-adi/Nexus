@@ -1,37 +1,21 @@
-import { SchemaType } from "@google/generative-ai";
-import { IAIProvider } from "../providers/provider.interface";
+import { groqProvider } from "../providers/groq.provider";
 import { GeneratedResource, ResourceGeneratorContext } from "../types/ai.types";
-
-const ResourceListSchema = {
-  type: SchemaType.OBJECT,
-  properties: {
-    resources: {
-      type: SchemaType.ARRAY,
-      items: {
-        type: SchemaType.OBJECT,
-        properties: {
-          title: { type: SchemaType.STRING },
-          type: { type: SchemaType.STRING },
-          description: { type: SchemaType.STRING },
-          searchQuery: { type: SchemaType.STRING },
-          estimatedTime: { type: SchemaType.STRING },
-        },
-        required: ["title", "type", "description", "searchQuery", "estimatedTime"],
-      },
-    },
-  },
-  required: ["resources"],
-};
 
 const RESOURCE_SYSTEM_PROMPT = `
 You are the Resource Discovery Engine of NexusSpace.
 Your goal is to suggest high-value external reading material, documentation, and videos for learning concepts.
-Output strictly valid JSON matching the specified schema.
+
+You MUST respond strictly in valid JSON format. 
+The JSON response must be a single object containing a "resources" array.
+Each object within the "resources" array must contain these exact string keys:
+- "title": The name of the resource.
+- "type": The format (e.g., "Video", "Documentation", "Article", "Interactive").
+- "description": A concise, 1-2 sentence summary of what the resource covers.
+- "searchQuery": The optimal, highly specific Google search string a user can copy/paste to find this exact resource.
+- "estimatedTime": Estimated time to consume (e.g., "15 mins", "1 hour").
 `;
 
 export class ResourceGeneratorService {
-  constructor(private aiProvider: IAIProvider) {}
-
   async generateResources(
     context: ResourceGeneratorContext
   ): Promise<GeneratedResource[]> {
@@ -40,18 +24,19 @@ Generate a list of ${context.targetCount || 3} targeted learning resources for:
 Concept: "${context.conceptTitle}"
 Domain: "${context.domain}"
 
-Provide clean title, resource type, brief description, accurate Google search query to find it, and estimated time.
+Output strictly valid JSON.
 `;
 
-    const response = await this.aiProvider.generate<{ resources: GeneratedResource[] }>(
+    // Direct, typed call using your existing groqProvider instance and the "organizer" role
+    const response = await groqProvider.generateJSON(
       prompt,
       RESOURCE_SYSTEM_PROMPT,
-      {
-        responseSchema: ResourceListSchema,
-        temperature: 0.2,
-      }
+      "organizer",
+      { temperature: 0.2 }
     );
 
-    return response.resources;
+    return response.resources || [];
   }
 }
+
+export const resourceGeneratorService = new ResourceGeneratorService();

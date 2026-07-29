@@ -2,7 +2,7 @@ import { Router } from "express";
 import { AIController } from "../controllers/ai.controller";
 import {
   validateAIRequest,
-  teacherStreamSchema,
+  teacherStreamSchema as teacherLessonSchema,
   evaluatorSchema,
   plannerSchema,
   resourceGeneratorSchema,
@@ -13,9 +13,9 @@ const router = Router();
 
 // Core AI Operations
 router.post(
-  "/teacher/stream",
-  validateAIRequest(teacherStreamSchema),
-  AIController.streamLesson
+  "/teacher/lesson",
+  validateAIRequest(teacherLessonSchema),
+  AIController.generateLesson
 );
 
 router.post(

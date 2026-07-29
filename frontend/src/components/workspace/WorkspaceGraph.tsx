@@ -52,10 +52,10 @@ export function WorkspaceGraph({
   );
 
   /**
-   * Stream relationship graph using the centralized api.defaults.baseURL
-   * and attach the in-memory access token. Includes a one-shot 401 token refresh.
+   * Fetch graph data via structured REST JSON using the centralized api.defaults.baseURL.
+   * Includes a one-shot 401 token refresh mechanism.
    */
-  const streamGraph = useCallback(
+  const fetchGraphPayload = useCallback(
     async (signal: AbortSignal, isRetry = false): Promise<Response> => {
       const token = getAccessToken();
       const response = await fetch(
@@ -73,7 +73,7 @@ export function WorkspaceGraph({
           const newToken = refreshRes.data?.data?.accessToken;
           if (newToken) {
             setAccessToken(newToken);
-            return streamGraph(signal, true);
+            return fetchGraphPayload(signal, true);
           }
         } catch {
           // Refresh failed — fall through and let caller handle 401
@@ -102,105 +102,63 @@ export function WorkspaceGraph({
           }
         });
 
-        // 2. Stream relationship edges via authenticated NDJSON
-        const response = await streamGraph(signal);
+        // 2. Fetch structured REST JSON graph payload
+        const response = await fetchGraphPayload(signal);
 
         if (signal.aborted) return;
 
         if (response.status === 401) {
           throw new Error("Your session has expired. Please log in again.");
         }
-        if (!response.ok || !response.body) {
+        if (!response.ok) {
           throw new Error(
             `Failed to load workspace graph (HTTP ${response.status}).`,
           );
         }
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let buffer = "";
+        const json = await response.json();
+        const { concepts = [], relationships = [] } = json.data || {};
 
         const initialNodes: ConceptNodeType[] = [];
         const initialEdges: Edge[] = [];
-        const nodeSet = new Set<string>();
 
-        let row = 0;
-        let col = 0;
+        // 3. Map all concept nodes to grid positions
+        concepts.forEach((concept: any, index: number) => {
+          const conceptId = concept.conceptId;
+          const progress = progressMap.get(conceptId);
 
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
+          const col = index % 4;
+          const row = Math.floor(index / 4);
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || ""; // Keep incomplete trailing line in buffer
+          initialNodes.push({
+            id: conceptId,
+            type: "conceptNode",
+            position: { x: col * 260, y: row * 140 },
+            data: {
+              conceptId,
+              title: concept.title || conceptId,
+              status: progress?.status || ConceptStatus.LOCKED,
+              masteryScore: progress?.masteryScore || 0,
+              onSelectNode: onSelectConcept,
+            },
+          });
+        });
 
-          for (const line of lines) {
-            if (!line.trim()) continue;
+        // 4. Map all relationship edges
+        relationships.forEach((rel: any) => {
+          const sourceId = rel.sourceConcept?.conceptId || rel.sourceConcept;
+          const targetId = rel.targetConcept?.conceptId || rel.targetConcept;
 
-            try {
-              const rel = JSON.parse(line);
-              const sourceId = rel.sourceConcept?.conceptId;
-              const targetId = rel.targetConcept?.conceptId;
-
-              if (!sourceId || !targetId) continue;
-
-              if (!nodeSet.has(sourceId)) {
-                nodeSet.add(sourceId);
-                const sourceProgress = progressMap.get(sourceId);
-                initialNodes.push({
-                  id: sourceId,
-                  type: "conceptNode",
-                  position: { x: col * 260, y: row * 140 },
-                  data: {
-                    conceptId: sourceId,
-                    title: rel.sourceConcept.title || sourceId,
-                    status: sourceProgress?.status || ConceptStatus.LOCKED,
-                    masteryScore: sourceProgress?.masteryScore || 0,
-                    onSelectNode: onSelectConcept,
-                  },
-                });
-                col++;
-                if (col > 3) {
-                  col = 0;
-                  row++;
-                }
-              }
-
-              if (!nodeSet.has(targetId)) {
-                nodeSet.add(targetId);
-                const targetProgress = progressMap.get(targetId);
-                initialNodes.push({
-                  id: targetId,
-                  type: "conceptNode",
-                  position: { x: col * 260, y: row * 140 },
-                  data: {
-                    conceptId: targetId,
-                    title: rel.targetConcept.title || targetId,
-                    status: targetProgress?.status || ConceptStatus.LOCKED,
-                    masteryScore: targetProgress?.masteryScore || 0,
-                    onSelectNode: onSelectConcept,
-                  },
-                });
-                col++;
-                if (col > 3) {
-                  col = 0;
-                  row++;
-                }
-              }
-
-              initialEdges.push({
-                id: rel.relationshipId || `edge_${sourceId}_${targetId}`,
-                source: sourceId,
-                target: targetId,
-                animated: rel.type === "DEPENDS_ON",
-                style: { stroke: "#334155", strokeWidth: 2 },
-              });
-            } catch {
-              // Ignore single malformed NDJSON lines
-            }
+          if (sourceId && targetId) {
+            initialEdges.push({
+              id: rel.relationshipId || `edge_${sourceId}_${targetId}`,
+              source: sourceId,
+              target: targetId,
+              animated: rel.type === "DEPENDS_ON",
+              style: { stroke: "#334155", strokeWidth: 2 },
+            });
           }
-        }
+        });
 
         if (signal.aborted) return;
 
@@ -218,7 +176,7 @@ export function WorkspaceGraph({
         setLoadState("error");
       }
     },
-    [workspaceId, onSelectConcept, setNodes, setEdges, streamGraph],
+    [workspaceId, onSelectConcept, setNodes, setEdges, fetchGraphPayload],
   );
 
   useEffect(() => {
@@ -280,7 +238,7 @@ export function WorkspaceGraph({
       {loadState === "empty" && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <p className="text-xs text-slate-600">
-            No concepts yet — add relationships to start building this graph.
+            No concepts found in this workspace blueprint.
           </p>
         </div>
       )}
