@@ -18,12 +18,12 @@ export class AIController {
    */
   static async generateLesson(req: Request, res: Response, next: NextFunction) {
     try {
-      const lessonMarkdown = await teacherService.generateLesson(req.body);
-      res.status(200).json({
+      const lessonData = await teacherService.generateLesson(req.body);
+
+      return res.status(200).json({
         success: true,
-        data: {
-          content: lessonMarkdown,
-        },
+        message: "Lesson generated successfully",
+        data: lessonData, // Now contains { overview, definition, intuition, analogy, explanation, keyPoints, quiz }
       });
     } catch (error) {
       next(error);
@@ -34,7 +34,11 @@ export class AIController {
    * EVALUATE SUBMISSION & BACKEND DECISION ENGINE (Fast Tier / Groq)
    * AI calculates mastery score; backend deterministically controls node progression.
    */
-  static async evaluateSubmission(req: Request, res: Response, next: NextFunction) {
+  static async evaluateSubmission(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       // Assuming your auth middleware populates req.user
       const userId = new Types.ObjectId((req as any).user.id);
@@ -42,7 +46,7 @@ export class AIController {
 
       // 1. AI reasoning step
       const evaluation = (await evaluatorService.evaluateSubmission(
-        req.body
+        req.body,
       )) as any;
 
       // Safely extract mastery score across both flat and nested evaluation formats
@@ -56,7 +60,7 @@ export class AIController {
       const dbResult = await learningService.recordEvaluationResult(
         conceptId,
         userId,
-        masteryScore
+        masteryScore,
       );
 
       // 3. Return response to frontend
@@ -89,7 +93,7 @@ export class AIController {
       // 2. Fetch the user's specific progression state in this workspace
       const progressRecords = await learningService.getWorkspaceProgress(
         workspaceId,
-        userId
+        userId,
       );
 
       // 3. Aggregate completed nodes and mastery map for the AI Planner
@@ -126,7 +130,11 @@ export class AIController {
   /**
    * GENERATE EXTERNAL RESOURCES (Groq - Organizer Key)
    */
-  static async generateResources(req: Request, res: Response, next: NextFunction) {
+  static async generateResources(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       res.status(200).json({
         success: true,
