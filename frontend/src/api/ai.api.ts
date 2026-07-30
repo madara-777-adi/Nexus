@@ -41,6 +41,7 @@ export const generateLesson = async (payload: {
   conceptDescription?: string;
   difficulty?: string;
   preferredDepth?: string;
+  forceRefresh?: boolean; // <-- Added forceRefresh parameter
 }) => {
   const response = await API.post("/ai/teacher/lesson", payload);
   return response.data.data;

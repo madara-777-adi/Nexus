@@ -1,12 +1,21 @@
 import { Schema, model, Document, Types } from "mongoose";
 
+export interface ISubtopic {
+  title: string;
+  description?: string;
+  subtopics?: string[];
+}
+
 export interface IConcept extends Document {
   conceptId: string;
   workspace: Types.ObjectId;
   owner: Types.ObjectId;
   title: string;
   description?: string;
-  lessonPayload?: Record<string, any>; // <-- Added for lesson caching
+  // Layer 2: Micro Curriculum Structure
+  topics?: ISubtopic[];
+  // Layer 3: Cached AI Deep Dive & Pedagogy
+  lessonPayload?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +52,15 @@ const conceptSchema = new Schema<IConcept>(
       maxlength: [1000, "Description cannot exceed 1000 characters"],
       default: "",
     },
+    // Layer 2 Storage
+    topics: [
+      {
+        title: { type: String, required: true },
+        description: { type: String, default: "" },
+        subtopics: [{ type: String }],
+      },
+    ],
+    // Layer 3 Cache
     lessonPayload: {
       type: Schema.Types.Mixed,
       default: null,
@@ -53,7 +71,7 @@ const conceptSchema = new Schema<IConcept>(
   },
 );
 
-// Compound index to ensure fast lookup of concepts within a workspace
+// Compound index for fast lookup within a workspace
 conceptSchema.index({ workspace: 1, title: 1 });
 
 const ConceptModel = model<IConcept>("Concept", conceptSchema);

@@ -4,48 +4,93 @@ import { TEACHER_SYSTEM_PROMPT, buildTeacherPrompt } from "./teacher.prompt";
 
 export class TeacherService {
   async generateLesson(context: any): Promise<any> {
-    const { conceptId } = context;
+    const { conceptId, forceRefresh } = context;
 
-    // 1. Look up existing concept in MongoDB if conceptId is provided
-    if (conceptId) {
+    // 1. Check DB Cache First (Unless forceRefresh is requested)
+    if (conceptId && !forceRefresh) {
       const existingConcept = await ConceptModel.findOne({ conceptId });
       if (existingConcept && existingConcept.lessonPayload) {
         console.log(
-          `[TeacherService] Returning cached lesson from DB for: ${conceptId}`,
+          `[TeacherService] Returning cached Layer 3 lesson from DB for: ${conceptId}`,
         );
         return existingConcept.lessonPayload;
       }
     }
 
-    // 2. Generate new lesson payload if missing from cache
+    // 2. Just-In-Time Generation via Groq
     console.log(
       `[TeacherService] Generating fresh AI lesson for: ${context.conceptTitle}`,
     );
     const prompt = buildTeacherPrompt(context);
 
-    const lessonData = await groqProvider.generateJSON(
+    const rawLessonData = await groqProvider.generateJSON(
       prompt,
       TEACHER_SYSTEM_PROMPT,
       "teacher",
       { temperature: 0.3 },
     );
 
-    // 3. Cache generated lesson into MongoDB for future requests
-    if (conceptId && lessonData) {
+    // 3. Normalize & Sanitize JSON Payload
+    const normalizedPayload = this.normalizeLessonPayload(rawLessonData);
+
+    // 4. Update Database (Cache Layer 2 subtopics & Layer 3 full lesson)
+    if (conceptId && normalizedPayload) {
       try {
-        await ConceptModel.updateOne(
-          { conceptId },
-          { $set: { lessonPayload: lessonData } },
-        );
+        const updateData: Record<string, any> = {
+          lessonPayload: normalizedPayload,
+        };
+
+        // If topics exist in generated data, sync them to Layer 2 concept record
+        if (
+          Array.isArray(normalizedPayload.topics) &&
+          normalizedPayload.topics.length > 0
+        ) {
+          updateData.topics = normalizedPayload.topics;
+        }
+
+        await ConceptModel.updateOne({ conceptId }, { $set: updateData });
+
         console.log(
-          `[TeacherService] Successfully cached lesson in DB for: ${conceptId}`,
+          `[TeacherService] Successfully cached lesson & topics in DB for: ${conceptId}`,
         );
       } catch (cacheErr) {
         console.error("Failed to cache lesson payload in MongoDB:", cacheErr);
       }
     }
 
-    return lessonData;
+    return normalizedPayload;
+  }
+
+  /**
+   * Helper to ensure generated AI JSON strictly satisfies frontend requirements
+   */
+  private normalizeLessonPayload(rawData: any): any {
+    if (!rawData) return {};
+
+    let data = rawData?.data ? rawData.data : rawData;
+
+    // Extract diagnostic quiz from multi-path AI formats
+    let quizList: any[] = [];
+
+    if (Array.isArray(data?.quiz) && data.quiz.length > 0) {
+      quizList = data.quiz;
+    } else if (Array.isArray(data?.questions) && data.questions.length > 0) {
+      quizList = data.questions;
+    } else if (Array.isArray(data?.activities)) {
+      for (const act of data.activities) {
+        if (Array.isArray(act?.questions) && act.questions.length > 0) {
+          quizList = act.questions;
+          break;
+        }
+      }
+    } else if (Array.isArray(data?.assessment?.questions)) {
+      quizList = data.assessment.questions;
+    }
+
+    return {
+      ...data,
+      quiz: quizList,
+    };
   }
 }
 
