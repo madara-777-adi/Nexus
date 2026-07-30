@@ -15,6 +15,9 @@ import { errorMiddleware } from "./middleware/error.middleware";
 import aiRoutes from "./modules/ai/routes/ai.routes";
 import learningRoutes from "./modules/learning/routes/learning.routes";
 
+// 1. Import your rate limiter middleware
+import { authLimiter } from "./middleware/rateLimiter.middleware";
+
 const app = express();
 
 app.set("trust proxy", 1);
@@ -59,11 +62,12 @@ const corsOptions: cors.CorsOptions = {
   ],
 };
 
-// 1. Apply CORS middleware
+// Apply CORS middleware
 app.use(cors(corsOptions));
 
-// 2. Explicitly intercept and pass HTTP OPTIONS preflight checks across all routes
-app.options("/*path", cors(corsOptions) as any);
+// Explicitly intercept and pass HTTP OPTIONS preflight checks across all routes
+// (Changed from "/*path" to "*" to ensure standard Express catch-all behavior)
+app.options("*", cors(corsOptions) as any);
 
 // Parse incoming cookies from request headers into req.cookies
 app.use(cookieParser());
@@ -91,8 +95,9 @@ app.get("/health", (_req, res) => {
 // Initialize Passport middleware for Google and GitHub OAuth
 app.use(passport.initialize());
 
-// Mount identity authentication routes
-app.use("/api/v1/auth", authRoutes);
+// 2. Mount identity authentication routes WITH the rate limiter applied
+app.use("/api/v1/auth", authLimiter, authRoutes);
+
 app.use("/api/v1/workspaces", workspaceRoutes);
 app.use("/api/v1", conceptRoutes);
 app.use("/api/v1", relationshipRoutes);
