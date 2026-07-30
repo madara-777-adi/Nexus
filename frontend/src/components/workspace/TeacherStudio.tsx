@@ -23,7 +23,8 @@ export function TeacherStudio({
   onClose,
   onProgressUpdated,
 }: TeacherStudioProps) {
-  const { streamLesson, stopStream, parsedLesson, isLoading, error } = useTeacherStream();
+  const { streamLesson, stopStream, parsedLesson, isLoading, error } =
+    useTeacherStream();
   const [activeTab, setActiveTab] = useState<"lesson" | "quiz">("lesson");
 
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
@@ -32,26 +33,32 @@ export function TeacherStudio({
   const [unlockedNodes, setUnlockedNodes] = useState<string[]>([]);
 
   useEffect(() => {
-    streamLesson({
-      workspaceId,
-      workspaceTitle,
-      conceptId,
-      conceptTitle,
-      difficulty: "Intermediate",
-      preferredDepth: "Balanced",
-    });
+    if (!workspaceId || !conceptId) return;
 
+    // Reset state when selecting a new concept
     setUserAnswers({});
     setEvaluationScore(null);
     setUnlockedNodes([]);
     setActiveTab("lesson");
+
+    // Fire lesson stream request to AI Teacher endpoint
+    streamLesson({
+      workspaceId,
+      workspaceTitle: workspaceTitle || "Workspace",
+      conceptId,
+      conceptTitle: conceptTitle || "Concept",
+      difficulty: "Intermediate",
+      preferredDepth: "Balanced",
+    });
 
     return () => {
       if (stopStream) {
         stopStream();
       }
     };
-  }, [workspaceId, workspaceTitle, conceptId, conceptTitle, streamLesson, stopStream]);
+    // Exclude streamLesson/stopStream from deps to avoid re-triggering loops if they aren't memoized
+    // eslint-disable-next-deps
+  }, [workspaceId, workspaceTitle, conceptId, conceptTitle]);
 
   const handleOptionSelect = (questionIndex: number, optionIndex: number) => {
     setUserAnswers((prev) => ({ ...prev, [questionIndex]: optionIndex }));
@@ -97,18 +104,21 @@ export function TeacherStudio({
 
   return (
     <div className="flex h-full w-full flex-col border-l border-slate-800 bg-[#080A0F] text-slate-200">
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800 bg-[#080A0F] p-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono uppercase tracking-wider text-slate-500">
-              {workspaceTitle}
+              {workspaceTitle || "Workspace"}
             </span>
             <span className="text-slate-700">•</span>
             <span className="rounded border border-slate-800 bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-[#BCFF3C]">
               {status}
             </span>
           </div>
-          <h2 className="text-lg font-bold tracking-tight text-white">{conceptTitle}</h2>
+          <h2 className="text-lg font-bold tracking-tight text-white">
+            {conceptTitle}
+          </h2>
         </div>
 
         <button
@@ -116,16 +126,17 @@ export function TeacherStudio({
             if (stopStream) stopStream();
             onClose();
           }}
-          className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-400 transition-colors hover:border-slate-700 hover:text-white"
+          className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-400 transition-colors hover:border-slate-700 hover:text-white cursor-pointer"
         >
           ✕
         </button>
       </div>
 
+      {/* Tabs */}
       <div className="flex border-b border-slate-800 bg-[#080A0F] px-4">
         <button
           onClick={() => setActiveTab("lesson")}
-          className={`border-b-2 py-3 px-4 text-sm font-medium transition-colors ${
+          className={`border-b-2 py-3 px-4 text-sm font-medium transition-colors cursor-pointer ${
             activeTab === "lesson"
               ? "border-[#BCFF3C] text-[#BCFF3C]"
               : "border-transparent text-slate-400 hover:text-slate-200"
@@ -135,16 +146,18 @@ export function TeacherStudio({
         </button>
         <button
           onClick={() => setActiveTab("quiz")}
-          className={`border-b-2 py-3 px-4 text-sm font-medium transition-colors ${
+          className={`border-b-2 py-3 px-4 text-sm font-medium transition-colors cursor-pointer ${
             activeTab === "quiz"
               ? "border-[#BCFF3C] text-[#BCFF3C]"
               : "border-transparent text-slate-400 hover:text-slate-200"
           }`}
         >
-          Diagnostic Quiz {parsedLesson?.quiz?.length ? `(${parsedLesson.quiz.length})` : ""}
+          Diagnostic Quiz{" "}
+          {parsedLesson?.quiz?.length ? `(${parsedLesson.quiz.length})` : ""}
         </button>
       </div>
 
+      {/* Body */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {error && (
           <div className="rounded-xl border border-red-500/30 bg-red-950/20 p-4 text-sm text-red-400">
@@ -166,7 +179,9 @@ export function TeacherStudio({
                 <h3 className="mb-2 text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
                   Overview
                 </h3>
-                <p className="text-sm leading-relaxed text-slate-300">{parsedLesson.overview}</p>
+                <p className="text-sm leading-relaxed text-slate-300">
+                  {parsedLesson.overview}
+                </p>
               </section>
             )}
 
@@ -175,7 +190,9 @@ export function TeacherStudio({
                 <h3 className="mb-2 text-xs font-mono font-semibold text-sky-400 uppercase tracking-wider">
                   Core Definition
                 </h3>
-                <p className="text-sm leading-relaxed text-slate-300">{parsedLesson.definition}</p>
+                <p className="text-sm leading-relaxed text-slate-300">
+                  {parsedLesson.definition}
+                </p>
               </section>
             )}
 
@@ -184,7 +201,9 @@ export function TeacherStudio({
                 <h3 className="mb-2 text-xs font-mono font-semibold text-amber-400 uppercase tracking-wider">
                   Intuition & Mental Model
                 </h3>
-                <p className="text-sm leading-relaxed text-amber-100/90">{parsedLesson.intuition}</p>
+                <p className="text-sm leading-relaxed text-amber-100/90">
+                  {parsedLesson.intuition}
+                </p>
               </section>
             )}
 
@@ -193,7 +212,9 @@ export function TeacherStudio({
                 <h3 className="mb-2 text-xs font-mono font-semibold text-purple-400 uppercase tracking-wider">
                   Real-World Analogy
                 </h3>
-                <p className="text-sm leading-relaxed text-slate-300">{parsedLesson.analogy}</p>
+                <p className="text-sm leading-relaxed text-slate-300">
+                  {parsedLesson.analogy}
+                </p>
               </section>
             )}
 
@@ -238,7 +259,9 @@ export function TeacherStudio({
               >
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-base font-bold">Evaluation Score</h4>
-                  <span className="text-2xl font-mono font-bold">{evaluationScore}%</span>
+                  <span className="text-2xl font-mono font-bold">
+                    {evaluationScore}%
+                  </span>
                 </div>
                 <p className="text-sm opacity-90">
                   {evaluationScore >= 80
@@ -268,7 +291,10 @@ export function TeacherStudio({
             {parsedLesson?.quiz && parsedLesson.quiz.length > 0 ? (
               <div className="space-y-6">
                 {parsedLesson.quiz.map((q, qIdx) => (
-                  <div key={qIdx} className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
+                  <div
+                    key={qIdx}
+                    className="rounded-xl border border-slate-800 bg-[#0F131C] p-5"
+                  >
                     <h4 className="mb-4 text-sm font-semibold text-slate-100">
                       {qIdx + 1}. {q.question}
                     </h4>
@@ -277,7 +303,7 @@ export function TeacherStudio({
                         <button
                           key={oIdx}
                           onClick={() => handleOptionSelect(qIdx, oIdx)}
-                          className={`w-full text-left rounded-lg border p-3 text-sm transition-all ${
+                          className={`w-full text-left rounded-lg border p-3 text-sm transition-all cursor-pointer ${
                             userAnswers[qIdx] === oIdx
                               ? "border-[#BCFF3C] bg-[#BCFF3C]/10 text-white font-medium"
                               : "border-slate-800 bg-[#080A0F] text-slate-300 hover:border-slate-700"
@@ -293,9 +319,11 @@ export function TeacherStudio({
                 <button
                   onClick={handleSubmitQuiz}
                   disabled={isEvaluating}
-                  className="w-full rounded-xl bg-[#BCFF3C] py-3.5 text-sm font-bold text-black transition-all hover:bg-[#aef525] disabled:opacity-50"
+                  className="w-full rounded-xl bg-[#BCFF3C] py-3.5 text-sm font-bold text-black transition-all hover:bg-[#aef525] disabled:opacity-50 cursor-pointer"
                 >
-                  {isEvaluating ? "Evaluating Submission..." : "Submit Diagnostic Assessment"}
+                  {isEvaluating
+                    ? "Evaluating Submission..."
+                    : "Submit Diagnostic Assessment"}
                 </button>
               </div>
             ) : (

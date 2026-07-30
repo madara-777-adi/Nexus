@@ -1,6 +1,6 @@
 import API from "./axios";
 import type { EvaluationResult, QuizQuestion } from "../types/ai.types";
-import type { ILearningProgress } from "../types/learning.types"; 
+import type { ILearningProgress } from "../types/learning.types";
 
 export const evaluateSubmission = async (payload: {
   workspaceId: string;
@@ -16,10 +16,10 @@ export const evaluateSubmission = async (payload: {
 }) => {
   const response = await API.post<{
     success: boolean;
-    data: { 
-      evaluation: EvaluationResult; 
-      progress: ILearningProgress | unknown; 
-      unlockedDownstreamIds: string[]; 
+    data: {
+      evaluation: EvaluationResult;
+      progress: ILearningProgress | unknown;
+      unlockedDownstreamIds: string[];
     };
   }>("/ai/evaluator/evaluate", payload);
   return response.data.data;
@@ -43,7 +43,7 @@ export const generateLesson = async (payload: {
   preferredDepth?: string;
 }) => {
   const response = await API.post("/ai/teacher/lesson", payload);
-  return response.data.data; 
+  return response.data.data;
 };
 
 export const generateResources = async (payload: {
