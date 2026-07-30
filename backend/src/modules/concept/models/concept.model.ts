@@ -1,9 +1,10 @@
 import { Schema, model, Document, Types } from "mongoose";
 
+// Layer 2: Micro Curriculum Structure (2nd Pillars)
 export interface ISubtopic {
+  id: string; // Unique slug for routing and linking to Tier 3 records
   title: string;
   description?: string;
-  subtopics?: string[];
 }
 
 export interface IConcept extends Document {
@@ -12,10 +13,15 @@ export interface IConcept extends Document {
   owner: Types.ObjectId;
   title: string;
   description?: string;
-  // Layer 2: Micro Curriculum Structure
+  
+  // Progression & UI State
+  order: number;
+  isUnlocked: boolean;
+  isMastered: boolean;
+  
+  // Layer 2 Storage
   topics?: ISubtopic[];
-  // Layer 3: Cached AI Deep Dive & Pedagogy
-  lessonPayload?: Record<string, any>;
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,19 +58,27 @@ const conceptSchema = new Schema<IConcept>(
       maxlength: [1000, "Description cannot exceed 1000 characters"],
       default: "",
     },
+    order: {
+      type: Number,
+      required: true,
+      default: 1,
+    },
+    isUnlocked: {
+      type: Boolean,
+      default: false,
+    },
+    isMastered: {
+      type: Boolean,
+      default: false,
+    },
     // Layer 2 Storage
     topics: [
       {
+        id: { type: String, required: true },
         title: { type: String, required: true },
         description: { type: String, default: "" },
-        subtopics: [{ type: String }],
       },
     ],
-    // Layer 3 Cache
-    lessonPayload: {
-      type: Schema.Types.Mixed,
-      default: null,
-    },
   },
   {
     timestamps: true,

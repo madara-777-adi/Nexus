@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -23,13 +23,14 @@ import {
   ConceptStatus,
   type ILearningProgress,
 } from "../../types/learning.types";
+import { Sparkles, RefreshCw } from "lucide-react";
 
 interface WorkspaceGraphProps {
   workspaceId: string;
   onSelectConcept: (
     conceptId: string,
     title: string,
-    status: ConceptStatus,
+    status: ConceptStatus
   ) => void;
 }
 
@@ -45,16 +46,11 @@ export function WorkspaceGraph({
   const [errorMessage, setErrorMessage] = useState("");
   const [retryToken, setRetryToken] = useState(0);
 
-  // Memoize custom node types to prevent React Flow re-mount loops
   const nodeTypes: NodeTypes = useMemo(
     () => ({ conceptNode: ConceptNode }),
-    [],
+    []
   );
 
-  /**
-   * Fetch graph data via structured REST JSON using the centralized api.defaults.baseURL.
-   * Includes a one-shot 401 token refresh mechanism.
-   */
   const fetchGraphPayload = useCallback(
     async (signal: AbortSignal, isRetry = false): Promise<Response> => {
       const token = getAccessToken();
@@ -64,7 +60,7 @@ export function WorkspaceGraph({
           credentials: "include",
           signal,
           headers: token ? { Authorization: `Bearer ${token}` } : {},
-        },
+        }
       );
 
       if (response.status === 401 && !isRetry) {
@@ -76,13 +72,13 @@ export function WorkspaceGraph({
             return fetchGraphPayload(signal, true);
           }
         } catch {
-          // Refresh failed — fall through and let caller handle 401
+          // Token refresh failed
         }
       }
 
       return response;
     },
-    [workspaceId],
+    [workspaceId]
   );
 
   const fetchGraphAndProgress = useCallback(
@@ -91,7 +87,6 @@ export function WorkspaceGraph({
       setErrorMessage("");
 
       try {
-        // 1. Fetch user learning progress status for concepts
         const progressData: ILearningProgress[] =
           await getWorkspaceProgress(workspaceId);
 
@@ -102,7 +97,6 @@ export function WorkspaceGraph({
           }
         });
 
-        // 2. Fetch structured REST JSON graph payload
         const response = await fetchGraphPayload(signal);
 
         if (signal.aborted) return;
@@ -112,7 +106,7 @@ export function WorkspaceGraph({
         }
         if (!response.ok) {
           throw new Error(
-            `Failed to load workspace graph (HTTP ${response.status}).`,
+            `Failed to load workspace graph (HTTP ${response.status}).`
           );
         }
 
@@ -122,7 +116,6 @@ export function WorkspaceGraph({
         const initialNodes: ConceptNodeType[] = [];
         const initialEdges: Edge[] = [];
 
-        // 3. Map all concept nodes to grid positions
         concepts.forEach((concept: any, index: number) => {
           const conceptId = concept.conceptId;
           const progress = progressMap.get(conceptId);
@@ -133,7 +126,7 @@ export function WorkspaceGraph({
           initialNodes.push({
             id: conceptId,
             type: "conceptNode",
-            position: { x: col * 260, y: row * 140 },
+            position: { x: col * 280, y: row * 150 },
             data: {
               conceptId,
               title: concept.title || conceptId,
@@ -144,7 +137,6 @@ export function WorkspaceGraph({
           });
         });
 
-        // 4. Map all relationship edges
         relationships.forEach((rel: any) => {
           const sourceId = rel.sourceConcept?.conceptId || rel.sourceConcept;
           const targetId = rel.targetConcept?.conceptId || rel.targetConcept;
@@ -155,7 +147,7 @@ export function WorkspaceGraph({
               source: sourceId,
               target: targetId,
               animated: rel.type === "DEPENDS_ON",
-              style: { stroke: "#334155", strokeWidth: 2 },
+              style: { stroke: "#262933", strokeWidth: 1.5 },
             });
           }
         });
@@ -171,12 +163,12 @@ export function WorkspaceGraph({
         setErrorMessage(
           err instanceof Error
             ? err.message
-            : "Something went wrong while loading the graph.",
+            : "Something went wrong while loading the graph."
         );
         setLoadState("error");
       }
     },
-    [workspaceId, onSelectConcept, setNodes, setEdges, fetchGraphPayload],
+    [workspaceId, onSelectConcept, setNodes, setEdges, fetchGraphPayload]
   );
 
   useEffect(() => {
@@ -187,9 +179,9 @@ export function WorkspaceGraph({
 
   if (loadState === "loading") {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[#080A0F]">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-700 border-t-[#BCFF3C]" />
-        <p className="text-xs text-slate-500">Loading knowledge graph…</p>
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[#080A0F] text-gray-500 font-mono text-xs">
+        <Sparkles className="h-5 w-5 animate-spin text-[#00E5FF]" />
+        <span>Loading knowledge graph...</span>
       </div>
     );
   }
@@ -197,15 +189,15 @@ export function WorkspaceGraph({
   if (loadState === "error") {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-[#080A0F] px-6 text-center">
-        <p className="text-sm font-semibold text-red-400">
-          Couldn't load this workspace graph
+        <p className="text-sm font-medium text-red-400">
+          Couldn't load workspace graph
         </p>
-        <p className="max-w-sm text-xs text-slate-500">{errorMessage}</p>
+        <p className="max-w-sm text-xs text-gray-500">{errorMessage}</p>
         <button
           onClick={() => setRetryToken((n) => n + 1)}
-          className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:border-[#BCFF3C]/50 hover:text-[#BCFF3C]"
+          className="flex items-center gap-2 rounded-xl border border-gray-800 bg-[#12141A] px-4 py-2 text-xs font-medium text-gray-200 transition-colors hover:border-[#00E5FF]/60 hover:text-white cursor-pointer"
         >
-          Retry
+          <RefreshCw className="h-3.5 w-3.5" /> Retry
         </button>
       </div>
     );
@@ -221,23 +213,23 @@ export function WorkspaceGraph({
         nodeTypes={nodeTypes}
         fitView
       >
-        <Background color="#1E293B" gap={20} size={1} />
-        <Controls className="!bg-[#0F131C] !border-slate-800 !text-slate-300" />
+        <Background color="#1F222C" gap={24} size={1} />
+        <Controls className="!bg-[#12141A] !border-gray-800 !text-gray-300" />
         <MiniMap
           nodeColor={(node: Node) => {
             const data = node.data as ConceptNodeData;
             if (data?.status === ConceptStatus.MASTERED) return "#BCFF3C";
             if (data?.status === ConceptStatus.IN_PROGRESS) return "#F59E0B";
-            if (data?.status === ConceptStatus.UNLOCKED) return "#38BDF8";
-            return "#334155";
+            if (data?.status === ConceptStatus.UNLOCKED) return "#00E5FF";
+            return "#262933";
           }}
-          className="!bg-[#0F131C] !border-slate-800"
+          className="!bg-[#12141A] !border-gray-800"
         />
       </ReactFlow>
 
       {loadState === "empty" && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <p className="text-xs text-slate-600">
+          <p className="text-xs font-mono text-gray-500">
             No concepts found in this workspace blueprint.
           </p>
         </div>

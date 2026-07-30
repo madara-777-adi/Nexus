@@ -6,6 +6,7 @@ import { ErrorBoundary } from "../../components/common/ErrorBoundary";
 import { initializeWorkspaceProgress } from "../../api/learning.api";
 import { planNextPath } from "../../api/ai.api";
 import { ConceptStatus } from "../../types/learning.types";
+import { Sparkles, ArrowLeft, Compass } from "lucide-react";
 
 interface Toast {
   id: string;
@@ -26,8 +27,6 @@ export function WorkspacePage() {
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [isPlanning, setIsPlanning] = useState<boolean>(false);
-
-  // Virtual Toast Notification State
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const showToast = useCallback(
@@ -37,18 +36,12 @@ export function WorkspacePage() {
     ) => {
       const id = `toast_${Date.now()}`;
       setToasts((prev) => [...prev, { id, type, message }]);
-
-      // Auto dismiss toast after 4 seconds
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, 4000);
     },
     [],
   );
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -73,17 +66,12 @@ export function WorkspacePage() {
     [],
   );
 
-  const handleProgressUpdated = useCallback(() => {
-    setRefreshKey((prev) => prev + 1);
-  }, []);
-
   const handleAskPlanner = async () => {
     if (!workspaceId) return;
     setIsPlanning(true);
 
     try {
       const plan = await planNextPath({ workspaceId });
-
       if (plan && plan.recommendedNodeId) {
         setSelectedConcept({
           id: plan.recommendedNodeId,
@@ -91,17 +79,14 @@ export function WorkspacePage() {
           status: ConceptStatus.UNLOCKED,
         });
         showToast(
-          `Next recommended topic: "${plan.recommendedNodeTitle || "Module"}"`,
+          `Next path: "${plan.recommendedNodeTitle || "Module"}"`,
           "success",
         );
       } else {
-        showToast(
-          "You've mastered all current topics in this workspace!",
-          "info",
-        );
+        showToast("All concepts in this workspace are mastered!", "info");
       }
     } catch (error) {
-      showToast("AI Planner encountered an issue. Please try again.", "error");
+      showToast("Planner offline. Try selecting a module manually.", "error");
     } finally {
       setIsPlanning(false);
     }
@@ -109,38 +94,33 @@ export function WorkspacePage() {
 
   if (!workspaceId) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#080A0F] text-slate-400 font-mono text-sm">
-        Workspace ID not found.
+      <div className="flex h-screen items-center justify-center bg-[#080A0F] text-gray-500 font-mono text-sm">
+        Workspace ID missing.
       </div>
     );
   }
 
   return (
-    <div className="relative flex h-screen w-screen overflow-hidden bg-[#080A0F] text-slate-200">
-      {/* Toast Notification Container */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm pointer-events-none">
+    <div className="relative flex h-screen w-screen overflow-hidden bg-[#080A0F] text-gray-200">
+      {/* Toast Overlay */}
+      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-center justify-between gap-3 rounded-xl border p-4 text-xs font-medium shadow-2xl backdrop-blur-md transition-all animate-in slide-in-from-bottom-2 ${
+            className={`pointer-events-auto flex items-center justify-between gap-3 rounded-xl border p-4 text-xs font-medium shadow-2xl backdrop-blur-md transition-all ${
               toast.type === "error"
-                ? "border-red-500/40 bg-red-950/80 text-red-200"
+                ? "border-red-500/40 bg-[#12141A] text-red-300"
                 : toast.type === "success"
-                  ? "border-[#BCFF3C]/50 bg-[#080A0F]/90 text-[#BCFF3C]"
-                  : toast.type === "warning"
-                    ? "border-amber-500/40 bg-amber-950/80 text-amber-200"
-                    : "border-slate-800 bg-[#0F131C]/90 text-slate-300"
+                  ? "border-[#BCFF3C]/50 bg-[#12141A] text-[#BCFF3C]"
+                  : "border-gray-800 bg-[#12141A] text-gray-300"
             }`}
           >
-            <div className="flex items-center gap-2">
-              <span className="font-mono font-bold uppercase tracking-wider text-[10px]">
-                {toast.type}:
-              </span>
-              <span>{toast.message}</span>
-            </div>
+            <span>{toast.message}</span>
             <button
-              onClick={() => removeToast(toast.id)}
-              className="ml-2 rounded text-slate-400 hover:text-white"
+              onClick={() =>
+                setToasts((prev) => prev.filter((t) => t.id !== toast.id))
+              }
+              className="text-gray-500 hover:text-white"
             >
               ✕
             </button>
@@ -148,55 +128,52 @@ export function WorkspacePage() {
         ))}
       </div>
 
-      {/* Navigation Header Overlay */}
-      <header className="absolute top-4 left-4 z-10 flex items-center gap-3 rounded-xl border border-slate-800 bg-[#0F131C]/90 p-3 backdrop-blur-md">
+      {/* Header Overlay */}
+      <header className="absolute top-4 left-4 z-10 flex items-center gap-4 rounded-xl border border-gray-800 bg-[#12141A]/90 p-3 backdrop-blur-md">
         <button
           onClick={() => navigate("/dashboard")}
-          className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:border-slate-700 hover:text-white cursor-pointer"
+          className="flex items-center gap-1.5 rounded-lg border border-gray-800 bg-[#181B22] px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-gray-700 hover:text-white transition-all"
         >
-          ← Dashboard
+          <ArrowLeft className="h-3.5 w-3.5" /> Dashboard
         </button>
-        <div className="h-4 w-px bg-slate-800" />
-        <span className="text-xs font-mono font-medium text-slate-400">
-          NexusSpace Curriculum Path
-        </span>
-        <div className="h-4 w-px bg-slate-800" />
 
-        {/* AI Planner Button */}
+        <div className="h-4 w-px bg-gray-800" />
+
+        {/* Simple Text Branding */}
+        <span className="font-mono text-xs font-semibold tracking-wider text-white">
+          NEXUS<span className="text-[#BCFF3C]">SPACE</span>
+        </span>
+
+        <div className="h-4 w-px bg-gray-800" />
+
         <button
           onClick={handleAskPlanner}
           disabled={isPlanning || isInitializing}
-          className="flex items-center gap-2 rounded-lg bg-[#BCFF3C]/10 px-3 py-1.5 text-xs font-bold text-[#BCFF3C] transition-colors hover:bg-[#BCFF3C]/20 disabled:opacity-50 cursor-pointer"
+          className="flex items-center gap-2 rounded-lg bg-[#00E5FF]/10 border border-[#00E5FF]/30 px-3 py-1.5 text-xs font-semibold text-[#00E5FF] hover:bg-[#00E5FF]/20 transition-all disabled:opacity-50"
         >
           {isPlanning ? (
-            <>
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#BCFF3C]/30 border-t-[#BCFF3C]" />
-              Consulting AI...
-            </>
+            <Sparkles className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            "✨ What should I study next?"
+            <Compass className="h-3.5 w-3.5" />
           )}
+          <span>Next Recommended Concept</span>
         </button>
       </header>
 
-      {/* Main Container */}
+      {/* Main Canvas View */}
       <div className="flex h-full w-full">
         <div
-          className={`h-full transition-all duration-300 ${
-            selectedConcept ? "w-1/2 lg:w-3/5" : "w-full"
-          }`}
+          className={`h-full transition-all duration-300 ${selectedConcept ? "w-1/2 lg:w-3/5" : "w-full"}`}
         >
           {isInitializing ? (
-            <div className="flex h-full w-full items-center justify-center text-xs font-mono text-slate-500">
-              <div className="flex items-center gap-3">
-                <span className="h-2.5 w-2.5 animate-ping rounded-full bg-[#BCFF3C]" />
-                <span>Initializing curriculum progression state...</span>
-              </div>
+            <div className="flex h-full w-full items-center justify-center text-xs font-mono text-gray-500 gap-3">
+              <Sparkles className="h-4 w-4 animate-spin text-[#BCFF3C]" />
+              <span>Initializing Learning OS...</span>
             </div>
           ) : (
             <ErrorBoundary
               key={`${workspaceId}_${refreshKey}`}
-              fallbackTitle="This workspace hit a runtime error"
+              fallbackTitle="Workspace execution error"
             >
               <TopicPathView
                 workspaceId={workspaceId}
@@ -210,16 +187,16 @@ export function WorkspacePage() {
           <div className="h-full w-1/2 lg:w-2/5 animate-in slide-in-from-right duration-300">
             <ErrorBoundary
               key={selectedConcept.id}
-              fallbackTitle="Could not display lesson content"
+              fallbackTitle="Could not load studio view"
             >
               <TeacherStudio
-                workspaceTitle="Workspace Engine"
+                workspaceTitle="Mission Control"
                 workspaceId={workspaceId}
                 conceptId={selectedConcept.id}
                 conceptTitle={selectedConcept.title}
                 status={selectedConcept.status}
                 onClose={() => setSelectedConcept(null)}
-                onProgressUpdated={handleProgressUpdated}
+                onProgressUpdated={() => setRefreshKey((prev) => prev + 1)}
               />
             </ErrorBoundary>
           </div>

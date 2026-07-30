@@ -1,109 +1,219 @@
 import ConceptModel from "../../concept/models/concept.model";
+import LessonModel from "../../concept/models/lesson.model";
+import FlashcardModel from "../../learning/models/flashcard.model";
+import QuizModel from "../../learning/models/quiz.model";
 import { groqProvider } from "../providers/groq.provider";
-import { TEACHER_SYSTEM_PROMPT, buildTeacherPrompt } from "./teacher.prompt";
+import {
+  TEACHER_SYSTEM_PROMPT,
+  buildTier1ModulesPrompt,
+  buildTier2SubtopicsPrompt,
+  buildTier3LessonPrompt,
+} from "./teacher.prompt";
 
 export class TeacherService {
-  async generateLesson(context: any): Promise<any> {
-    const { conceptId, forceRefresh } = context;
-
-    // 1. Check DB Cache First (Unless forceRefresh is requested)
-    if (conceptId && !forceRefresh) {
-      const existingConcept = await ConceptModel.findOne({ conceptId });
-      if (existingConcept && existingConcept.lessonPayload) {
-        console.log(
-          `[TeacherService] Returning cached Layer 3 lesson from DB for: ${conceptId}`,
-        );
-        return existingConcept.lessonPayload;
-      }
-    }
-
-    // 2. Just-In-Time Generation via Groq
+  /**
+   * TIER 1: Generate Top-Level Modules (1st Pillars)
+   * Triggered when creating a new workspace. Saves lightweight Concept documents.
+   */
+  async generateTier1Modules(context: {
+    workspaceId: string;
+    ownerId: string;
+    workspaceTitle: string;
+    workspaceDescription?: string;
+  }): Promise<any[]> {
     console.log(
-      `[TeacherService] Generating fresh AI lesson for: ${context.conceptTitle}`,
+      `[TeacherService] Tier 1: Generating modules for workspace: ${context.workspaceTitle}`
     );
-    const prompt = buildTeacherPrompt(context);
 
-    const rawLessonData = await groqProvider.generateJSON(
+    const prompt = buildTier1ModulesPrompt(context);
+    const rawData = await groqProvider.generateJSON(
       prompt,
       TEACHER_SYSTEM_PROMPT,
       "teacher",
-      { temperature: 0.3 },
+      { temperature: 0.2 }
     );
 
-    // 3. Normalize & Sanitize JSON Payload
-    const normalizedPayload = this.normalizeLessonPayload(rawLessonData);
+    const modules = Array.isArray(rawData?.modules) ? rawData.modules : [];
+    const createdConcepts = [];
 
-    // 4. Update Database (Cache Layer 2 subtopics & Layer 3 full lesson)
-    if (conceptId && normalizedPayload) {
-      try {
-        const updateData: Record<string, any> = {
-          lessonPayload: normalizedPayload,
-        };
+    for (let i = 0; i < modules.length; i++) {
+      const mod = modules[i];
+      const conceptId = `concept_${context.workspaceId}_${i + 1}`;
 
-        // If topics exist in generated data, sync them to Layer 2 concept record
-        if (
-          Array.isArray(normalizedPayload.topics) &&
-          normalizedPayload.topics.length > 0
-        ) {
-          updateData.topics = normalizedPayload.topics;
-        }
+      const concept = await ConceptModel.create({
+        conceptId,
+        workspace: context.workspaceId,
+        owner: context.ownerId,
+        title: mod.title,
+        description: mod.description,
+        order: i + 1,
+        // First module is unlocked by default; downstream modules are locked
+        isUnlocked: i === 0,
+        isMastered: false,
+        topics: [],
+      });
 
-        await ConceptModel.updateOne({ conceptId }, { $set: updateData });
-
-        console.log(
-          `[TeacherService] Successfully cached lesson & topics in DB for: ${conceptId}`,
-        );
-      } catch (cacheErr) {
-        console.error("Failed to cache lesson payload in MongoDB:", cacheErr);
-      }
+      createdConcepts.push(concept);
     }
 
-    return normalizedPayload;
+    return createdConcepts;
   }
 
   /**
-   * Helper to ensure generated AI JSON strictly satisfies frontend requirements
+   * TIER 2: Generate Subtopics (2nd Pillars)
+   * Triggered when clicking a Module node. Checks DB cache first.
    */
-  private normalizeLessonPayload(rawData: any): any {
-    if (!rawData) return {};
+  async generateTier2Subtopics(context: {
+    conceptId: string;
+    workspaceTitle: string;
+    moduleTitle: string;
+    moduleDescription?: string;
+    forceRefresh?: boolean;
+  }): Promise<any[]> {
+    const { conceptId, forceRefresh } = context;
 
-    let data = rawData?.data ? rawData.data : rawData;
+    // 1. DB Cache Check
+    const concept = await ConceptModel.findOne({ conceptId });
+    if (!concept) {
+      throw new Error(`Concept module not found for ID: ${conceptId}`);
+    }
 
-    // Extract diagnostic quiz across all possible LLM output variations
-    let quizList: any[] = [];
+    if (concept.topics && concept.topics.length > 0 && !forceRefresh) {
+      console.log(
+        `[TeacherService] Tier 2: Returning cached subtopics from DB for: ${conceptId}`
+      );
+      return concept.topics;
+    }
 
-    if (Array.isArray(data?.quiz) && data.quiz.length > 0) {
-      quizList = data.quiz;
-    } else if (Array.isArray(data?.questions) && data.questions.length > 0) {
-      quizList = data.questions;
-    } else if (
-      Array.isArray(data?.assessment) &&
-      Array.isArray(data.assessment[0]?.questions)
-    ) {
-      // Handles assessment as an array: assessment: [{ questions: [...] }]
-      quizList = data.assessment[0].questions;
-    } else if (Array.isArray(data?.assessment?.questions)) {
-      // Handles assessment as an object: assessment: { questions: [...] }
-      quizList = data.assessment.questions;
-    } else if (Array.isArray(data?.activities)) {
-      for (const act of data.activities) {
-        if (Array.isArray(act?.questions) && act.questions.length > 0) {
-          quizList = act.questions;
-          break;
-        }
+    // 2. JIT AI Generation
+    console.log(
+      `[TeacherService] Tier 2: Generating fresh subtopics for module: ${context.moduleTitle}`
+    );
+    const prompt = buildTier2SubtopicsPrompt(context);
+    const rawData = await groqProvider.generateJSON(
+      prompt,
+      TEACHER_SYSTEM_PROMPT,
+      "teacher",
+      { temperature: 0.3 }
+    );
+
+    const subtopics = Array.isArray(rawData?.subtopics) ? rawData.subtopics : [];
+
+    // 3. Save Subtopics Array to Concept Document
+    concept.topics = subtopics;
+    await concept.save();
+
+    return subtopics;
+  }
+
+  /**
+   * TIER 3: Generate Deep Lesson, Flashcards, and Quiz (The Deep Dive)
+   * Triggered when clicking a specific Subtopic to learn. Saves across separate models.
+   */
+  async generateTier3Lesson(context: {
+    conceptId: string;
+    subtopicId: string;
+    workspaceId: string;
+    ownerId: string;
+    workspaceTitle: string;
+    moduleTitle: string;
+    subtopicTitle: string;
+    forceRefresh?: boolean;
+  }): Promise<any> {
+    const { conceptId, subtopicId, workspaceId, ownerId, forceRefresh } = context;
+
+    const concept = await ConceptModel.findOne({ conceptId });
+    if (!concept) {
+      throw new Error(`Concept module not found for ID: ${conceptId}`);
+    }
+
+    // 1. DB Cache Check across dedicated models
+    if (!forceRefresh) {
+      const [existingLesson, existingCards, existingQuiz] = await Promise.all([
+        LessonModel.findOne({ concept: concept._id, subtopicId }),
+        FlashcardModel.find({ concept: concept._id, subtopicId }),
+        QuizModel.findOne({ concept: concept._id, subtopicId }),
+      ]);
+
+      if (existingLesson && existingCards.length > 0 && existingQuiz) {
+        console.log(
+          `[TeacherService] Tier 3: Returning cached deep lesson payload for subtopic: ${subtopicId}`
+        );
+        return {
+          markdownContent: existingLesson.markdownContent,
+          flashcards: existingCards,
+          quiz: existingQuiz.questions,
+        };
       }
     }
 
-    // Normalize quiz items so every question has an options array and valid answer index
-    const normalizedQuiz = quizList.map((q: any) => ({
-      question: q?.question || "Question",
-      options: Array.isArray(q?.options) ? q.options : [],
-      answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0,
-    }));
+    // 2. JIT AI Generation
+    console.log(
+      `[TeacherService] Tier 3: Generating fresh deep lesson payload for: ${context.subtopicTitle}`
+    );
+    const prompt = buildTier3LessonPrompt(context);
+    const rawData = await groqProvider.generateJSON(
+      prompt,
+      TEACHER_SYSTEM_PROMPT,
+      "teacher",
+      { temperature: 0.3 }
+    );
+
+    const markdownContent = rawData?.markdownContent || "Content generation failed.";
+    const flashcardsData = Array.isArray(rawData?.flashcards) ? rawData.flashcards : [];
+    const quizData = Array.isArray(rawData?.quiz) ? rawData.quiz : [];
+
+    // 3. Atomically update/save to dedicated collections
+    const [savedLesson, savedCards, savedQuiz] = await Promise.all([
+      // Upsert Lesson Document
+      LessonModel.findOneAndUpdate(
+        { concept: concept._id, subtopicId },
+        {
+          subtopicId,
+          concept: concept._id,
+          workspace: workspaceId,
+          owner: ownerId,
+          markdownContent,
+        },
+        { upsert: true, new: true }
+      ),
+
+      // Refresh Flashcard Documents
+      (async () => {
+        await FlashcardModel.deleteMany({ concept: concept._id, subtopicId });
+        const cardsToInsert = flashcardsData.map((card: any) => ({
+          subtopicId,
+          concept: concept._id,
+          workspace: workspaceId,
+          owner: ownerId,
+          front: card.front || "Question prompt",
+          back: card.back || "Answer details",
+        }));
+        return FlashcardModel.insertMany(cardsToInsert);
+      })(),
+
+      // Upsert Quiz Document
+      QuizModel.findOneAndUpdate(
+        { concept: concept._id, subtopicId },
+        {
+          subtopicId,
+          concept: concept._id,
+          workspace: workspaceId,
+          owner: ownerId,
+          questions: quizData.map((q: any) => ({
+            question: q?.question || "Question",
+            options: Array.isArray(q?.options) ? q.options : [],
+            answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0,
+          })),
+        },
+        { upsert: true, new: true }
+      ),
+    ]);
 
     return {
-      ...data,
-      quiz: normalizedQuiz,
+      markdownContent: savedLesson.markdownContent,
+      flashcards: savedCards,
+      quiz: savedQuiz.questions,
     };
   }
 }

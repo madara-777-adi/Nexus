@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
-import { useTeacherStream } from "../../hooks/useTeacherStream";
-import { evaluateSubmission } from "../../api/ai.api";
+import { getTier3Lesson, evaluateSubmission } from "../../api/ai.api";
+import { ActiveRecallModal } from "./ActiveRecallModal";
+import { ConceptStatus } from "../../types/learning.types";
+import type { Flashcard, QuizQuestion } from "../../types/ai.types";
 import {
-  ConceptStatus,
-  type IFlashcard,
-  type ITopic,
-  type ILessonResource,
-} from "../../types/learning.types";
+  Sparkles,
+  RefreshCw,
+  X,
+  BookOpen,
+  Layers,
+  HelpCircle,
+} from "lucide-react";
 
 interface TeacherStudioProps {
   workspaceId: string;
@@ -14,80 +18,10 @@ interface TeacherStudioProps {
   conceptId: string;
   conceptTitle: string;
   status: ConceptStatus;
+  subtopicId?: string;
+  subtopicTitle?: string;
   onClose: () => void;
   onProgressUpdated?: () => void;
-}
-
-// --- Interactive Pillar 3 Flashcard Deck Component ---
-function FlashcardViewer({
-  cards,
-  topicTitle,
-  onClose,
-}: {
-  cards: IFlashcard[];
-  topicTitle: string;
-  onClose: () => void;
-}) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
-
-  if (!cards || cards.length === 0) return null;
-
-  const currentCard = cards[currentIndex];
-
-  return (
-    <div className="space-y-3 rounded-xl border border-purple-500/40 bg-[#120B1C] p-5 animate-in fade-in duration-200">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-mono font-semibold uppercase tracking-wider text-purple-400">
-          Flashcard Deck: {topicTitle} ({currentIndex + 1} / {cards.length})
-        </span>
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            <button
-              disabled={currentIndex === 0}
-              onClick={() => {
-                setIsFlipped(false);
-                setCurrentIndex((p) => p - 1);
-              }}
-              className="rounded border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition-colors hover:border-purple-500 hover:text-white disabled:opacity-30 cursor-pointer"
-            >
-              ← Prev
-            </button>
-            <button
-              disabled={currentIndex === cards.length - 1}
-              onClick={() => {
-                setIsFlipped(false);
-                setCurrentIndex((p) => p + 1);
-              }}
-              className="rounded border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition-colors hover:border-purple-500 hover:text-white disabled:opacity-30 cursor-pointer"
-            >
-              Next →
-            </button>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white font-bold ml-2 cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-
-      <div
-        onClick={() => setIsFlipped(!isFlipped)}
-        className="min-h-[150px] flex flex-col items-center justify-center rounded-lg border border-purple-500/30 bg-[#080A0F] p-6 text-center cursor-pointer transition-all hover:border-purple-500/60 shadow-lg"
-      >
-        <span className="text-[10px] font-mono text-purple-400/80 uppercase tracking-widest mb-2">
-          {isFlipped
-            ? "Answer / Takeaway"
-            : "Prompt / Question (Click to Flip)"}
-        </span>
-        <p className="text-sm font-medium leading-relaxed text-slate-100">
-          {isFlipped ? currentCard.back : currentCard.front}
-        </p>
-      </div>
-    </div>
-  );
 }
 
 export function TeacherStudio({
@@ -96,73 +30,75 @@ export function TeacherStudio({
   conceptId,
   conceptTitle,
   status,
+  subtopicId = "overview",
+  subtopicTitle = "Overview & Fundamentals",
   onClose,
   onProgressUpdated,
 }: TeacherStudioProps) {
-  const { streamLesson, stopStream, parsedLesson, isLoading, error } =
-    useTeacherStream();
   const [activeTab, setActiveTab] = useState<"lesson" | "quiz">("lesson");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Tier 3 Payload State
+  const [markdownContent, setMarkdownContent] = useState<string>("");
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+
+  // Active Recall Modal State
+  const [isDeckOpen, setIsDeckOpen] = useState<boolean>(false);
+
+  // Quiz Evaluation State
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
   const [evaluationScore, setEvaluationScore] = useState<number | null>(null);
   const [unlockedNodes, setUnlockedNodes] = useState<string[]>([]);
 
-  // Interactive Subtopic & Flashcard State
-  const [selectedSubtopic, setSelectedSubtopic] = useState<{
-    topicTitle: string;
-    subtopicTitle: string;
-    flashcards?: IFlashcard[];
-  } | null>(null);
+  const fetchLessonPayload = async (forceRefresh = false) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await getTier3Lesson({
+        conceptId,
+        subtopicId,
+        workspaceId,
+        workspaceTitle: workspaceTitle || "Workspace",
+        moduleTitle: conceptTitle || "Module",
+        subtopicTitle,
+        forceRefresh,
+      });
+
+      setMarkdownContent(data.markdownContent || "");
+      setFlashcards(data.flashcards || []);
+      setQuizQuestions(data.quiz || []);
+    } catch (err: any) {
+      console.error("Failed to load Tier 3 lesson:", err);
+      setError(
+        err?.response?.data?.message || "Failed to load deep lesson payload.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!workspaceId || !conceptId) return;
-
+    if (!conceptId || !workspaceId) return;
     setUserAnswers({});
     setEvaluationScore(null);
     setUnlockedNodes([]);
-    setSelectedSubtopic(null);
     setActiveTab("lesson");
-
-    streamLesson({
-      workspaceId,
-      workspaceTitle: workspaceTitle || "Workspace",
-      conceptId,
-      conceptTitle: conceptTitle || "Concept",
-      difficulty: "Intermediate",
-      preferredDepth: "Balanced",
-    });
-
-    return () => {
-      if (stopStream) {
-        stopStream();
-      }
-    };
-  }, [workspaceId, workspaceTitle, conceptId, conceptTitle]);
-
-  const handleRegenerate = () => {
-    streamLesson({
-      workspaceId,
-      workspaceTitle: workspaceTitle || "Workspace",
-      conceptId,
-      conceptTitle: conceptTitle || "Concept",
-      difficulty: "Intermediate",
-      preferredDepth: "Balanced",
-      forceRefresh: true,
-    });
-  };
+    fetchLessonPayload(false);
+  }, [conceptId, subtopicId, workspaceId]);
 
   const handleOptionSelect = (questionIndex: number, optionIndex: number) => {
     setUserAnswers((prev) => ({ ...prev, [questionIndex]: optionIndex }));
   };
 
   const handleSubmitQuiz = async () => {
-    const quizList = Array.isArray(parsedLesson?.quiz) ? parsedLesson.quiz : [];
-    if (quizList.length === 0) return;
+    if (quizQuestions.length === 0) return;
 
     setIsEvaluating(true);
     try {
-      const learnerAnswers = quizList.map((q, idx) => ({
+      const learnerAnswers = quizQuestions.map((q, idx) => ({
         question: q?.question || "Question",
         userAnswer:
           userAnswers[idx] !== undefined && Array.isArray(q?.options)
@@ -174,7 +110,7 @@ export function TeacherStudio({
         workspaceId,
         conceptId,
         conceptTitle,
-        questions: quizList as any,
+        questions: quizQuestions,
         learnerAnswers,
       });
 
@@ -192,77 +128,95 @@ export function TeacherStudio({
     }
   };
 
-  // Helper normalizers for flexible key names across AI generations
-  const objectivesList =
-    parsedLesson?.objectives || parsedLesson?.learningObjectives || [];
-
   return (
-    <div className="flex h-full w-full flex-col border-l border-slate-800 bg-[#080A0F] text-slate-200">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 bg-[#080A0F] p-4">
+    <div className="flex h-full w-full flex-col border-l border-gray-800 bg-[#080A0F] text-gray-200">
+      {/* Floating Active Recall Deck Overlay */}
+      <ActiveRecallModal
+        isOpen={isDeckOpen}
+        subtopicTitle={subtopicTitle}
+        cards={flashcards}
+        onClose={() => setIsDeckOpen(false)}
+      />
+
+      {/* Studio Header */}
+      <div className="flex items-center justify-between border-b border-gray-800 bg-[#12141A] p-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono uppercase tracking-wider text-slate-500">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
               {workspaceTitle || "Workspace"}
             </span>
-            <span className="text-slate-700">•</span>
-            <span className="rounded border border-slate-800 bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-[#BCFF3C]">
+            <span className="text-gray-600">•</span>
+            <span
+              className={`rounded px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                status === ConceptStatus.MASTERED
+                  ? "bg-[#BCFF3C]/10 text-[#BCFF3C]"
+                  : "bg-[#00E5FF]/10 text-[#00E5FF]"
+              }`}
+            >
               {status}
             </span>
           </div>
-          <h2 className="text-lg font-bold tracking-tight text-white">
-            {parsedLesson?.concept || parsedLesson?.conceptName || conceptTitle}
+          <h2 className="text-base font-medium tracking-tight text-white mt-0.5">
+            {subtopicTitle}
           </h2>
         </div>
 
         <div className="flex items-center gap-2">
+          {flashcards.length > 0 && (
+            <button
+              onClick={() => setIsDeckOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-[#BCFF3C]/40 bg-[#BCFF3C]/10 px-2.5 py-1.5 text-xs font-semibold text-[#BCFF3C] hover:bg-[#BCFF3C]/20 transition-colors"
+            >
+              <Layers className="h-3.5 w-3.5" /> Active Recall (
+              {flashcards.length})
+            </button>
+          )}
+
           <button
-            onClick={handleRegenerate}
-            title="Re-generate Lesson & Quiz with AI"
-            className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:border-[#BCFF3C]/50 hover:text-[#BCFF3C] transition-colors cursor-pointer"
+            onClick={() => fetchLessonPayload(true)}
+            title="Re-generate with AI"
+            className="rounded-lg border border-gray-800 bg-[#181B22] p-2 text-gray-400 hover:border-gray-700 hover:text-white transition-colors"
           >
-            🔄 Refresh AI
+            <RefreshCw
+              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+            />
           </button>
+
           <button
-            onClick={() => {
-              if (stopStream) stopStream();
-              onClose();
-            }}
-            className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-400 transition-colors hover:border-slate-700 hover:text-white cursor-pointer"
+            onClick={onClose}
+            className="rounded-lg border border-gray-800 bg-[#181B22] p-2 text-gray-400 hover:border-gray-700 hover:text-white transition-colors"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-800 bg-[#080A0F] px-4">
+      <div className="flex border-b border-gray-800 bg-[#12141A] px-4">
         <button
           onClick={() => setActiveTab("lesson")}
-          className={`border-b-2 py-3 px-4 text-sm font-medium transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 border-b-2 py-3 px-4 text-xs font-semibold tracking-wide uppercase transition-colors ${
             activeTab === "lesson"
-              ? "border-[#BCFF3C] text-[#BCFF3C]"
-              : "border-transparent text-slate-400 hover:text-slate-200"
+              ? "border-[#00E5FF] text-[#00E5FF]"
+              : "border-transparent text-gray-400 hover:text-gray-200"
           }`}
         >
-          Curriculum Pedagogy
+          <BookOpen className="h-3.5 w-3.5" /> JIT Notes
         </button>
         <button
           onClick={() => setActiveTab("quiz")}
-          className={`border-b-2 py-3 px-4 text-sm font-medium transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 border-b-2 py-3 px-4 text-xs font-semibold tracking-wide uppercase transition-colors ${
             activeTab === "quiz"
               ? "border-[#BCFF3C] text-[#BCFF3C]"
-              : "border-transparent text-slate-400 hover:text-slate-200"
+              : "border-transparent text-gray-400 hover:text-gray-200"
           }`}
         >
-          Diagnostic Quiz{" "}
-          {Array.isArray(parsedLesson?.quiz)
-            ? `(${parsedLesson.quiz.length})`
-            : "(0)"}
+          <HelpCircle className="h-3.5 w-3.5" /> Diagnostic Quiz (
+          {quizQuestions.length})
         </button>
       </div>
 
-      {/* Body */}
+      {/* Body Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {error && (
           <div className="rounded-xl border border-red-500/30 bg-red-950/20 p-4 text-sm text-red-400">
@@ -270,304 +224,69 @@ export function TeacherStudio({
           </div>
         )}
 
-        {/* Selected Subtopic & Flashcard Deck Popover */}
-        {selectedSubtopic && (
-          <div className="space-y-4">
-            {selectedSubtopic.flashcards &&
-            selectedSubtopic.flashcards.length > 0 ? (
-              <FlashcardViewer
-                cards={selectedSubtopic.flashcards}
-                topicTitle={selectedSubtopic.subtopicTitle}
-                onClose={() => setSelectedSubtopic(null)}
-              />
-            ) : (
-              <div className="rounded-xl border border-[#BCFF3C]/40 bg-[#BCFF3C]/5 p-4 text-xs space-y-2 animate-in fade-in duration-200">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
-                    Focus Module: {selectedSubtopic.topicTitle}
-                  </span>
-                  <button
-                    onClick={() => setSelectedSubtopic(null)}
-                    className="text-slate-400 hover:text-white font-bold cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <p className="text-sm font-bold text-white">
-                  {selectedSubtopic.subtopicTitle}
-                </p>
-                <p className="text-slate-300 leading-relaxed">
-                  Active subtopic module. Review the concepts below and attempt
-                  the diagnostic quiz to test retention!
-                </p>
-              </div>
-            )}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-16 text-gray-500 gap-3">
+            <Sparkles className="h-6 w-6 animate-spin text-[#00E5FF]" />
+            <span className="text-xs font-mono">
+              Synthesizing JIT lesson payload...
+            </span>
           </div>
-        )}
-
-        {activeTab === "lesson" && (
+        ) : activeTab === "lesson" ? (
           <div className="space-y-6">
-            {isLoading && !parsedLesson && (
-              <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-[#0F131C] p-4 text-sm text-slate-400">
-                <span className="h-2 w-2 animate-ping rounded-full bg-[#BCFF3C]" />
-                Streaming lesson payload from Teacher Engine...
-              </div>
-            )}
-
-            {/* Overview / Description */}
-            {parsedLesson?.description && (
-              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
-                <h3 className="mb-2 text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
-                  Overview & Description
-                </h3>
-                <p className="text-sm leading-relaxed text-slate-300">
-                  {parsedLesson.description}
-                </p>
-              </section>
-            )}
-
-            {/* Learning Objectives */}
-            {Array.isArray(objectivesList) && objectivesList.length > 0 && (
-              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
-                <h3 className="mb-3 text-xs font-mono font-semibold text-sky-400 uppercase tracking-wider">
-                  Learning Objectives
-                </h3>
-                <ul className="space-y-2 text-sm text-slate-300">
-                  {objectivesList.map((obj, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="text-sky-400">•</span>
-                      <span>{obj}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {/* Interactive Topics & Subtopics with Flashcard Pills */}
-            {Array.isArray(parsedLesson?.topics) &&
-              parsedLesson.topics.length > 0 && (
-                <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-4">
-                  <h3 className="text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
-                    Curriculum Topics (Click a topic to launch flashcards)
-                  </h3>
-                  <div className="space-y-3">
-                    {parsedLesson.topics.map((topic: ITopic, i: number) => {
-                      const topicName =
-                        topic?.title || topic?.topicName || "Topic";
-                      return (
-                        <div
-                          key={i}
-                          className="rounded-lg border border-slate-800/80 bg-[#080A0F] p-4 space-y-3"
-                        >
-                          <h4 className="text-sm font-semibold text-white">
-                            {i + 1}. {topicName}
-                          </h4>
-                          {topic?.description && (
-                            <p className="text-xs leading-relaxed text-slate-400">
-                              {topic.description}
-                            </p>
-                          )}
-                          {Array.isArray(topic?.subtopics) &&
-                            topic.subtopics.length > 0 && (
-                              <div className="pt-1 flex flex-wrap gap-1.5">
-                                {topic.subtopics.map(
-                                  (sub: string, sIdx: number) => (
-                                    <button
-                                      key={sIdx}
-                                      onClick={() =>
-                                        setSelectedSubtopic({
-                                          topicTitle: topicName,
-                                          subtopicTitle: sub,
-                                          flashcards: topic.flashcards,
-                                        })
-                                      }
-                                      className={`rounded border px-2.5 py-1 text-[11px] font-mono transition-all cursor-pointer ${
-                                        selectedSubtopic?.subtopicTitle === sub
-                                          ? "border-[#BCFF3C] bg-[#BCFF3C]/20 text-white font-bold"
-                                          : "border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-600 hover:text-white"
-                                      }`}
-                                    >
-                                      {sub}
-                                      {topic.flashcards &&
-                                        topic.flashcards.length > 0 && (
-                                          <span className="ml-1 text-[9px] text-purple-400">
-                                            🎴
-                                          </span>
-                                        )}
-                                    </button>
-                                  ),
-                                )}
-                              </div>
-                            )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              )}
-
-            {/* Hands-On Activities */}
-            {Array.isArray(parsedLesson?.activities) &&
-              parsedLesson.activities.length > 0 && (
-                <section className="rounded-xl border border-amber-500/20 bg-[#14120B] p-5 space-y-3">
-                  <h3 className="text-xs font-mono font-semibold text-amber-400 uppercase tracking-wider">
-                    Hands-On Activities
-                  </h3>
-                  {parsedLesson.activities
-                    .filter((act) => act && act?.type?.toLowerCase() !== "quiz")
-                    .map((act, i) => (
-                      <div key={i} className="space-y-2">
-                        <h4 className="text-sm font-semibold text-amber-200">
-                          {act?.title || "Activity"}
-                        </h4>
-                        <p className="text-xs text-amber-100/80">
-                          {act?.description || ""}
-                        </p>
-                        {Array.isArray(act?.instructions) &&
-                          act.instructions.length > 0 && (
-                            <ol className="list-decimal list-inside space-y-1 text-xs text-amber-200/90 pl-1">
-                              {act.instructions.map((inst, idx) => (
-                                <li key={idx}>{inst}</li>
-                              ))}
-                            </ol>
-                          )}
-                      </div>
-                    ))}
-                </section>
-              )}
-
-            {/* Resources */}
-            {Array.isArray(parsedLesson?.resources) &&
-              parsedLesson.resources.length > 0 && (
-                <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-3">
-                  <h3 className="text-xs font-mono font-semibold text-purple-400 uppercase tracking-wider">
-                    Recommended Learning Resources
-                  </h3>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {parsedLesson.resources.map(
-                      (res: ILessonResource, i: number) => {
-                        const title =
-                          res?.title || res?.resourceName || "Resource Link";
-                        const type = res?.type || res?.resourceType || "LINK";
-                        const url = res?.url || res?.resourceUrl || "#";
-
-                        return (
-                          <a
-                            key={i}
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-2 rounded-lg border border-slate-800 bg-[#080A0F] p-3 text-xs text-slate-300 transition-colors hover:border-purple-500/40 hover:text-white"
-                          >
-                            <span className="rounded bg-purple-950/60 p-1 text-purple-400 font-mono text-[10px]">
-                              {type.toUpperCase()}
-                            </span>
-                            <span className="truncate font-medium">
-                              {title}
-                            </span>
-                          </a>
-                        );
-                      },
-                    )}
-                  </div>
-                </section>
-              )}
-
-            {/* Assessment */}
-            {parsedLesson?.assessment && (
-              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-2">
-                <h3 className="text-xs font-mono font-semibold text-emerald-400 uppercase tracking-wider">
-                  Cap-Stone Assessment:{" "}
-                  {parsedLesson.assessment?.title ||
-                    parsedLesson.assessment?.assessmentName ||
-                    "Project"}
-                </h3>
-                <p className="text-xs text-slate-300">
-                  {parsedLesson.assessment?.description || ""}
-                </p>
-                {Array.isArray(parsedLesson.assessment?.requirements) && (
-                  <ul className="mt-2 space-y-1 text-xs text-slate-400">
-                    {parsedLesson.assessment.requirements.map(
-                      (req: string, i: number) => (
-                        <li key={i} className="flex items-center gap-1.5">
-                          <span className="text-emerald-400">✓</span> {req}
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                )}
-              </section>
-            )}
+            <article className="prose prose-invert max-w-none rounded-xl border border-gray-800 bg-[#12141A] p-6 text-sm leading-relaxed text-gray-300 whitespace-pre-line">
+              {markdownContent}
+            </article>
           </div>
-        )}
-
-        {activeTab === "quiz" && (
+        ) : (
           <div className="space-y-6">
             {evaluationScore !== null && (
               <div
                 className={`rounded-xl border p-5 ${
                   evaluationScore >= 80
-                    ? "border-[#BCFF3C]/50 bg-[#0D150A] text-white"
-                    : "border-amber-500/50 bg-[#14120B] text-amber-200"
+                    ? "border-[#BCFF3C]/50 bg-[#12141A] text-white"
+                    : "border-amber-500/50 bg-[#12141A] text-amber-200"
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-base font-bold">Evaluation Score</h4>
+                  <h4 className="text-sm font-semibold uppercase tracking-wider">
+                    Evaluation Score
+                  </h4>
                   <span className="text-2xl font-mono font-bold">
                     {evaluationScore}%
                   </span>
                 </div>
-                <p className="text-sm opacity-90">
+                <p className="text-xs opacity-90">
                   {evaluationScore >= 80
-                    ? "Concept Mastered! Downstream graph edges evaluated."
-                    : "Below 80% threshold. Practice recommended before unlocking next node."}
+                    ? "Subtopic Mastered! Downstream nodes updated."
+                    : "Score below 80%. Review notes and try again."}
                 </p>
-                {unlockedNodes.length > 0 && (
-                  <div className="mt-3 border-t border-[#BCFF3C]/30 pt-3">
-                    <span className="text-xs font-semibold text-[#BCFF3C] uppercase tracking-wider">
-                      Newly Unlocked Nodes:
-                    </span>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      {unlockedNodes.map((id) => (
-                        <span
-                          key={id}
-                          className="rounded-md border border-[#BCFF3C]/40 bg-[#BCFF3C]/10 px-2 py-1 font-mono text-xs text-[#BCFF3C]"
-                        >
-                          {id}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
-            {Array.isArray(parsedLesson?.quiz) &&
-            parsedLesson.quiz.length > 0 ? (
-              <div className="space-y-6">
-                {parsedLesson.quiz.map((q, qIdx) => (
+            {quizQuestions.length > 0 ? (
+              <div className="space-y-4">
+                {quizQuestions.map((q, qIdx) => (
                   <div
                     key={qIdx}
-                    className="rounded-xl border border-slate-800 bg-[#0F131C] p-5"
+                    className="rounded-xl border border-gray-800 bg-[#12141A] p-5 space-y-3"
                   >
-                    <h4 className="mb-4 text-sm font-semibold text-slate-100">
-                      {qIdx + 1}. {q?.question || "Question"}
+                    <h4 className="text-sm font-medium text-gray-100">
+                      {qIdx + 1}. {q.question}
                     </h4>
                     <div className="space-y-2">
-                      {Array.isArray(q?.options) &&
-                        q.options.map((option, oIdx) => (
-                          <button
-                            key={oIdx}
-                            onClick={() => handleOptionSelect(qIdx, oIdx)}
-                            className={`w-full text-left rounded-lg border p-3 text-sm transition-all cursor-pointer ${
-                              userAnswers[qIdx] === oIdx
-                                ? "border-[#BCFF3C] bg-[#BCFF3C]/10 text-white font-medium"
-                                : "border-slate-800 bg-[#080A0F] text-slate-300 hover:border-slate-700"
-                            }`}
-                          >
-                            {option}
-                          </button>
-                        ))}
+                      {q.options.map((option, oIdx) => (
+                        <button
+                          key={oIdx}
+                          onClick={() => handleOptionSelect(qIdx, oIdx)}
+                          className={`w-full text-left rounded-lg border p-3 text-xs transition-all ${
+                            userAnswers[qIdx] === oIdx
+                              ? "border-[#BCFF3C] bg-[#BCFF3C]/10 text-white font-medium"
+                              : "border-gray-800/80 bg-[#181B22] text-gray-300 hover:border-gray-700"
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -575,7 +294,7 @@ export function TeacherStudio({
                 <button
                   onClick={handleSubmitQuiz}
                   disabled={isEvaluating}
-                  className="w-full rounded-xl bg-[#BCFF3C] py-3.5 text-sm font-bold text-black transition-all hover:bg-[#aef525] disabled:opacity-50 cursor-pointer"
+                  className="w-full rounded-xl bg-[#BCFF3C] py-3 text-xs font-semibold uppercase tracking-wider text-black transition-all hover:bg-[#aef525] disabled:opacity-50"
                 >
                   {isEvaluating
                     ? "Evaluating Submission..."
@@ -583,15 +302,9 @@ export function TeacherStudio({
                 </button>
               </div>
             ) : (
-              <div className="text-center py-12 text-sm text-slate-500 space-y-3">
-                <p>No diagnostic questions found in cached lesson payload.</p>
-                <button
-                  onClick={handleRegenerate}
-                  className="rounded-lg bg-[#BCFF3C]/10 border border-[#BCFF3C]/40 px-4 py-2 font-mono text-xs font-bold text-[#BCFF3C] hover:bg-[#BCFF3C]/20 transition-all cursor-pointer"
-                >
-                  ✨ Click here to re-generate with Quiz
-                </button>
-              </div>
+              <p className="text-center py-12 text-xs text-gray-500">
+                No quiz questions generated for this subtopic.
+              </p>
             )}
           </div>
         )}

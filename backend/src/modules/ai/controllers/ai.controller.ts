@@ -4,26 +4,33 @@ import { teacherService } from "../teacher/teacher.service";
 import { evaluatorService } from "../evaluator/evaluator.service";
 import { plannerService } from "../planner/planner.service";
 import { quizGeneratorService } from "../generator/quiz-generator.service";
-import { ResourceGeneratorService } from "../generator/resource-generator.service";
 
-// --- IMPORTING THE GRAPH BRIDGE ---
+// --- GRAPH BRIDGE & MODELS ---
 import learningService from "../../learning/services/learning.service";
 import ConceptModel from "../../concept/models/concept.model";
 import { ConceptStatus } from "../../learning/models/learning-progress.model";
 
 export class AIController {
   /**
-   * GENERATE TEACHER LESSON (REST JSON)
-   * Delivers full markdown pedagogy via standard JSON response.
+   * TIER 1: GENERATE WORKSPACE MODULES (1st Pillars)
+   * Triggered upon workspace creation to build progressive concept nodes.
    */
-  static async generateLesson(req: Request, res: Response, next: NextFunction) {
+  static async generateTier1Modules(req: Request, res: Response, next: NextFunction) {
     try {
-      const lessonData = await teacherService.generateLesson(req.body);
+      const userId = (req as any).user?.id || (req as any).user?._id;
+      const { workspaceId, workspaceTitle, workspaceDescription } = req.body;
+
+      const modules = await teacherService.generateTier1Modules({
+        workspaceId,
+        ownerId: userId,
+        workspaceTitle,
+        workspaceDescription,
+      });
 
       return res.status(200).json({
         success: true,
-        message: "Lesson generated successfully",
-        data: lessonData, // Now contains { overview, definition, intuition, analogy, explanation, keyPoints, quiz }
+        message: "Tier 1 workspace modules generated successfully",
+        data: modules,
       });
     } catch (error) {
       next(error);
@@ -31,39 +38,89 @@ export class AIController {
   }
 
   /**
-   * EVALUATE SUBMISSION & BACKEND DECISION ENGINE (Fast Tier / Groq)
-   * AI calculates mastery score; backend deterministically controls node progression.
+   * TIER 2: GENERATE MODULE SUBTOPICS (2nd Pillars)
+   * Triggered JIT when a user selects a specific concept node.
    */
-  static async evaluateSubmission(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) {
+  static async generateTier2Subtopics(req: Request, res: Response, next: NextFunction) {
     try {
-      // Assuming your auth middleware populates req.user
+      const { conceptId, workspaceTitle, moduleTitle, moduleDescription, forceRefresh } = req.body;
+
+      const subtopics = await teacherService.generateTier2Subtopics({
+        conceptId,
+        workspaceTitle,
+        moduleTitle,
+        moduleDescription,
+        forceRefresh,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Tier 2 subtopics retrieved successfully",
+        data: subtopics,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * TIER 3: GENERATE DEEP LESSON, FLASHCARDS & QUIZ
+   * Triggered JIT when a user clicks a subtopic to launch the deep-dive view.
+   */
+  static async generateTier3Lesson(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as any).user?.id || (req as any).user?._id;
+      const {
+        conceptId,
+        subtopicId,
+        workspaceId,
+        workspaceTitle,
+        moduleTitle,
+        subtopicTitle,
+        forceRefresh,
+      } = req.body;
+
+      const lessonPayload = await teacherService.generateTier3Lesson({
+        conceptId,
+        subtopicId,
+        workspaceId,
+        ownerId: userId,
+        workspaceTitle,
+        moduleTitle,
+        subtopicTitle,
+        forceRefresh,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Tier 3 deep lesson payload generated successfully",
+        data: lessonPayload, // Returns { markdownContent, flashcards, quiz }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * EVALUATE SUBMISSION & BACKEND DECISION ENGINE
+   * Calculates score and updates node progression state in DB.
+   */
+  static async evaluateSubmission(req: Request, res: Response, next: NextFunction) {
+    try {
       const userId = new Types.ObjectId((req as any).user.id);
       const { conceptId } = req.body;
 
-      // 1. AI reasoning step
-      const evaluation = (await evaluatorService.evaluateSubmission(
-        req.body,
-      )) as any;
+      const evaluation = (await evaluatorService.evaluateSubmission(req.body)) as any;
 
-      // Safely extract mastery score across both flat and nested evaluation formats
       const masteryScore =
-        evaluation.mastery ??
-        evaluation.evaluationResult?.masteryPercentage ??
-        0;
+        evaluation.mastery ?? evaluation.evaluationResult?.masteryPercentage ?? 0;
 
-      // 2. DETERMINISTIC BACKEND DECISION LAYER
-      // We pass the AI's grade to the database gatekeeper to handle unlocks
       const dbResult = await learningService.recordEvaluationResult(
         conceptId,
         userId,
-        masteryScore,
+        masteryScore
       );
 
-      // 3. Return response to frontend
       res.status(200).json({
         success: true,
         data: {
@@ -78,7 +135,7 @@ export class AIController {
   }
 
   /**
-   * PLAN NEXT CONCEPT (Groq - Organizer Key)
+   * PLAN NEXT CONCEPT
    * Hydrates the user's graph state from the DB and generates the next optimal path.
    */
   static async planPath(req: Request, res: Response, next: NextFunction) {
@@ -86,22 +143,18 @@ export class AIController {
       const { workspaceId, availableTimeMinutes } = req.body;
       const userId = new Types.ObjectId((req as any).user.id);
 
-      // 1. Fetch all nodes in this workspace to build the graph
       const concepts = await ConceptModel.find({ workspace: workspaceId });
       const graphNodes = concepts.map((c) => c.conceptId);
 
-      // 2. Fetch the user's specific progression state in this workspace
       const progressRecords = await learningService.getWorkspaceProgress(
         workspaceId,
-        userId,
+        userId
       );
 
-      // 3. Aggregate completed nodes and mastery map for the AI Planner
       const completedNodes: string[] = [];
       const masteryMap: Record<string, number> = {};
 
       progressRecords.forEach((record) => {
-        // record.concept is populated with { conceptId, title, level } from learningService
         const conceptData = record.concept as any;
         masteryMap[conceptData.conceptId] = record.masteryScore;
 
@@ -110,7 +163,6 @@ export class AIController {
         }
       });
 
-      // 4. Inject the hydrated state into the Organizer AI
       const plan = await plannerService.planNextStep({
         graphNodes,
         completedNodes,
@@ -128,13 +180,9 @@ export class AIController {
   }
 
   /**
-   * GENERATE EXTERNAL RESOURCES (Groq - Organizer Key)
+   * GENERATE EXTERNAL RESOURCES
    */
-  static async generateResources(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) {
+  static async generateResources(req: Request, res: Response, next: NextFunction) {
     try {
       res.status(200).json({
         success: true,
@@ -146,8 +194,7 @@ export class AIController {
   }
 
   /**
-   * GENERATE STANDALONE DIAGNOSTIC QUIZ (Groq - Teacher Key)
-   * Generates diagnostic questions for interactive concept checks.
+   * GENERATE STANDALONE DIAGNOSTIC QUIZ
    */
   static async generateQuiz(req: Request, res: Response, next: NextFunction) {
     try {

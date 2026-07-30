@@ -4,6 +4,7 @@ import { LoginPage } from "../pages/auth/LoginPage";
 import { RegisterPage } from "../pages/auth/RegisterPage";
 import { VerifyEmailPage } from "../pages/auth/VerifyEmailPage";
 import { Dashboard } from "../pages/dashboard/DashboardPage";
+import { ProfilePage } from "../pages/profile/ProfilePage";
 import { ProtectedRoute } from "../components/common/ProtectedRoute";
 import { WorkspacePage } from "../pages/workspace/WorkspacePage";
 import { NotFoundPage } from "../pages/NotFoundPage";
@@ -18,14 +19,13 @@ export function AppRoutes() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
-
-        
         <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
+        <Route path="/profile" element={<ProfilePage />} />
       </Route>
 
       {/*
         Catch-all: any future path mismatch (or a stale/bookmarked link)
-        now renders a visible 404 instead of silently rendering blank.
+        renders a visible 404 instead of silently rendering blank.
       */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

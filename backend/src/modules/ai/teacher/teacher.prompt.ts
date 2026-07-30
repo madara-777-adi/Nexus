@@ -1,75 +1,96 @@
 export const TEACHER_SYSTEM_PROMPT = `
-You are the Master Educator Engine of NexusSpace. 
-Generate a complete, high-yield interactive lesson payload formatted strictly as valid JSON.
+You are the Master Pedagogy Engine of NexusSpace, a highly technical Learning Operating System.
+Your job is to generate precise, structured educational payloads strictly formatted as valid JSON.
+Do not wrap responses in markdown backticks or include any conversational filler.
+Prioritize technical accuracy, deep architectural explanations, and practical mental models over rote vocabulary.
+`;
 
-STRICT GENERATION RULES:
-1. Every item in "topics" MUST include a "flashcards" array with at least 2 prompt/answer cards.
-2. The "quiz" array MUST contain 3 to 5 multiple-choice questions with 4 options each.
-3. NEVER output placeholder URLs like "example.com" or "domain.com". Use real domain root URLs (e.g., "https://docs.mongodb.com", "https://developer.mozilla.org").
-4. Output ONLY standard JSON matching the exact structure of the reference example below. Do NOT wrap in markdown backticks.
+/**
+ * TIER 1: Generate Top-Level Modules (1st Pillars)
+ * Called once when the user creates a new workspace.
+ */
+export function buildTier1ModulesPrompt(context: {
+  workspaceTitle: string;
+  workspaceDescription?: string;
+}): string {
+  return `
+Create a progressive, 4-to-6 module learning roadmap for the subject: "${context.workspaceTitle}".
+Context: ${context.workspaceDescription || "N/A"}
 
-EXACT REFERENCE JSON EXAMPLE TO FOLLOW:
+STRICT RULES:
+- Modules must follow a logical dependency graph (from fundamentals to advanced).
+
+Return JSON matching this exact structure:
 {
-  "concept": "Learn NoSQL Database Fundamentals",
-  "description": "Master NoSQL architectures, document modeling, and key-value storage paradigms.",
-  "objectives": [
-    "Understand dynamic schema design",
-    "Differentiate Document, Key-Value, and Graph stores"
-  ],
-  "topics": [
+  "modules": [
     {
-      "title": "Document vs Relational Storage",
-      "description": "Explores how BSON/JSON documents eliminate complex JOIN operations.",
-      "subtopics": ["Schema-less flexibility", "Document embedding vs referencing"],
-      "flashcards": [
-        {
-          "front": "What is the primary advantage of a schema-less NoSQL database?",
-          "back": "Allows storing heterogeneous documents without predefined database migrations."
-        }
-      ]
-    }
-  ],
-  "activities": [
-    {
-      "type": "exercise",
-      "title": "Design a User Profile Document",
-      "description": "Draft a JSON document representing a user with embedded addresses.",
-      "instructions": [
-        "Create a JSON object with '_id', 'username', and an array of 'addresses'."
-      ]
-    }
-  ],
-  "resources": [
-    {
-      "type": "Documentation",
-      "title": "MongoDB Docs",
-      "url": "https://docs.mongodb.com/"
-    }
-  ],
-  "quiz": [
-    {
-      "question": "Which NoSQL category does MongoDB belong to?",
-      "options": ["Document-oriented", "Key-Value", "Column-family", "Graph"],
-      "answerIndex": 0
+      "title": "Module Title",
+      "description": "Clear 1-2 sentence overview of what this module covers."
     }
   ]
 }
 `;
+}
 
-export function buildTeacherPrompt(context: {
+/**
+ * TIER 2: Generate Subtopics (2nd Pillars)
+ * Called ONLY when a user clicks an unlocked Module node.
+ */
+export function buildTier2SubtopicsPrompt(context: {
   workspaceTitle: string;
-  conceptTitle: string;
-  conceptDescription?: string;
-  prerequisites?: string[];
-  difficulty?: string;
-  preferredDepth?: string;
+  moduleTitle: string;
+  moduleDescription?: string;
 }): string {
-  return `Generate a complete, structured JSON lesson payload for:
-Workspace: "${context.workspaceTitle || "General"}"
-Concept Title: "${context.conceptTitle}"
-Description: "${context.conceptDescription || "N/A"}"
-Target Difficulty: "${context.difficulty || "Intermediate"}"
-Preferred Depth: "${context.preferredDepth || "Balanced"}"
+  return `
+Break down the module "${context.moduleTitle}" (within the course "${context.workspaceTitle}") into 3 to 5 core subtopics.
+Module Description: ${context.moduleDescription || "N/A"}
 
-Ensure every topic contains flashcards, the quiz array contains 3+ valid diagnostic questions, and no example.com URLs are used. Follow the reference JSON structure strictly.`;
+Return JSON matching this exact structure:
+{
+  "subtopics": [
+    {
+      "id": "slugified-subtopic-title",
+      "title": "Subtopic Name",
+      "description": "Short explanation of the specific technical concept."
+    }
+  ]
+}
+`;
+}
+
+/**
+ * TIER 3: Deep Lesson & Active Recall (The Deep Dive)
+ * Called ONLY when a user clicks a specific Subtopic to actually learn.
+ */
+export function buildTier3LessonPrompt(context: {
+  workspaceTitle: string;
+  moduleTitle: string;
+  subtopicTitle: string;
+}): string {
+  return `
+Generate a deep, comprehensive lesson payload for the subtopic "${context.subtopicTitle}" (Module: "${context.moduleTitle}", Course: "${context.workspaceTitle}").
+
+STRICT GENERATION RULES FOR HIGH DENSITY CONTENT:
+1. "markdownContent": Must be a deep, detailed educational guide (300-500 words). Include technical examples, architectural breakdowns, and formatting (headers, bolding, code blocks).
+2. "flashcards": Create 4 to 6 active-recall questions focusing on "why" and "how" (e.g., edge cases, mechanisms). NO trivial definitions.
+3. "quiz": Create 3 challenging diagnostic questions with 4 options and an accurate answerIndex.
+
+Return JSON matching this exact structure:
+{
+  "markdownContent": "## Overview\\n\\nDetailed content...",
+  "flashcards": [
+    {
+      "front": "How does X differ from Y under heavy load?",
+      "back": "Detailed 2-3 sentence technical explanation with example."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Which mechanism prevents resource deadlock in this architecture?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "answerIndex": 1
+    }
+  ]
+}
+`;
 }

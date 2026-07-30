@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
 import { workspaceApi } from "../../api/workspace.api";
 import { CreateWorkspaceModal } from "../../components/workspace/CreateWorkspaceModal";
+import { UserDropdown } from "../../components/layout/UserDropdown";
 import type { IWorkspace } from "../../types/workspace.types";
 
 export function Dashboard() {
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const [workspaces, setWorkspaces] = useState<IWorkspace[]>([]);
@@ -22,9 +21,7 @@ export function Dashboard() {
         const response = await workspaceApi.getAllWorkspaces();
         setWorkspaces(response.data);
       } catch (err: any) {
-        setError(
-          err.response?.data?.message || "Failed to load workspaces."
-        );
+        setError(err.response?.data?.message || "Failed to load workspaces.");
       } finally {
         setLoading(false);
       }
@@ -40,13 +37,13 @@ export function Dashboard() {
   const handleDeleteWorkspace = async (
     e: React.MouseEvent,
     workspaceId: string,
-    title: string
+    title: string,
   ) => {
     e.stopPropagation(); // Prevent card click / navigation
 
     if (
       !window.confirm(
-        `Are you sure you want to delete "${title}"? This cannot be undone.`
+        `Are you sure you want to delete "${title}"? This cannot be undone.`,
       )
     ) {
       return;
@@ -56,12 +53,10 @@ export function Dashboard() {
     try {
       await workspaceApi.deleteWorkspace(workspaceId);
       setWorkspaces((prev) =>
-        prev.filter((ws) => ws.workspaceId !== workspaceId)
+        prev.filter((ws) => ws.workspaceId !== workspaceId),
       );
     } catch (err: any) {
-      alert(
-        err.response?.data?.message || "Failed to delete workspace."
-      );
+      alert(err.response?.data?.message || "Failed to delete workspace.");
     } finally {
       setDeletingId(null);
     }
@@ -77,32 +72,8 @@ export function Dashboard() {
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
-          {/* User Info & Avatar */}
-          <div className="flex items-center gap-3">
-            {user?.avatar ? (
-              <img
-                src={user.avatar}
-                alt={user.firstName}
-                className="w-8 h-8 rounded-full border border-neon-lime/40 object-cover"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-surface-border text-neon-lime flex items-center justify-center font-bold text-xs uppercase">
-                {user?.firstName?.[0] || "U"}
-              </div>
-            )}
-            <span className="text-xs text-gray-300 font-medium hidden sm:inline">
-              {user?.firstName} {user?.lastName}
-            </span>
-          </div>
-
-          <button
-            onClick={logout}
-            className="text-xs text-gray-400 hover:text-red-400 border border-surface-border hover:border-red-500/40 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-          >
-            Logout
-          </button>
-        </div>
+        {/* Account Dropdown Menu */}
+        <UserDropdown />
       </header>
 
       {/* Main Content Container */}
@@ -158,7 +129,8 @@ export function Dashboard() {
                 No Workspaces Found
               </h3>
               <p className="text-gray-400 text-xs mt-1 max-w-sm">
-                You haven't created any workspaces yet. Click below to start building your knowledge base.
+                You haven't created any workspaces yet. Click below to start
+                building your knowledge base.
               </p>
             </div>
             <button
@@ -218,7 +190,9 @@ export function Dashboard() {
                 </div>
 
                 <div className="mt-6 pt-3 border-t border-surface-border/40 flex items-center justify-between text-[11px] text-gray-500">
-                  <span className="font-mono text-[10px]">{ws.workspaceId}</span>
+                  <span className="font-mono text-[10px]">
+                    {ws.workspaceId}
+                  </span>
                   <span>{new Date(ws.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>

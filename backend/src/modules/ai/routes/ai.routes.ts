@@ -1,46 +1,27 @@
 import { Router } from "express";
 import { AIController } from "../controllers/ai.controller";
-import {
-  validateAIRequest,
-  teacherStreamSchema as teacherLessonSchema,
-  evaluatorSchema,
-  plannerSchema,
-  resourceGeneratorSchema,
-  quizGeneratorSchema,
-} from "../validators/ai.validator";
 
 const router = Router();
 
-// Core AI Operations
-router.post(
-  "/teacher/lesson",
-  validateAIRequest(teacherLessonSchema),
-  AIController.generateLesson
-);
+// --- 3-TIER JIT TEACHER OPERATIONS ---
 
-router.post(
-  "/evaluator/evaluate",
-  validateAIRequest(evaluatorSchema),
-  AIController.evaluateSubmission
-);
+// Tier 1: Generate 1st Pillar Workspace Modules
+router.post("/teacher/tier1-modules", AIController.generateTier1Modules);
 
-router.post(
-  "/planner/plan",
-  validateAIRequest(plannerSchema),
-  AIController.planPath
-);
+// Tier 2: Generate 2nd Pillar Subtopics for a specific concept
+router.post("/teacher/tier2-subtopics", AIController.generateTier2Subtopics);
 
-// Content Generation Operations
-router.post(
-  "/generator/resources",
-  validateAIRequest(resourceGeneratorSchema),
-  AIController.generateResources
-);
+// Tier 3: Generate 3rd Level Deep Markdown Lesson, Flashcards & Quiz
+router.post("/teacher/tier3-lesson", AIController.generateTier3Lesson);
 
-router.post(
-  "/generator/quiz",
-  validateAIRequest(quizGeneratorSchema),
-  AIController.generateQuiz
-);
+// --- EVALUATION & PLANNING OPERATIONS ---
+
+router.post("/evaluator/evaluate", AIController.evaluateSubmission);
+router.post("/planner/plan", AIController.planPath);
+
+// --- GENERATOR OPERATIONS ---
+
+router.post("/generator/resources", AIController.generateResources);
+router.post("/generator/quiz", AIController.generateQuiz);
 
 export default router;
