@@ -1,5 +1,8 @@
+// Audit 5.3 Fix: Support both VITE_API_BASE_URL and VITE_API_URL fallbacks consistently
 const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1"
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5000/api/v1"
 ).replace(/\/$/, ""); // Ensures no trailing slash
 
 export function SocialAuthButtons() {

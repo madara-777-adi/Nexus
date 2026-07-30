@@ -31,6 +31,8 @@ interface AuthContextType {
   login: (credentials: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<string>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+  checkAuth: () => Promise<void>; // Alias for backwards compatibility
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,6 +40,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<IUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Re-fetch current user profile from backend and update context state
+  const refreshUser = async () => {
+    try {
+      const res = await authApi.getCurrentUser();
+      const userData = res.data || res;
+      if (userData && (userData.userId || userData._id)) {
+        setUser(userData);
+      }
+    } catch (_err) {
+      setUser(null);
+    }
+  };
 
   // Hydrate user state on app mount using HttpOnly cookie
   useEffect(() => {
@@ -47,11 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await authApi.refreshToken();
 
         // 2. Fetch authenticated user profile
-        const res = await authApi.getCurrentUser();
-        
-        // Unwraps user object safely regardless of backend envelope structure
-        const userData = res.data?.user || res.data;
-        setUser(userData);
+        await refreshUser();
       } catch (_err) {
         setUser(null);
       } finally {
@@ -64,16 +75,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (credentials: LoginPayload) => {
     const res = await authApi.login(credentials);
+    const userData = res.data;
 
-    const userData = res.data?.user || res.data;
-
-    if (userData && userData.userId) {
+    if (userData && (userData.userId || userData._id)) {
       setUser(userData);
     } else {
       // Fallback fetch if profile wasn't fully included in login response
-      const profileRes = await authApi.getCurrentUser();
-      const fetchedUserData = profileRes.data?.user || profileRes.data;
-      setUser(fetchedUserData);
+      await refreshUser();
     }
   };
 
@@ -103,6 +111,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         register,
         logout,
+        refreshUser,
+        checkAuth: refreshUser,
       }}
     >
       {children}

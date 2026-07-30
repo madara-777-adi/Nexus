@@ -19,6 +19,15 @@ const app = express();
 
 app.set("trust proxy", 1);
 
+// Audit 7.1 Fix: Apply baseline HTTP security headers middleware
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
+
 // Combine development origins, both production domain variants (apex & www), and env.FRONTEND_URL
 const rawOrigins = [
   "http://localhost:5173",
@@ -59,7 +68,8 @@ app.options("/*path", cors(corsOptions) as any);
 // Parse incoming cookies from request headers into req.cookies
 app.use(cookieParser());
 
-app.use(express.json());
+// Audit 7.2 Fix: Explicitly configure request body payload limit
+app.use(express.json({ limit: "10mb" }));
 
 // Root & Health Check Endpoints (Fixes Render deployment 404 health check errors)
 app.get("/", (_req, res) => {

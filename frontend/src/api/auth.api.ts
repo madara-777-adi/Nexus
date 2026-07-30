@@ -12,6 +12,20 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  token: string;
+  password: string;
+}
+
+export interface UpdateUserProfilePayload {
+  firstName?: string;
+  lastName?: string;
+}
+
 export const authApi = {
   register: async (payload: RegisterPayload) => {
     const response = await api.post("/auth/register", payload);
@@ -36,6 +50,21 @@ export const authApi = {
 
   getCurrentUser: async () => {
     const response = await api.get("/auth/me");
+    return response.data;
+  },
+
+  updateUserProfile: async (payload: UpdateUserProfilePayload) => {
+    const response = await api.patch("/auth/me", payload);
+    return response.data;
+  },
+
+  forgotPassword: async (payload: ForgotPasswordPayload) => {
+    const response = await api.post("/auth/forgot-password", payload);
+    return response.data;
+  },
+
+  resetPassword: async (payload: ResetPasswordPayload) => {
+    const response = await api.post("/auth/reset-password", payload);
     return response.data;
   },
 

@@ -12,12 +12,11 @@
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
     "@tailwindcss/vite": "^4.3.3",
-    "@xyflow/react": "^12.11.2",
     "axios": "^1.18.1",
     "lucide-react": "^1.28.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-hook-form": "^7.82.0",
+    "react-hook-form": "^7.83.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.1",
     "tailwindcss": "^4.3.3",

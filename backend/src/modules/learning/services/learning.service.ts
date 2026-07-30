@@ -20,7 +20,9 @@ class LearningService {
     const workspace = await Workspace.findOne({ workspaceId });
     if (!workspace) throw new NotFoundError("Workspace not found.");
     if (!workspace.owner.equals(userObjectId)) {
-      throw new ForbiddenError("You do not have access to this workspace graph.");
+      throw new ForbiddenError(
+        "You do not have access to this workspace graph.",
+      );
     }
     return workspace;
   }
@@ -30,7 +32,10 @@ class LearningService {
     workspaceId: string,
     userObjectId: Types.ObjectId,
   ): Promise<ILearningProgress[]> {
-    const workspace = await this.verifyWorkspaceOwnership(workspaceId, userObjectId);
+    const workspace = await this.verifyWorkspaceOwnership(
+      workspaceId,
+      userObjectId,
+    );
     const concepts = await ConceptModel.find({ workspace: workspace._id });
     const progressRecords: ILearningProgress[] = [];
 
@@ -80,7 +85,10 @@ class LearningService {
     workspaceId: string,
     userObjectId: Types.ObjectId,
   ): Promise<ILearningProgress[]> {
-    const workspace = await this.verifyWorkspaceOwnership(workspaceId, userObjectId);
+    const workspace = await this.verifyWorkspaceOwnership(
+      workspaceId,
+      userObjectId,
+    );
 
     return LearningProgressModel.find({
       user: userObjectId,
@@ -96,6 +104,15 @@ class LearningService {
   ) {
     const concept = await ConceptModel.findOne({ conceptId });
     if (!concept) throw new NotFoundError("Target concept not found.");
+
+    // Audit 1.3 Fix: Ensure the user owns the parent workspace of this concept
+    const workspace = await Workspace.findById(concept.workspace);
+    if (!workspace) throw new NotFoundError("Parent workspace not found.");
+    if (!workspace.owner.equals(userObjectId)) {
+      throw new ForbiddenError(
+        "You do not have access to record evaluations in this workspace.",
+      );
+    }
 
     let progress = await LearningProgressModel.findOne({
       user: userObjectId,
@@ -176,7 +193,9 @@ class LearningService {
         type: RelationshipType.DEPENDS_ON,
       });
 
-      const prereqConceptObjectIds = prerequisiteEdges.map((e) => e.sourceConcept);
+      const prereqConceptObjectIds = prerequisiteEdges.map(
+        (e) => e.sourceConcept,
+      );
 
       // 3. Check if the learner has MASTERED every single required prerequisite
       const masteredPrereqsCount = await LearningProgressModel.countDocuments({
@@ -197,7 +216,9 @@ class LearningService {
           targetProgress.status = ConceptStatus.UNLOCKED;
           await targetProgress.save();
 
-          const targetConcept = await ConceptModel.findById(targetConceptObjectId);
+          const targetConcept = await ConceptModel.findById(
+            targetConceptObjectId,
+          );
           if (targetConcept) {
             newlyUnlockedConceptIds.push(targetConcept.conceptId);
           }

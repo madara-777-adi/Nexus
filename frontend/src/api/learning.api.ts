@@ -15,6 +15,12 @@ export const getWorkspaceProgress = async (workspaceId: string) => {
   return response.data.data;
 };
 
+/**
+  * @deprecated
+  * Audit 3.1 Notice: Do NOT call this directly from UI components to set mastery scores.
+  * Standard student evaluation must flow through `evaluateSubmission` in `ai.api.ts`
+  * to ensure server-side AI evaluation and workspace ownership validation.
+  */
 export const recordEvaluationResult = async (conceptId: string, masteryScore: number) => {
   const response = await API.post<{ success: boolean; data: EvaluationRecordResponse }>(
     `/learning/record`,

@@ -1,9 +1,13 @@
+import { Types } from "mongoose";
 import ConceptModel from "../../concept/models/concept.model";
 import LessonModel from "../../concept/models/lesson.model";
 import FlashcardModel from "../../learning/models/flashcard.model";
 import QuizModel from "../../learning/models/quiz.model";
 import WorkspaceModel from "../../workspace/models/workspace.model";
 import { groqProvider } from "../providers/groq.provider";
+import generateUserId from "../../../shared/utils/generateUserId";
+import { NotFoundError } from "../../../shared/errors/NotFoundError";
+import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
 import {
   TEACHER_SYSTEM_PROMPT,
   buildTier1ModulesPrompt,
@@ -71,7 +75,12 @@ export class TeacherService {
 
     for (let i = 0; i < modules.length; i++) {
       const mod = modules[i];
-      const conceptId = `concept_${context.workspaceId}_${i + 1}`;
+
+      // Audit 5.2 Fix: Guaranteed unique conceptId with collision check loop
+      let conceptId: string;
+      do {
+        conceptId = `concept_${generateUserId()}`;
+      } while (await ConceptModel.exists({ conceptId }));
 
       const concept = await ConceptModel.create({
         conceptId,
@@ -98,17 +107,29 @@ export class TeacherService {
    */
   async generateTier2Subtopics(context: {
     conceptId: string;
+    ownerId?: string;
     workspaceTitle: string;
     moduleTitle: string;
     moduleDescription?: string;
     forceRefresh?: boolean;
   }): Promise<any[]> {
-    const { conceptId, forceRefresh } = context;
+    const { conceptId, ownerId, forceRefresh } = context;
 
-    // 1. DB Cache Check
+    // 1. DB Cache Check & Ownership Validation (Audit 1.4 Fix)
     const concept = await ConceptModel.findOne({ conceptId });
     if (!concept) {
-      throw new Error(`Concept module not found for ID: ${conceptId}`);
+      throw new NotFoundError(`Concept module not found for ID: ${conceptId}`);
+    }
+
+    if (ownerId) {
+      const ownerObjectId = new Types.ObjectId(ownerId);
+      const workspaceDoc = await WorkspaceModel.findById(concept.workspace);
+      if (!workspaceDoc) {
+        throw new NotFoundError("Parent workspace not found for this concept.");
+      }
+      if (!workspaceDoc.owner.equals(ownerObjectId)) {
+        throw new ForbiddenError("You do not have access to this workspace module.");
+      }
     }
 
     if (concept.topics && concept.topics.length > 0 && !forceRefresh) {
@@ -180,19 +201,25 @@ export class TeacherService {
 
     const concept = await ConceptModel.findOne({ conceptId });
     if (!concept) {
-      throw new Error(`Concept module not found for ID: ${conceptId}`);
+      throw new NotFoundError(`Concept module not found for ID: ${conceptId}`);
     }
 
     // Fetch workspace document to resolve string custom workspaceId -> Mongo _id
     const workspaceDoc = await WorkspaceModel.findOne({
       $or: [
         { workspaceId },
-        { _id: workspaceId.match(/^[0-9a-fA-F]{24}$/) ? workspaceId : null },
+        { _id: Types.ObjectId.isValid(workspaceId) ? workspaceId : null },
       ],
     });
 
     if (!workspaceDoc) {
-      throw new Error(`Workspace not found for ID: ${workspaceId}`);
+      throw new NotFoundError(`Workspace not found for ID: ${workspaceId}`);
+    }
+
+    // Audit 1.4 Fix: Validate workspace ownership
+    const ownerObjectId = new Types.ObjectId(ownerId);
+    if (!workspaceDoc.owner.equals(ownerObjectId)) {
+      throw new ForbiddenError("You do not have access to this workspace or lesson.");
     }
 
     const mongoWorkspaceId = workspaceDoc._id;
@@ -246,7 +273,7 @@ export class TeacherService {
           subtopicId,
           concept: concept._id,
           workspace: mongoWorkspaceId,
-          owner: ownerId,
+          owner: ownerObjectId,
           markdownContent,
         },
         { upsert: true, returnDocument: "after" },
@@ -259,7 +286,7 @@ export class TeacherService {
           subtopicId,
           concept: concept._id,
           workspace: mongoWorkspaceId,
-          owner: ownerId,
+          owner: ownerObjectId,
           front: card.front || "Question prompt",
           back: card.back || "Answer details",
         }));
@@ -273,7 +300,7 @@ export class TeacherService {
           subtopicId,
           concept: concept._id,
           workspace: mongoWorkspaceId,
-          owner: ownerId,
+          owner: ownerObjectId,
           questions: quizData.map((q: any) => ({
             question: q?.question || "Question",
             options: Array.isArray(q?.options) ? q.options : [],

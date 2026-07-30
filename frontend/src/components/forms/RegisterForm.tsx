@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -30,7 +31,8 @@ export function RegisterForm() {
     try {
       const message = await registerUser(data);
       setSuccessMsg(
-        message || "Registration successful! Please check your email.",
+        message ||
+          "Registration successful! Please check your email to verify your account.",
       );
       reset();
     } catch (err: any) {
@@ -57,9 +59,16 @@ export function RegisterForm() {
         </div>
       )}
 
+      {/* Audit 5.1 Fix: Added explicit next-step call-to-action button after registration */}
       {successMsg && (
-        <div className="bg-neon-lime/20 text-neon-lime border border-neon-lime/30 px-4 py-2.5 rounded-xl text-xs">
-          {successMsg}
+        <div className="bg-neon-lime/10 text-neon-lime border border-neon-lime/30 p-4 rounded-xl text-xs flex flex-col gap-3">
+          <p className="font-semibold">{successMsg}</p>
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-center bg-neon-lime text-midnight font-bold py-2.5 px-4 rounded-lg hover:opacity-90 transition-opacity text-xs uppercase tracking-wider text-center"
+          >
+            Proceed to Sign In &rarr;
+          </Link>
         </div>
       )}
 

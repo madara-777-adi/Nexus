@@ -7,6 +7,12 @@ import Concept from "../../concept/models/concept.model";
 import Relationship, {
   RelationshipType,
 } from "../../relationship/models/relationship.model";
+import ResourceModel from "../../resource/models/resource.model";
+import LearningProgressModel from "../../learning/models/learning-progress.model";
+import LessonModel from "../../concept/models/lesson.model";
+import FlashcardModel from "../../learning/models/flashcard.model";
+import QuizModel from "../../learning/models/quiz.model";
+
 import {
   CreateWorkspaceDTO,
   UpdateWorkspaceDTO,
@@ -308,6 +314,17 @@ class WorkspaceService {
     if (!workspace.owner.equals(userObjectId)) {
       throw new ForbiddenError("You are not allowed to perform this action.");
     }
+
+    // Audit 5.1 Fix: Cascade delete all child documents referencing this workspace
+    await Promise.all([
+      Concept.deleteMany({ workspace: workspace._id }),
+      Relationship.deleteMany({ workspace: workspace._id }),
+      ResourceModel.deleteMany({ workspace: workspace._id }),
+      LearningProgressModel.deleteMany({ workspace: workspace._id }),
+      LessonModel.deleteMany({ workspace: workspace._id }),
+      FlashcardModel.deleteMany({ workspace: workspace._id }),
+      QuizModel.deleteMany({ workspace: workspace._id }),
+    ]);
 
     await Workspace.deleteOne({ _id: workspace._id });
   }

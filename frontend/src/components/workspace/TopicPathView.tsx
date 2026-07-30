@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { getWorkspaceProgress } from "../../api/learning.api";
-import api, { getAccessToken, setAccessToken } from "../../api/axios";
+import api from "../../api/axios";
 import {
   ConceptStatus,
   type ILearningProgress,
 } from "../../types/learning.types";
-import { Lock, CheckCircle2, ChevronRight, Sparkles, RefreshCw } from "lucide-react";
+import {
+  Lock,
+  CheckCircle2,
+  ChevronRight,
+  Sparkles,
+  RefreshCw,
+} from "lucide-react";
 
 interface TopicPathViewProps {
   workspaceId: string;
   onSelectConcept: (
     conceptId: string,
     title: string,
-    status: ConceptStatus
+    status: ConceptStatus,
   ) => void;
 }
 
@@ -37,36 +43,6 @@ export function TopicPathView({
   const [errorMessage, setErrorMessage] = useState("");
   const [retryToken, setRetryToken] = useState(0);
 
-  const fetchGraphPayload = useCallback(
-    async (signal: AbortSignal, isRetry = false): Promise<Response> => {
-      const token = getAccessToken();
-      const response = await fetch(
-        `${api.defaults.baseURL}/workspaces/${workspaceId}/relationships/stream`,
-        {
-          credentials: "include",
-          signal,
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
-      );
-
-      if (response.status === 401 && !isRetry) {
-        try {
-          const refreshRes = await api.post("/auth/refresh-token");
-          const newToken = refreshRes.data?.data?.accessToken;
-          if (newToken) {
-            setAccessToken(newToken);
-            return fetchGraphPayload(signal, true);
-          }
-        } catch {
-          // Token refresh failed
-        }
-      }
-
-      return response;
-    },
-    [workspaceId]
-  );
-
   const loadData = useCallback(
     async (signal: AbortSignal) => {
       setLoadState("loading");
@@ -84,32 +60,30 @@ export function TopicPathView({
         });
         setProgressMap(pMap);
 
-        const response = await fetchGraphPayload(signal);
+        // Audit 4.1 Fix: Use shared Axios instance to handle Bearer headers & 401 retries automatically
+        const response = await api.get(
+          `/workspaces/${workspaceId}/relationships/stream`,
+          { signal },
+        );
+
         if (signal.aborted) return;
 
-        if (!response.ok) {
-          throw new Error(
-            `Failed to load workspace curriculum (HTTP ${response.status}).`
-          );
-        }
-
-        const json = await response.json();
-        const rawConcepts: ConceptData[] = json.data?.concepts || [];
+        const rawConcepts: ConceptData[] = response.data?.data?.concepts || [];
 
         setConcepts(rawConcepts);
         setLoadState(rawConcepts.length > 0 ? "ready" : "empty");
-      } catch (err) {
+      } catch (err: any) {
         if (signal.aborted) return;
         console.error("Error loading curriculum:", err);
         setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : "Something went wrong loading the topics."
+          err.response?.data?.message ||
+            err.message ||
+            "Something went wrong loading the topics.",
         );
         setLoadState("error");
       }
     },
-    [workspaceId, fetchGraphPayload]
+    [workspaceId],
   );
 
   useEffect(() => {
@@ -173,7 +147,8 @@ export function TopicPathView({
             const isLocked = status === ConceptStatus.LOCKED;
             const isMastered = status === ConceptStatus.MASTERED;
 
-            let cardStyle = "border-gray-800/80 bg-[#12141A]/50 opacity-60 cursor-not-allowed";
+            let cardStyle =
+              "border-gray-800/80 bg-[#12141A]/50 opacity-60 cursor-not-allowed";
             let badgeStyle = "bg-gray-800 text-gray-500";
             let statusTagStyle = "bg-gray-800/60 text-gray-500 border-gray-800";
 
@@ -181,12 +156,14 @@ export function TopicPathView({
               cardStyle =
                 "border-[#BCFF3C]/40 bg-[#12141A] hover:border-[#BCFF3C]/80 cursor-pointer text-gray-200";
               badgeStyle = "bg-[#BCFF3C]/10 text-[#BCFF3C]";
-              statusTagStyle = "bg-[#BCFF3C]/10 text-[#BCFF3C] border-[#BCFF3C]/30";
+              statusTagStyle =
+                "bg-[#BCFF3C]/10 text-[#BCFF3C] border-[#BCFF3C]/30";
             } else if (!isLocked) {
               cardStyle =
                 "border-gray-800 bg-[#12141A] hover:border-[#00E5FF]/60 cursor-pointer text-gray-200";
               badgeStyle = "bg-[#00E5FF]/10 text-[#00E5FF]";
-              statusTagStyle = "bg-[#00E5FF]/10 text-[#00E5FF] border-[#00E5FF]/30";
+              statusTagStyle =
+                "bg-[#00E5FF]/10 text-[#00E5FF] border-[#00E5FF]/30";
             }
 
             return (

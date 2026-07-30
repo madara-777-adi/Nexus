@@ -1,16 +1,18 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { authApi } from "../../api/auth.api";
 import { ArrowLeft, User, Mail, Shield, Check, Save } from "lucide-react";
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
 
   const [firstName, setFirstName] = useState(user?.firstName || "");
   const [lastName, setLastName] = useState(user?.lastName || "");
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const fullName =
     `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "User Profile";
@@ -25,16 +27,26 @@ export function ProfilePage() {
     e.preventDefault();
     setIsSaving(true);
     setSaveSuccess(false);
+    setErrorMessage("");
 
     try {
-      // Future API integration: await updateUserProfile({ firstName, lastName });
-      setTimeout(() => {
-        setIsSaving(false);
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-      }, 600);
-    } catch (error) {
-      console.error("Failed to update profile:", error);
+      // Audit 1.2 Fix: Issue actual backend API call to update profile
+      await authApi.updateUserProfile({ firstName, lastName });
+
+      // Refresh AuthContext user state so updated name reflects globally
+      if (typeof checkAuth === "function") {
+        await checkAuth();
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error: any) {
+      setErrorMessage(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to update profile. Please try again.",
+      );
+    } finally {
       setIsSaving(false);
     }
   };
@@ -72,6 +84,12 @@ export function ProfilePage() {
               </p>
             </div>
           </div>
+
+          {errorMessage && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/20 p-3 text-xs font-semibold text-red-400">
+              {errorMessage}
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">

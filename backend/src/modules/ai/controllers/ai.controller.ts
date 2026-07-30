@@ -4,6 +4,7 @@ import { teacherService } from "../teacher/teacher.service";
 import { evaluatorService } from "../evaluator/evaluator.service";
 import { plannerService } from "../planner/planner.service";
 import { quizGeneratorService } from "../generator/quiz-generator.service";
+import { resourceGeneratorService } from "../generator/resource-generator.service";
 
 // --- GRAPH BRIDGE & MODELS ---
 import learningService from "../../learning/services/learning.service";
@@ -15,9 +16,13 @@ export class AIController {
    * TIER 1: GENERATE WORKSPACE MODULES (1st Pillars)
    * Triggered upon workspace creation to build progressive concept nodes.
    */
-  static async generateTier1Modules(req: Request, res: Response, next: NextFunction) {
+  static async generateTier1Modules(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
-      const userId = (req as any).user?.id || (req as any).user?._id;
+      const userId = (req as any).user?._id || (req as any).user?.id;
       const { workspaceId, workspaceTitle, workspaceDescription } = req.body;
 
       const modules = await teacherService.generateTier1Modules({
@@ -41,12 +46,24 @@ export class AIController {
    * TIER 2: GENERATE MODULE SUBTOPICS (2nd Pillars)
    * Triggered JIT when a user selects a specific concept node.
    */
-  static async generateTier2Subtopics(req: Request, res: Response, next: NextFunction) {
+  static async generateTier2Subtopics(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
-      const { conceptId, workspaceTitle, moduleTitle, moduleDescription, forceRefresh } = req.body;
+      const userId = (req as any).user?._id || (req as any).user?.id;
+      const {
+        conceptId,
+        workspaceTitle,
+        moduleTitle,
+        moduleDescription,
+        forceRefresh,
+      } = req.body;
 
       const subtopics = await teacherService.generateTier2Subtopics({
         conceptId,
+        ownerId: userId?.toString(),
         workspaceTitle,
         moduleTitle,
         moduleDescription,
@@ -67,9 +84,13 @@ export class AIController {
    * TIER 3: GENERATE DEEP LESSON, FLASHCARDS & QUIZ
    * Triggered JIT when a user clicks a subtopic to launch the deep-dive view.
    */
-  static async generateTier3Lesson(req: Request, res: Response, next: NextFunction) {
+  static async generateTier3Lesson(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
-      const userId = (req as any).user?.id || (req as any).user?._id;
+      const userId = (req as any).user?._id || (req as any).user?.id;
       const {
         conceptId,
         subtopicId,
@@ -84,7 +105,7 @@ export class AIController {
         conceptId,
         subtopicId,
         workspaceId,
-        ownerId: userId,
+        ownerId: userId?.toString(),
         workspaceTitle,
         moduleTitle,
         subtopicTitle,
@@ -105,20 +126,30 @@ export class AIController {
    * EVALUATE SUBMISSION & BACKEND DECISION ENGINE
    * Calculates score and updates node progression state in DB.
    */
-  static async evaluateSubmission(req: Request, res: Response, next: NextFunction) {
+  static async evaluateSubmission(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
-      const userId = new Types.ObjectId((req as any).user.id);
+      const userObjectId = new Types.ObjectId(
+        (req as any).user._id || (req as any).user.id,
+      );
       const { conceptId } = req.body;
 
-      const evaluation = (await evaluatorService.evaluateSubmission(req.body)) as any;
+      const evaluation = (await evaluatorService.evaluateSubmission(
+        req.body,
+      )) as any;
 
       const masteryScore =
-        evaluation.mastery ?? evaluation.evaluationResult?.masteryPercentage ?? 0;
+        evaluation.mastery ??
+        evaluation.evaluationResult?.masteryPercentage ??
+        0;
 
       const dbResult = await learningService.recordEvaluationResult(
         conceptId,
-        userId,
-        masteryScore
+        userObjectId,
+        masteryScore,
       );
 
       res.status(200).json({
@@ -141,14 +172,16 @@ export class AIController {
   static async planPath(req: Request, res: Response, next: NextFunction) {
     try {
       const { workspaceId, availableTimeMinutes } = req.body;
-      const userId = new Types.ObjectId((req as any).user.id);
+      const userObjectId = new Types.ObjectId(
+        (req as any).user._id || (req as any).user.id,
+      );
 
       const concepts = await ConceptModel.find({ workspace: workspaceId });
       const graphNodes = concepts.map((c) => c.conceptId);
 
       const progressRecords = await learningService.getWorkspaceProgress(
         workspaceId,
-        userId
+        userObjectId,
       );
 
       const completedNodes: string[] = [];
@@ -156,10 +189,12 @@ export class AIController {
 
       progressRecords.forEach((record) => {
         const conceptData = record.concept as any;
-        masteryMap[conceptData.conceptId] = record.masteryScore;
+        if (conceptData) {
+          masteryMap[conceptData.conceptId] = record.masteryScore;
 
-        if (record.status === ConceptStatus.MASTERED) {
-          completedNodes.push(conceptData.conceptId);
+          if (record.status === ConceptStatus.MASTERED) {
+            completedNodes.push(conceptData.conceptId);
+          }
         }
       });
 
@@ -181,12 +216,20 @@ export class AIController {
 
   /**
    * GENERATE EXTERNAL RESOURCES
+   * Audit 4.4 Fix: Wired up to call resourceGeneratorService dynamically
    */
-  static async generateResources(req: Request, res: Response, next: NextFunction) {
+  static async generateResources(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
+      const resources = await resourceGeneratorService.generateResources(
+        req.body,
+      );
       res.status(200).json({
         success: true,
-        data: [],
+        data: resources,
       });
     } catch (error) {
       next(error);

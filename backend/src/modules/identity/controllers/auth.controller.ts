@@ -22,7 +22,7 @@ const cookieOptions = {
   httpOnly: true,
   secure: isProduction,
   sameSite: isProduction ? ("strict" as const) : ("lax" as const),
-  path: "/api/v1/auth",
+  path: "/", // Fixed: __Host- prefix requires path="/" per RFC/browser specs
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
@@ -101,7 +101,7 @@ class AuthController {
         httpOnly: true,
         secure: isProduction,
         sameSite: isProduction ? "strict" : "lax",
-        path: "/api/v1/auth",
+        path: "/",
       });
 
       return res.status(401).json({
@@ -185,7 +185,7 @@ class AuthController {
       httpOnly: true,
       secure: isProduction,
       sameSite: isProduction ? "strict" : "lax",
-      path: "/api/v1/auth",
+      path: "/",
     });
 
     return res.status(200).json({

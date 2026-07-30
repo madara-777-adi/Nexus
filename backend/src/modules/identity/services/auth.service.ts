@@ -39,7 +39,7 @@ import type {
 class AuthService {
   async register(data: RegisterDTO) {
     const existingUser = await User.findOne({
-      email: data.email,
+      email: data.email.toLowerCase().trim(),
     });
 
     if (existingUser) {
@@ -60,7 +60,7 @@ class AuthService {
       userId,
       firstName: data.firstName,
       lastName: data.lastName,
-      email: data.email,
+      email: data.email.toLowerCase().trim(),
       password: hashedPassword,
     });
 
@@ -122,14 +122,24 @@ class AuthService {
       _id: verificationRecord._id,
     });
 
+    // Audit 4.7 Fix: Send welcome email after successful email verification
+    try {
+      await emailService.sendWelcomeEmail(user.email, user.firstName);
+    } catch (emailErr) {
+      // Non-blocking catch to prevent failing account verification if email dispatch drops
+      console.error("[AuthService] Failed to send welcome email:", emailErr);
+    }
+
     return {
       message: "Email verified successfully.",
     };
   }
 
   async login(data: LoginDTO) {
+    // Audit 2.2 Fix: Normalize email to lowercase and trimmed before querying DB
+    const normalizedEmail = data.email.toLowerCase().trim();
     const user = await User.findOne({
-      email: data.email,
+      email: normalizedEmail,
     }).select("+password");
 
     if (!user) {
@@ -147,6 +157,13 @@ class AuthService {
 
     if (!isPasswordValid) {
       throw new UnauthorizedError("Invalid email or password.");
+    }
+
+    // Audit 1.5 Fix: Check accountStatus before permitting login
+    if (user.accountStatus === "SUSPENDED") {
+      throw new ForbiddenError(
+        "Your account has been suspended. Please contact support.",
+      );
     }
 
     if (!user.isEmailVerified) {
@@ -179,6 +196,13 @@ class AuthService {
   }
 
   async handleOAuthSuccess(user: any) {
+    // Audit 1.5 Fix: Ensure suspended accounts cannot complete OAuth sign-in
+    if (user.accountStatus === "SUSPENDED") {
+      throw new ForbiddenError(
+        "Your account has been suspended. Please contact support.",
+      );
+    }
+
     const tokens = generateTokens({
       sub: user.userId,
     });
@@ -206,15 +230,25 @@ class AuthService {
   }
 
   async forgotPassword(data: ForgotPasswordDTO) {
+    // Audit 2.2 Fix: Normalize email input
+    const normalizedEmail = data.email.toLowerCase().trim();
     const user = await User.findOne({
-      email: data.email,
+      email: normalizedEmail,
     });
+
     if (!user) {
       return {
         message:
           "If an account with this email exists, password reset instructions have been sent.",
       };
     }
+
+    if (user.accountStatus === "SUSPENDED") {
+      throw new ForbiddenError(
+        "Your account has been suspended. Please contact support.",
+      );
+    }
+
     if (!user.isEmailVerified) {
       throw new ForbiddenError(
         "Please verify your email before resetting your password.",
@@ -282,6 +316,13 @@ class AuthService {
       throw new NotFoundError("User not found.");
     }
 
+    // Audit 1.5 Fix: Block token refresh for suspended accounts
+    if (user.accountStatus === "SUSPENDED") {
+      throw new ForbiddenError(
+        "Your account has been suspended. Please contact support.",
+      );
+    }
+
     if (decoded.sub !== user.userId) {
       throw new UnauthorizedError("Invalid refresh token.");
     }
@@ -326,6 +367,12 @@ class AuthService {
     );
     if (!user) {
       throw new NotFoundError("User not found.");
+    }
+
+    if (user.accountStatus === "SUSPENDED") {
+      throw new ForbiddenError(
+        "Your account has been suspended. Please contact support.",
+      );
     }
 
     if (user.password) {
@@ -378,7 +425,7 @@ class AuthService {
 
   async resendVerification(data: ResendVerificationDTO) {
     const user = await User.findOne({
-      email: data.email.toLowerCase(),
+      email: data.email.toLowerCase().trim(),
     });
 
     if (!user) {
@@ -386,6 +433,12 @@ class AuthService {
         message:
           "If an account with that email exists, a verification email will be sent.",
       };
+    }
+
+    if (user.accountStatus === "SUSPENDED") {
+      throw new ForbiddenError(
+        "Your account has been suspended. Please contact support.",
+      );
     }
 
     if (user.isEmailVerified) {

@@ -1,19 +1,26 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "../../contexts/AuthContext";
 import { SocialAuthButtons } from "./SocialAuthButtons";
+import { loginSchema, type LoginFormData } from "../../utils/auth.schemas";
 
 export function LoginForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
 
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
 
   // Catch OAuth redirect errors from backend query params
   useEffect(() => {
@@ -27,18 +34,13 @@ export function LoginForm() {
     }
   }, [searchParams]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
     setErrorMessage("");
 
     try {
       // 1. Pass credentials directly to AuthContext login
-      await login(formData);
+      await login(data);
 
       // 2. Navigate straight to Dashboard upon success
       navigate("/dashboard");
@@ -54,7 +56,7 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 w-full">
       <h1 className="font-neovision text-3xl text-white tracking-wider mb-2">
         SIGN IN
       </h1>
@@ -71,26 +73,38 @@ export function LoginForm() {
         </label>
         <input
           type="email"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          required
+          {...register("email")}
           placeholder="name@example.com"
           className="bg-surface-border/30 border border-surface-border text-white text-sm rounded-xl p-3 focus:outline-none focus:border-neon-lime transition-colors"
         />
+        {errors.email && (
+          <span className="text-[11px] text-red-400 font-medium">
+            {errors.email.message}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-400 font-medium">Password</label>
+        <div className="flex justify-between items-center">
+          <label className="text-xs text-gray-400 font-medium">Password</label>
+          <Link
+            to="/forgot-password"
+            className="text-xs text-neon-lime hover:underline transition-all"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <input
           type="password"
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          required
+          {...register("password")}
           placeholder="••••••••"
           className="bg-surface-border/30 border border-surface-border text-white text-sm rounded-xl p-3 focus:outline-none focus:border-neon-lime transition-colors"
         />
+        {errors.password && (
+          <span className="text-[11px] text-red-400 font-medium">
+            {errors.password.message}
+          </span>
+        )}
       </div>
 
       <button

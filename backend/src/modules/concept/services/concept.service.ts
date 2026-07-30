@@ -1,6 +1,13 @@
 import { Types } from "mongoose";
 import ConceptModel, { IConcept } from "../models/concept.model";
 import Workspace from "../../workspace/models/workspace.model";
+import RelationshipModel from "../../relationship/models/relationship.model";
+import ResourceModel from "../../resource/models/resource.model";
+import LearningProgressModel from "../../learning/models/learning-progress.model";
+import LessonModel from "../models/lesson.model";
+import FlashcardModel from "../../learning/models/flashcard.model";
+import QuizModel from "../../learning/models/quiz.model";
+
 import {
   CreateConceptDTO,
   UpdateConceptDTO,
@@ -115,9 +122,19 @@ class ConceptService {
       throw new ForbiddenError("You are not allowed to perform this action.");
     }
 
-    await ConceptModel.deleteOne({ _id: concept._id });
+    // Audit 5.1 Fix: Cascade delete all connected relationships, progress, and lesson documents
+    await Promise.all([
+      RelationshipModel.deleteMany({
+        $or: [{ sourceConcept: concept._id }, { targetConcept: concept._id }],
+      }),
+      ResourceModel.deleteMany({ concept: concept._id }),
+      LearningProgressModel.deleteMany({ concept: concept._id }),
+      LessonModel.deleteMany({ concept: concept._id }),
+      FlashcardModel.deleteMany({ concept: concept._id }),
+      QuizModel.deleteMany({ concept: concept._id }),
+    ]);
 
-    // TODO: Cascade delete connected Relationships and Resources when those modules are built
+    await ConceptModel.deleteOne({ _id: concept._id });
   }
 }
 
