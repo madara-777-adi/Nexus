@@ -41,7 +41,7 @@ export function TeacherStudio({
     setUnlockedNodes([]);
     setActiveTab("lesson");
 
-    // Fire lesson stream request to AI Teacher endpoint
+    // Fire lesson request to AI Teacher endpoint
     streamLesson({
       workspaceId,
       workspaceTitle: workspaceTitle || "Workspace",
@@ -56,7 +56,6 @@ export function TeacherStudio({
         stopStream();
       }
     };
-    // Exclude streamLesson/stopStream from deps to avoid re-triggering loops if they aren't memoized
     // eslint-disable-next-deps
   }, [workspaceId, workspaceTitle, conceptId, conceptTitle]);
 

@@ -51,7 +51,7 @@ export function useTeacherStream() {
       setError(null);
 
       try {
-        const lessonData = await generateLesson({
+        const rawData = await generateLesson({
           workspaceId: params.workspaceId,
           workspaceTitle: params.workspaceTitle,
           conceptId: params.conceptId,
@@ -63,7 +63,24 @@ export function useTeacherStream() {
         // If this request was aborted while waiting, do not update state
         if (controller.signal.aborted) return;
 
-        setParsedLesson(lessonData as ParsedLesson);
+        // Safely extract the lesson object regardless of response wrapper levels
+        let unpacked: any = rawData;
+
+        if (typeof unpacked === "string") {
+          try {
+            unpacked = JSON.parse(unpacked);
+          } catch {
+            // Keep original string if parsing fails
+          }
+        }
+
+        if (unpacked?.lesson) unpacked = unpacked.lesson;
+        if (unpacked?.data) unpacked = unpacked.data;
+        if (unpacked?.lesson) unpacked = unpacked.lesson;
+
+        console.log("[useTeacherStream] Unpacked lesson payload:", unpacked);
+
+        setParsedLesson(unpacked as ParsedLesson);
       } catch (err: unknown) {
         if (controller.signal.aborted) return;
 
