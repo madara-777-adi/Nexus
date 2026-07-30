@@ -60,15 +60,15 @@ export function TeacherStudio({
   };
 
   const handleSubmitQuiz = async () => {
-    const quizList = parsedLesson?.quiz || [];
+    const quizList = Array.isArray(parsedLesson?.quiz) ? parsedLesson.quiz : [];
     if (quizList.length === 0) return;
 
     setIsEvaluating(true);
     try {
       const learnerAnswers = quizList.map((q, idx) => ({
-        question: q.question,
+        question: q.question || "Question",
         userAnswer:
-          userAnswers[idx] !== undefined
+          userAnswers[idx] !== undefined && Array.isArray(q.options)
             ? q.options[userAnswers[idx]]
             : "No answer provided",
       }));
@@ -83,7 +83,6 @@ export function TeacherStudio({
 
       const masteryScore = result.evaluation?.mastery ?? 0;
       setEvaluationScore(masteryScore);
-
       setUnlockedNodes(result.unlockedDownstreamIds || []);
 
       if (onProgressUpdated) {
@@ -147,7 +146,9 @@ export function TeacherStudio({
           }`}
         >
           Diagnostic Quiz{" "}
-          {parsedLesson?.quiz?.length ? `(${parsedLesson.quiz.length})` : ""}
+          {Array.isArray(parsedLesson?.quiz)
+            ? `(${parsedLesson.quiz.length})`
+            : ""}
         </button>
       </div>
 
@@ -168,7 +169,7 @@ export function TeacherStudio({
               </div>
             )}
 
-            {/* Description / Overview */}
+            {/* Description */}
             {parsedLesson?.description && (
               <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
                 <h3 className="mb-2 text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
@@ -180,122 +181,131 @@ export function TeacherStudio({
               </section>
             )}
 
-            {/* Objectives */}
-            {parsedLesson?.objectives && parsedLesson.objectives.length > 0 && (
-              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
-                <h3 className="mb-3 text-xs font-mono font-semibold text-sky-400 uppercase tracking-wider">
-                  Learning Objectives
-                </h3>
-                <ul className="space-y-2 text-sm text-slate-300">
-                  {parsedLesson.objectives.map((obj, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="text-sky-400">•</span>
-                      <span>{obj}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+            {/* Learning Objectives */}
+            {Array.isArray(parsedLesson?.objectives) &&
+              parsedLesson.objectives.length > 0 && (
+                <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
+                  <h3 className="mb-3 text-xs font-mono font-semibold text-sky-400 uppercase tracking-wider">
+                    Learning Objectives
+                  </h3>
+                  <ul className="space-y-2 text-sm text-slate-300">
+                    {parsedLesson.objectives.map((obj, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-sky-400">•</span>
+                        <span>{obj}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
 
-            {/* Topics / Modules */}
-            {parsedLesson?.topics && parsedLesson.topics.length > 0 && (
-              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-4">
-                <h3 className="text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
-                  Curriculum Topics
-                </h3>
-                <div className="space-y-3">
-                  {parsedLesson.topics.map((topic, i) => (
-                    <div
-                      key={i}
-                      className="rounded-lg border border-slate-800/80 bg-[#080A0F] p-4"
-                    >
-                      <h4 className="text-sm font-semibold text-white">
-                        {i + 1}. {topic.title}
-                      </h4>
-                      <p className="mt-1 text-xs text-slate-400">
-                        {topic.description}
-                      </p>
-                      {topic.subtopics && topic.subtopics.length > 0 && (
-                        <div className="mt-2.5 flex flex-wrap gap-1.5">
-                          {topic.subtopics.map((sub, sIdx) => (
-                            <span
-                              key={sIdx}
-                              className="rounded border border-slate-800 bg-slate-900 px-2 py-0.5 text-[11px] font-mono text-slate-300"
-                            >
-                              {sub}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            {/* Topics */}
+            {Array.isArray(parsedLesson?.topics) &&
+              parsedLesson.topics.length > 0 && (
+                <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-4">
+                  <h3 className="text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
+                    Curriculum Topics
+                  </h3>
+                  <div className="space-y-3">
+                    {parsedLesson.topics.map((topic, i) => (
+                      <div
+                        key={i}
+                        className="rounded-lg border border-slate-800/80 bg-[#080A0F] p-4"
+                      >
+                        <h4 className="text-sm font-semibold text-white">
+                          {i + 1}. {topic?.title || "Topic"}
+                        </h4>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {topic?.description || ""}
+                        </p>
+                        {Array.isArray(topic?.subtopics) &&
+                          topic.subtopics.length > 0 && (
+                            <div className="mt-2.5 flex flex-wrap gap-1.5">
+                              {topic.subtopics.map((sub, sIdx) => (
+                                <span
+                                  key={sIdx}
+                                  className="rounded border border-slate-800 bg-slate-900 px-2 py-0.5 text-[11px] font-mono text-slate-300"
+                                >
+                                  {sub}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
-            {/* Hands-on Activities */}
-            {parsedLesson?.activities && parsedLesson.activities.length > 0 && (
-              <section className="rounded-xl border border-amber-500/20 bg-[#14120B] p-5 space-y-3">
-                <h3 className="text-xs font-mono font-semibold text-amber-400 uppercase tracking-wider">
-                  Hands-On Activities
-                </h3>
-                {parsedLesson.activities
-                  .filter((act) => act.type !== "quiz")
-                  .map((act, i) => (
-                    <div key={i} className="space-y-2">
-                      <h4 className="text-sm font-semibold text-amber-200">
-                        {act.title}
-                      </h4>
-                      <p className="text-xs text-amber-100/80">
-                        {act.description}
-                      </p>
-                      {act.instructions && act.instructions.length > 0 && (
-                        <ol className="list-decimal list-inside space-y-1 text-xs text-amber-200/90 pl-1">
-                          {act.instructions.map((inst, idx) => (
-                            <li key={idx}>{inst}</li>
-                          ))}
-                        </ol>
-                      )}
-                    </div>
-                  ))}
-              </section>
-            )}
+            {/* Hands-On Activities */}
+            {Array.isArray(parsedLesson?.activities) &&
+              parsedLesson.activities.length > 0 && (
+                <section className="rounded-xl border border-amber-500/20 bg-[#14120B] p-5 space-y-3">
+                  <h3 className="text-xs font-mono font-semibold text-amber-400 uppercase tracking-wider">
+                    Hands-On Activities
+                  </h3>
+                  {parsedLesson.activities
+                    .filter((act) => act && act.type !== "quiz")
+                    .map((act, i) => (
+                      <div key={i} className="space-y-2">
+                        <h4 className="text-sm font-semibold text-amber-200">
+                          {act?.title || "Activity"}
+                        </h4>
+                        <p className="text-xs text-amber-100/80">
+                          {act?.description || ""}
+                        </p>
+                        {Array.isArray(act?.instructions) &&
+                          act.instructions.length > 0 && (
+                            <ol className="list-decimal list-inside space-y-1 text-xs text-amber-200/90 pl-1">
+                              {act.instructions.map((inst, idx) => (
+                                <li key={idx}>{inst}</li>
+                              ))}
+                            </ol>
+                          )}
+                      </div>
+                    ))}
+                </section>
+              )}
 
-            {/* External Resources */}
-            {parsedLesson?.resources && parsedLesson.resources.length > 0 && (
-              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-3">
-                <h3 className="text-xs font-mono font-semibold text-purple-400 uppercase tracking-wider">
-                  Recommended Learning Resources
-                </h3>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {parsedLesson.resources.map((res, i) => (
-                    <a
-                      key={i}
-                      href={res.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2 rounded-lg border border-slate-800 bg-[#080A0F] p-3 text-xs text-slate-300 transition-colors hover:border-purple-500/40 hover:text-white"
-                    >
-                      <span className="rounded bg-purple-950/60 p-1 text-purple-400 font-mono text-[10px]">
-                        {res.type.toUpperCase()}
-                      </span>
-                      <span className="truncate font-medium">{res.title}</span>
-                    </a>
-                  ))}
-                </div>
-              </section>
-            )}
+            {/* Resources */}
+            {Array.isArray(parsedLesson?.resources) &&
+              parsedLesson.resources.length > 0 && (
+                <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-3">
+                  <h3 className="text-xs font-mono font-semibold text-purple-400 uppercase tracking-wider">
+                    Recommended Learning Resources
+                  </h3>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {parsedLesson.resources.map((res, i) => (
+                      <a
+                        key={i}
+                        href={res?.url || "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 rounded-lg border border-slate-800 bg-[#080A0F] p-3 text-xs text-slate-300 transition-colors hover:border-purple-500/40 hover:text-white"
+                      >
+                        <span className="rounded bg-purple-950/60 p-1 text-purple-400 font-mono text-[10px]">
+                          {res?.type?.toUpperCase() || "LINK"}
+                        </span>
+                        <span className="truncate font-medium">
+                          {res?.title || "Resource"}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </section>
+              )}
 
-            {/* Assessment / Project */}
+            {/* Assessment */}
             {parsedLesson?.assessment && (
               <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-2">
                 <h3 className="text-xs font-mono font-semibold text-emerald-400 uppercase tracking-wider">
-                  Cap-Stone Assessment: {parsedLesson.assessment.title}
+                  Cap-Stone Assessment:{" "}
+                  {parsedLesson.assessment?.title || "Project"}
                 </h3>
                 <p className="text-xs text-slate-300">
-                  {parsedLesson.assessment.description}
+                  {parsedLesson.assessment?.description || ""}
                 </p>
-                {parsedLesson.assessment.requirements && (
+                {Array.isArray(parsedLesson.assessment?.requirements) && (
                   <ul className="mt-2 space-y-1 text-xs text-slate-400">
                     {parsedLesson.assessment.requirements.map((req, i) => (
                       <li key={i} className="flex items-center gap-1.5">
@@ -350,7 +360,8 @@ export function TeacherStudio({
               </div>
             )}
 
-            {parsedLesson?.quiz && parsedLesson.quiz.length > 0 ? (
+            {Array.isArray(parsedLesson?.quiz) &&
+            parsedLesson.quiz.length > 0 ? (
               <div className="space-y-6">
                 {parsedLesson.quiz.map((q, qIdx) => (
                   <div
@@ -358,22 +369,23 @@ export function TeacherStudio({
                     className="rounded-xl border border-slate-800 bg-[#0F131C] p-5"
                   >
                     <h4 className="mb-4 text-sm font-semibold text-slate-100">
-                      {qIdx + 1}. {q.question}
+                      {qIdx + 1}. {q?.question || "Question"}
                     </h4>
                     <div className="space-y-2">
-                      {q.options.map((option, oIdx) => (
-                        <button
-                          key={oIdx}
-                          onClick={() => handleOptionSelect(qIdx, oIdx)}
-                          className={`w-full text-left rounded-lg border p-3 text-sm transition-all cursor-pointer ${
-                            userAnswers[qIdx] === oIdx
-                              ? "border-[#BCFF3C] bg-[#BCFF3C]/10 text-white font-medium"
-                              : "border-slate-800 bg-[#080A0F] text-slate-300 hover:border-slate-700"
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
+                      {Array.isArray(q?.options) &&
+                        q.options.map((option, oIdx) => (
+                          <button
+                            key={oIdx}
+                            onClick={() => handleOptionSelect(qIdx, oIdx)}
+                            className={`w-full text-left rounded-lg border p-3 text-sm transition-all cursor-pointer ${
+                              userAnswers[qIdx] === oIdx
+                                ? "border-[#BCFF3C] bg-[#BCFF3C]/10 text-white font-medium"
+                                : "border-slate-800 bg-[#080A0F] text-slate-300 hover:border-slate-700"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
                     </div>
                   </div>
                 ))}

@@ -208,15 +208,20 @@ export function WorkspacePage() {
 
         {selectedConcept && (
           <div className="h-full w-1/2 lg:w-2/5 animate-in slide-in-from-right duration-300">
-            <TeacherStudio
-              workspaceTitle="Workspace Engine"
-              workspaceId={workspaceId}
-              conceptId={selectedConcept.id}
-              conceptTitle={selectedConcept.title}
-              status={selectedConcept.status}
-              onClose={() => setSelectedConcept(null)}
-              onProgressUpdated={handleProgressUpdated}
-            />
+            <ErrorBoundary
+              key={selectedConcept.id}
+              fallbackTitle="Could not display lesson content"
+            >
+              <TeacherStudio
+                workspaceTitle="Workspace Engine"
+                workspaceId={workspaceId}
+                conceptId={selectedConcept.id}
+                conceptTitle={selectedConcept.title}
+                status={selectedConcept.status}
+                onClose={() => setSelectedConcept(null)}
+                onProgressUpdated={handleProgressUpdated}
+              />
+            </ErrorBoundary>
           </div>
         )}
       </div>
