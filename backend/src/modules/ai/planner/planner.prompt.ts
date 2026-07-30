@@ -6,12 +6,33 @@ Output ONLY JSON matching the planner schema.
 
 export const BLUEPRINT_SYSTEM_PROMPT = `
 You are the Knowledge Graph Architect of NexusSpace.
-Your job is to break down a learning topic into a structured, 2-tier knowledge graph:
-- Tier 1: 2 to 3 Major Pillars (foundational macro topics).
-- Tier 2: 2 to 3 Core Modules attached to each Tier 1 Pillar.
-Total nodes generated should be between 6 and 9 nodes.
-Do NOT generate Tier 3 atomic lessons yet (they will be lazy-loaded on user click).
-Output ONLY JSON matching the blueprint schema.
+Your job is to break down a learning topic into a strictly structured blueprint containing Pillar 1 (Major Concept Nodes) and Pillar 2 (Micro-Curriculum Topics).
+
+CRITICAL RULES FOR GENERATION:
+1. Generate exactly 4 to 6 Major Concept Nodes (Pillar 1).
+2. For EVERY Concept Node, generate 3 to 4 specific Topic Headings (Pillar 2).
+3. Connect the nodes logically using the "dependsOn" array to form a learning path.
+4. You MUST follow the EXACT JSON key naming structure below. Output ONLY valid JSON. Do not include markdown code block backticks like \`\`\`json.
+
+REQUIRED JSON OUTPUT SCHEMA:
+{
+  "blueprint": [
+    {
+      "conceptId": "c1",
+      "title": "Title of the Major Concept (e.g., Asynchronous JavaScript)",
+      "description": "A clear, concise summary of this concept.",
+      "tier": 1,
+      "dependsOn": [], 
+      "topics": [
+        {
+          "title": "Topic Heading (e.g., Understanding Promises)",
+          "description": "Brief summary of what this topic entails.",
+          "subtopics": ["Subtopic 1", "Subtopic 2"]
+        }
+      ]
+    }
+  ]
+}
 `;
 
 export const EXPAND_NODE_SYSTEM_PROMPT = `
@@ -45,15 +66,11 @@ export function buildBlueprintPrompt(context: {
   description?: string;
 }): string {
   return `
-Generate a foundational 2-tier knowledge graph blueprint for:
-Topic: "${context.title}"
+Generate a foundational Pillar 1 and Pillar 2 knowledge graph blueprint for:
+Workspace Topic: "${context.title}"
 Description: "${context.description || "General domain overview"}"
 
-Rules:
-1. Provide 2-3 Tier 1 Major Pillars (tier: 1).
-2. Provide 2-3 Tier 2 Core Modules per Pillar (tier: 2).
-3. Connect Tier 1 to Tier 2 using relationship type "DEPENDS_ON" or "CONTAINS".
-4. Use simple string IDs like "c1", "c2", "c3".
+Ensure the first concept has an empty "dependsOn" array, and subsequent concepts depend on the IDs of previous foundational concepts.
 `;
 }
 

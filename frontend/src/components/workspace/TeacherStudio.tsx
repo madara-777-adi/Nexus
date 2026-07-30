@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import { useTeacherStream } from "../../hooks/useTeacherStream";
 import { evaluateSubmission } from "../../api/ai.api";
-import { ConceptStatus } from "../../types/learning.types";
+import {
+  ConceptStatus,
+  IFlashcard,
+  ITopic,
+  ILessonResource,
+} from "../../types/learning.types";
 
 interface TeacherStudioProps {
   workspaceId: string;
@@ -11,6 +16,76 @@ interface TeacherStudioProps {
   status: ConceptStatus;
   onClose: () => void;
   onProgressUpdated?: () => void;
+}
+
+// --- Interactive Pillar 3 Flashcard Deck Component ---
+function FlashcardViewer({
+  cards,
+  topicTitle,
+  onClose,
+}: {
+  cards: IFlashcard[];
+  topicTitle: string;
+  onClose: () => void;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+
+  if (!cards || cards.length === 0) return null;
+
+  const currentCard = cards[currentIndex];
+
+  return (
+    <div className="space-y-3 rounded-xl border border-purple-500/40 bg-[#120B1C] p-5 animate-in fade-in duration-200">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-mono font-semibold uppercase tracking-wider text-purple-400">
+          Flashcard Deck: {topicTitle} ({currentIndex + 1} / {cards.length})
+        </span>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            <button
+              disabled={currentIndex === 0}
+              onClick={() => {
+                setIsFlipped(false);
+                setCurrentIndex((p) => p - 1);
+              }}
+              className="rounded border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition-colors hover:border-purple-500 hover:text-white disabled:opacity-30 cursor-pointer"
+            >
+              ← Prev
+            </button>
+            <button
+              disabled={currentIndex === cards.length - 1}
+              onClick={() => {
+                setIsFlipped(false);
+                setCurrentIndex((p) => p + 1);
+              }}
+              className="rounded border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-300 transition-colors hover:border-purple-500 hover:text-white disabled:opacity-30 cursor-pointer"
+            >
+              Next →
+            </button>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white font-bold ml-2 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <div
+        onClick={() => setIsFlipped(!isFlipped)}
+        className="min-h-[150px] flex flex-col items-center justify-center rounded-lg border border-purple-500/30 bg-[#080A0F] p-6 text-center cursor-pointer transition-all hover:border-purple-500/60 shadow-lg"
+      >
+        <span className="text-[10px] font-mono text-purple-400/80 uppercase tracking-widest mb-2">
+          {isFlipped ? "Answer / Takeaway" : "Prompt / Question (Click to Flip)"}
+        </span>
+        <p className="text-sm font-medium leading-relaxed text-slate-100">
+          {isFlipped ? currentCard.back : currentCard.front}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export function TeacherStudio({
@@ -31,10 +106,11 @@ export function TeacherStudio({
   const [evaluationScore, setEvaluationScore] = useState<number | null>(null);
   const [unlockedNodes, setUnlockedNodes] = useState<string[]>([]);
 
-  // Interactive Subtopic State
+  // Interactive Subtopic & Flashcard State
   const [selectedSubtopic, setSelectedSubtopic] = useState<{
     topicTitle: string;
     subtopicTitle: string;
+    flashcards?: IFlashcard[];
   } | null>(null);
 
   useEffect(() => {
@@ -114,6 +190,10 @@ export function TeacherStudio({
     }
   };
 
+  // Helper normalizers for flexible key names across AI generations
+  const objectivesList =
+    parsedLesson?.objectives || parsedLesson?.learningObjectives || [];
+
   return (
     <div className="flex h-full w-full flex-col border-l border-slate-800 bg-[#080A0F] text-slate-200">
       {/* Header */}
@@ -129,7 +209,7 @@ export function TeacherStudio({
             </span>
           </div>
           <h2 className="text-lg font-bold tracking-tight text-white">
-            {parsedLesson?.concept || conceptTitle}
+            {parsedLesson?.concept || parsedLesson?.conceptName || conceptTitle}
           </h2>
         </div>
 
@@ -188,27 +268,36 @@ export function TeacherStudio({
           </div>
         )}
 
-        {/* Selected Subtopic Detail Popover */}
+        {/* Selected Subtopic & Flashcard Deck Popover */}
         {selectedSubtopic && (
-          <div className="rounded-xl border border-[#BCFF3C]/40 bg-[#BCFF3C]/5 p-4 text-xs space-y-2 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between">
-              <span className="font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
-                Focus Area: {selectedSubtopic.topicTitle}
-              </span>
-              <button
-                onClick={() => setSelectedSubtopic(null)}
-                className="text-slate-400 hover:text-white font-bold"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-sm font-bold text-white">
-              {selectedSubtopic.subtopicTitle}
-            </p>
-            <p className="text-slate-300 leading-relaxed">
-              Active subtopic focus node. Master this core module before taking
-              the diagnostic assessment!
-            </p>
+          <div className="space-y-4">
+            {selectedSubtopic.flashcards && selectedSubtopic.flashcards.length > 0 ? (
+              <FlashcardViewer
+                cards={selectedSubtopic.flashcards}
+                topicTitle={selectedSubtopic.subtopicTitle}
+                onClose={() => setSelectedSubtopic(null)}
+              />
+            ) : (
+              <div className="rounded-xl border border-[#BCFF3C]/40 bg-[#BCFF3C]/5 p-4 text-xs space-y-2 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
+                    Focus Module: {selectedSubtopic.topicTitle}
+                  </span>
+                  <button
+                    onClick={() => setSelectedSubtopic(null)}
+                    className="text-slate-400 hover:text-white font-bold cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p className="text-sm font-bold text-white">
+                  {selectedSubtopic.subtopicTitle}
+                </p>
+                <p className="text-slate-300 leading-relaxed">
+                  Active subtopic module. Review the concepts below and attempt the diagnostic quiz to test retention!
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -234,67 +323,75 @@ export function TeacherStudio({
             )}
 
             {/* Learning Objectives */}
-            {Array.isArray(parsedLesson?.objectives) &&
-              parsedLesson.objectives.length > 0 && (
-                <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
-                  <h3 className="mb-3 text-xs font-mono font-semibold text-sky-400 uppercase tracking-wider">
-                    Learning Objectives
-                  </h3>
-                  <ul className="space-y-2 text-sm text-slate-300">
-                    {parsedLesson.objectives.map((obj, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-sky-400">•</span>
-                        <span>{obj}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
+            {Array.isArray(objectivesList) && objectivesList.length > 0 && (
+              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
+                <h3 className="mb-3 text-xs font-mono font-semibold text-sky-400 uppercase tracking-wider">
+                  Learning Objectives
+                </h3>
+                <ul className="space-y-2 text-sm text-slate-300">
+                  {objectivesList.map((obj, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-sky-400">•</span>
+                      <span>{obj}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
-            {/* Interactive Topics & Subtopics */}
+            {/* Interactive Topics & Subtopics with Flashcard Pills */}
             {Array.isArray(parsedLesson?.topics) &&
               parsedLesson.topics.length > 0 && (
                 <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-4">
                   <h3 className="text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
-                    Curriculum Topics (Click a topic to focus)
+                    Curriculum Topics (Click a topic to launch flashcards)
                   </h3>
                   <div className="space-y-3">
-                    {parsedLesson.topics.map((topic, i) => (
-                      <div
-                        key={i}
-                        className="rounded-lg border border-slate-800/80 bg-[#080A0F] p-4 space-y-2"
-                      >
-                        <h4 className="text-sm font-semibold text-white">
-                          {i + 1}. {topic?.title || "Topic"}
-                        </h4>
-                        <p className="text-xs text-slate-400">
-                          {topic?.description || ""}
-                        </p>
-                        {Array.isArray(topic?.subtopics) &&
-                          topic.subtopics.length > 0 && (
-                            <div className="pt-1 flex flex-wrap gap-1.5">
-                              {topic.subtopics.map((sub, sIdx) => (
-                                <button
-                                  key={sIdx}
-                                  onClick={() =>
-                                    setSelectedSubtopic({
-                                      topicTitle: topic?.title || "Topic",
-                                      subtopicTitle: sub,
-                                    })
-                                  }
-                                  className={`rounded border px-2.5 py-1 text-[11px] font-mono transition-all cursor-pointer ${
-                                    selectedSubtopic?.subtopicTitle === sub
-                                      ? "border-[#BCFF3C] bg-[#BCFF3C]/20 text-white font-bold"
-                                      : "border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-600 hover:text-white"
-                                  }`}
-                                >
-                                  {sub}
-                                </button>
-                              ))}
-                            </div>
+                    {parsedLesson.topics.map((topic: ITopic, i: number) => {
+                      const topicName = topic?.title || topic?.topicName || "Topic";
+                      return (
+                        <div
+                          key={i}
+                          className="rounded-lg border border-slate-800/80 bg-[#080A0F] p-4 space-y-3"
+                        >
+                          <h4 className="text-sm font-semibold text-white">
+                            {i + 1}. {topicName}
+                          </h4>
+                          {topic?.description && (
+                            <p className="text-xs leading-relaxed text-slate-400">
+                              {topic.description}
+                            </p>
                           )}
-                      </div>
-                    ))}
+                          {Array.isArray(topic?.subtopics) &&
+                            topic.subtopics.length > 0 && (
+                              <div className="pt-1 flex flex-wrap gap-1.5">
+                                {topic.subtopics.map((sub: string, sIdx: number) => (
+                                  <button
+                                    key={sIdx}
+                                    onClick={() =>
+                                      setSelectedSubtopic({
+                                        topicTitle: topicName,
+                                        subtopicTitle: sub,
+                                        flashcards: topic.flashcards,
+                                      })
+                                    }
+                                    className={`rounded border px-2.5 py-1 text-[11px] font-mono transition-all cursor-pointer ${
+                                      selectedSubtopic?.subtopicTitle === sub
+                                        ? "border-[#BCFF3C] bg-[#BCFF3C]/20 text-white font-bold"
+                                        : "border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-600 hover:text-white"
+                                    }`}
+                                  >
+                                    {sub}
+                                    {topic.flashcards && topic.flashcards.length > 0 && (
+                                      <span className="ml-1 text-[9px] text-purple-400">🎴</span>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
               )}
@@ -337,22 +434,26 @@ export function TeacherStudio({
                     Recommended Learning Resources
                   </h3>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {parsedLesson.resources.map((res, i) => (
-                      <a
-                        key={i}
-                        href={res?.url || "#"}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-2 rounded-lg border border-slate-800 bg-[#080A0F] p-3 text-xs text-slate-300 transition-colors hover:border-purple-500/40 hover:text-white"
-                      >
-                        <span className="rounded bg-purple-950/60 p-1 text-purple-400 font-mono text-[10px]">
-                          {(res?.type || "LINK").toUpperCase()}
-                        </span>
-                        <span className="truncate font-medium">
-                          {res?.title || "Resource Link"}
-                        </span>
-                      </a>
-                    ))}
+                    {parsedLesson.resources.map((res: ILessonResource, i: number) => {
+                      const title = res?.title || res?.resourceName || "Resource Link";
+                      const type = res?.type || res?.resourceType || "LINK";
+                      const url = res?.url || res?.resourceUrl || "#";
+
+                      return (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-2 rounded-lg border border-slate-800 bg-[#080A0F] p-3 text-xs text-slate-300 transition-colors hover:border-purple-500/40 hover:text-white"
+                        >
+                          <span className="rounded bg-purple-950/60 p-1 text-purple-400 font-mono text-[10px]">
+                            {type.toUpperCase()}
+                          </span>
+                          <span className="truncate font-medium">{title}</span>
+                        </a>
+                      );
+                    })}
                   </div>
                 </section>
               )}
@@ -362,18 +463,22 @@ export function TeacherStudio({
               <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-2">
                 <h3 className="text-xs font-mono font-semibold text-emerald-400 uppercase tracking-wider">
                   Cap-Stone Assessment:{" "}
-                  {parsedLesson.assessment?.title || "Project"}
+                  {parsedLesson.assessment?.title ||
+                    parsedLesson.assessment?.assessmentName ||
+                    "Project"}
                 </h3>
                 <p className="text-xs text-slate-300">
                   {parsedLesson.assessment?.description || ""}
                 </p>
                 {Array.isArray(parsedLesson.assessment?.requirements) && (
                   <ul className="mt-2 space-y-1 text-xs text-slate-400">
-                    {parsedLesson.assessment.requirements.map((req, i) => (
-                      <li key={i} className="flex items-center gap-1.5">
-                        <span className="text-emerald-400">✓</span> {req}
-                      </li>
-                    ))}
+                    {parsedLesson.assessment.requirements.map(
+                      (req: string, i: number) => (
+                        <li key={i} className="flex items-center gap-1.5">
+                          <span className="text-emerald-400">✓</span> {req}
+                        </li>
+                      )
+                    )}
                   </ul>
                 )}
               </section>
