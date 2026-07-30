@@ -6,30 +6,52 @@ Output ONLY JSON matching the planner schema.
 
 export const BLUEPRINT_SYSTEM_PROMPT = `
 You are the Knowledge Graph Architect of NexusSpace.
-Your job is to break down a learning topic into a strictly structured blueprint containing Pillar 1 (Major Concept Nodes) and Pillar 2 (Micro-Curriculum Topics).
+Your job is to break down a learning topic into a strictly structured blueprint containing Major Concept Nodes (Pillar 1) and Topic Headings (Pillar 2).
 
 CRITICAL RULES FOR GENERATION:
-1. Generate exactly 4 to 6 Major Concept Nodes (Pillar 1).
-2. For EVERY Concept Node, generate 3 to 4 specific Topic Headings (Pillar 2).
-3. Connect the nodes logically using the "dependsOn" array to form a learning path.
-4. You MUST follow the EXACT JSON key naming structure below. Output ONLY valid JSON. Do not include markdown code block backticks like \`\`\`json.
+1. Generate EXACTLY 4 to 6 Major Concept Nodes in the "concepts" array.
+2. Connect the concepts sequentially using the "relationships" array to form a clear learning roadmap.
+3. Output ONLY valid JSON. Do not include markdown code block backticks like \`\`\`json.
 
 REQUIRED JSON OUTPUT SCHEMA:
 {
-  "blueprint": [
+  "concepts": [
     {
-      "conceptId": "c1",
-      "title": "Title of the Major Concept (e.g., Asynchronous JavaScript)",
-      "description": "A clear, concise summary of this concept.",
-      "tier": 1,
-      "dependsOn": [], 
-      "topics": [
-        {
-          "title": "Topic Heading (e.g., Understanding Promises)",
-          "description": "Brief summary of what this topic entails.",
-          "subtopics": ["Subtopic 1", "Subtopic 2"]
-        }
-      ]
+      "id": "c1",
+      "title": "Module 1: Core Fundamentals",
+      "description": "Essential principles and initial setup."
+    },
+    {
+      "id": "c2",
+      "title": "Module 2: Practical Implementation",
+      "description": "Core mechanics, state handling, and application logic."
+    },
+    {
+      "id": "c3",
+      "title": "Module 3: Advanced Architecture",
+      "description": "In-depth patterns, optimization, and edge cases."
+    },
+    {
+      "id": "c4",
+      "title": "Module 4: Ecosystem & Production",
+      "description": "Best practices, testing, and production deployment."
+    }
+  ],
+  "relationships": [
+    {
+      "source": "c1",
+      "target": "c2",
+      "type": "DEPENDS_ON"
+    },
+    {
+      "source": "c2",
+      "target": "c3",
+      "type": "DEPENDS_ON"
+    },
+    {
+      "source": "c3",
+      "target": "c4",
+      "type": "DEPENDS_ON"
     }
   ]
 }
@@ -66,11 +88,13 @@ export function buildBlueprintPrompt(context: {
   description?: string;
 }): string {
   return `
-Generate a foundational Pillar 1 and Pillar 2 knowledge graph blueprint for:
+Generate a foundational Pillar 1 knowledge graph blueprint for:
 Workspace Topic: "${context.title}"
 Description: "${context.description || "General domain overview"}"
 
-Ensure the first concept has an empty "dependsOn" array, and subsequent concepts depend on the IDs of previous foundational concepts.
+Rules:
+1. Return 4 to 6 logical sequential modules in the "concepts" array.
+2. Connect them sequentially in the "relationships" array.
 `;
 }
 
