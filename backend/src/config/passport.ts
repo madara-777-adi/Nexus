@@ -28,7 +28,8 @@ passport.use(
       done: GoogleVerifyCallback,
     ) => {
       try {
-        const email = profile.emails?.[0]?.value?.toLowerCase();
+        // FIXED: Added .trim() to ensure exact string matching with local db records
+        const email = profile.emails?.[0]?.value?.toLowerCase().trim();
         if (!email) {
           return done(new Error("No email returned from Google"), undefined);
         }
@@ -41,6 +42,11 @@ passport.use(
         });
 
         if (user) {
+          // Prevent suspended accounts from linking or proceeding
+          if (user.accountStatus === "SUSPENDED") {
+            return done(new Error("Account suspended"), undefined);
+          }
+
           // Link Google ID and verify if account was previously unverified
           if (!user.googleId) {
             user.googleId = profile.id;
@@ -99,9 +105,10 @@ passport.use(
     ) => {
       try {
         const primaryEmailObj = profile.emails?.[0];
+        // FIXED: Added .trim()
         const email =
-          primaryEmailObj?.value?.toLowerCase() ||
-          `${profile.username}@github.noreply.com`;
+          primaryEmailObj?.value?.toLowerCase().trim() ||
+          `${profile.username}@github.noreply.com`.toLowerCase();
 
         // Check if GitHub explicitly verified this email address
         const isEmailVerified = (primaryEmailObj as any)?.verified ?? true;
@@ -111,6 +118,10 @@ passport.use(
         });
 
         if (user) {
+          if (user.accountStatus === "SUSPENDED") {
+            return done(new Error("Account suspended"), undefined);
+          }
+
           if (!user.githubId) {
             user.githubId = profile.id;
             if (!user.avatar) user.avatar = profile.photos?.[0]?.value;
