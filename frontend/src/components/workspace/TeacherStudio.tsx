@@ -3,9 +3,9 @@ import { useTeacherStream } from "../../hooks/useTeacherStream";
 import { evaluateSubmission } from "../../api/ai.api";
 import {
   ConceptStatus,
-  IFlashcard,
-  ITopic,
-  ILessonResource,
+  type IFlashcard,
+  type ITopic,
+  type ILessonResource,
 } from "../../types/learning.types";
 
 interface TeacherStudioProps {
@@ -78,7 +78,9 @@ function FlashcardViewer({
         className="min-h-[150px] flex flex-col items-center justify-center rounded-lg border border-purple-500/30 bg-[#080A0F] p-6 text-center cursor-pointer transition-all hover:border-purple-500/60 shadow-lg"
       >
         <span className="text-[10px] font-mono text-purple-400/80 uppercase tracking-widest mb-2">
-          {isFlipped ? "Answer / Takeaway" : "Prompt / Question (Click to Flip)"}
+          {isFlipped
+            ? "Answer / Takeaway"
+            : "Prompt / Question (Click to Flip)"}
         </span>
         <p className="text-sm font-medium leading-relaxed text-slate-100">
           {isFlipped ? currentCard.back : currentCard.front}
@@ -271,7 +273,8 @@ export function TeacherStudio({
         {/* Selected Subtopic & Flashcard Deck Popover */}
         {selectedSubtopic && (
           <div className="space-y-4">
-            {selectedSubtopic.flashcards && selectedSubtopic.flashcards.length > 0 ? (
+            {selectedSubtopic.flashcards &&
+            selectedSubtopic.flashcards.length > 0 ? (
               <FlashcardViewer
                 cards={selectedSubtopic.flashcards}
                 topicTitle={selectedSubtopic.subtopicTitle}
@@ -294,7 +297,8 @@ export function TeacherStudio({
                   {selectedSubtopic.subtopicTitle}
                 </p>
                 <p className="text-slate-300 leading-relaxed">
-                  Active subtopic module. Review the concepts below and attempt the diagnostic quiz to test retention!
+                  Active subtopic module. Review the concepts below and attempt
+                  the diagnostic quiz to test retention!
                 </p>
               </div>
             )}
@@ -348,7 +352,8 @@ export function TeacherStudio({
                   </h3>
                   <div className="space-y-3">
                     {parsedLesson.topics.map((topic: ITopic, i: number) => {
-                      const topicName = topic?.title || topic?.topicName || "Topic";
+                      const topicName =
+                        topic?.title || topic?.topicName || "Topic";
                       return (
                         <div
                           key={i}
@@ -365,28 +370,33 @@ export function TeacherStudio({
                           {Array.isArray(topic?.subtopics) &&
                             topic.subtopics.length > 0 && (
                               <div className="pt-1 flex flex-wrap gap-1.5">
-                                {topic.subtopics.map((sub: string, sIdx: number) => (
-                                  <button
-                                    key={sIdx}
-                                    onClick={() =>
-                                      setSelectedSubtopic({
-                                        topicTitle: topicName,
-                                        subtopicTitle: sub,
-                                        flashcards: topic.flashcards,
-                                      })
-                                    }
-                                    className={`rounded border px-2.5 py-1 text-[11px] font-mono transition-all cursor-pointer ${
-                                      selectedSubtopic?.subtopicTitle === sub
-                                        ? "border-[#BCFF3C] bg-[#BCFF3C]/20 text-white font-bold"
-                                        : "border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-600 hover:text-white"
-                                    }`}
-                                  >
-                                    {sub}
-                                    {topic.flashcards && topic.flashcards.length > 0 && (
-                                      <span className="ml-1 text-[9px] text-purple-400">🎴</span>
-                                    )}
-                                  </button>
-                                ))}
+                                {topic.subtopics.map(
+                                  (sub: string, sIdx: number) => (
+                                    <button
+                                      key={sIdx}
+                                      onClick={() =>
+                                        setSelectedSubtopic({
+                                          topicTitle: topicName,
+                                          subtopicTitle: sub,
+                                          flashcards: topic.flashcards,
+                                        })
+                                      }
+                                      className={`rounded border px-2.5 py-1 text-[11px] font-mono transition-all cursor-pointer ${
+                                        selectedSubtopic?.subtopicTitle === sub
+                                          ? "border-[#BCFF3C] bg-[#BCFF3C]/20 text-white font-bold"
+                                          : "border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-600 hover:text-white"
+                                      }`}
+                                    >
+                                      {sub}
+                                      {topic.flashcards &&
+                                        topic.flashcards.length > 0 && (
+                                          <span className="ml-1 text-[9px] text-purple-400">
+                                            🎴
+                                          </span>
+                                        )}
+                                    </button>
+                                  ),
+                                )}
                               </div>
                             )}
                         </div>
@@ -434,26 +444,31 @@ export function TeacherStudio({
                     Recommended Learning Resources
                   </h3>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {parsedLesson.resources.map((res: ILessonResource, i: number) => {
-                      const title = res?.title || res?.resourceName || "Resource Link";
-                      const type = res?.type || res?.resourceType || "LINK";
-                      const url = res?.url || res?.resourceUrl || "#";
+                    {parsedLesson.resources.map(
+                      (res: ILessonResource, i: number) => {
+                        const title =
+                          res?.title || res?.resourceName || "Resource Link";
+                        const type = res?.type || res?.resourceType || "LINK";
+                        const url = res?.url || res?.resourceUrl || "#";
 
-                      return (
-                        <a
-                          key={i}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-2 rounded-lg border border-slate-800 bg-[#080A0F] p-3 text-xs text-slate-300 transition-colors hover:border-purple-500/40 hover:text-white"
-                        >
-                          <span className="rounded bg-purple-950/60 p-1 text-purple-400 font-mono text-[10px]">
-                            {type.toUpperCase()}
-                          </span>
-                          <span className="truncate font-medium">{title}</span>
-                        </a>
-                      );
-                    })}
+                        return (
+                          <a
+                            key={i}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-2 rounded-lg border border-slate-800 bg-[#080A0F] p-3 text-xs text-slate-300 transition-colors hover:border-purple-500/40 hover:text-white"
+                          >
+                            <span className="rounded bg-purple-950/60 p-1 text-purple-400 font-mono text-[10px]">
+                              {type.toUpperCase()}
+                            </span>
+                            <span className="truncate font-medium">
+                              {title}
+                            </span>
+                          </a>
+                        );
+                      },
+                    )}
                   </div>
                 </section>
               )}
@@ -477,7 +492,7 @@ export function TeacherStudio({
                         <li key={i} className="flex items-center gap-1.5">
                           <span className="text-emerald-400">✓</span> {req}
                         </li>
-                      )
+                      ),
                     )}
                   </ul>
                 )}

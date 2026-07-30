@@ -69,13 +69,22 @@ export class TeacherService {
 
     let data = rawData?.data ? rawData.data : rawData;
 
-    // Extract diagnostic quiz from multi-path AI formats
+    // Extract diagnostic quiz across all possible LLM output variations
     let quizList: any[] = [];
 
     if (Array.isArray(data?.quiz) && data.quiz.length > 0) {
       quizList = data.quiz;
     } else if (Array.isArray(data?.questions) && data.questions.length > 0) {
       quizList = data.questions;
+    } else if (
+      Array.isArray(data?.assessment) &&
+      Array.isArray(data.assessment[0]?.questions)
+    ) {
+      // Handles assessment as an array: assessment: [{ questions: [...] }]
+      quizList = data.assessment[0].questions;
+    } else if (Array.isArray(data?.assessment?.questions)) {
+      // Handles assessment as an object: assessment: { questions: [...] }
+      quizList = data.assessment.questions;
     } else if (Array.isArray(data?.activities)) {
       for (const act of data.activities) {
         if (Array.isArray(act?.questions) && act.questions.length > 0) {
@@ -83,13 +92,18 @@ export class TeacherService {
           break;
         }
       }
-    } else if (Array.isArray(data?.assessment?.questions)) {
-      quizList = data.assessment.questions;
     }
+
+    // Normalize quiz items so every question has an options array and valid answer index
+    const normalizedQuiz = quizList.map((q: any) => ({
+      question: q?.question || "Question",
+      options: Array.isArray(q?.options) ? q.options : [],
+      answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0,
+    }));
 
     return {
       ...data,
-      quiz: quizList,
+      quiz: normalizedQuiz,
     };
   }
 }
