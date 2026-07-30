@@ -2,6 +2,7 @@ import ConceptModel from "../../concept/models/concept.model";
 import LessonModel from "../../concept/models/lesson.model";
 import FlashcardModel from "../../learning/models/flashcard.model";
 import QuizModel from "../../learning/models/quiz.model";
+import WorkspaceModel from "../../workspace/models/workspace.model";
 import { groqProvider } from "../providers/groq.provider";
 import {
   TEACHER_SYSTEM_PROMPT,
@@ -22,7 +23,7 @@ export class TeacherService {
     workspaceDescription?: string;
   }): Promise<any[]> {
     console.log(
-      `[TeacherService] Tier 1: Generating modules for workspace: ${context.workspaceTitle}`
+      `[TeacherService] Tier 1: Generating modules for workspace: ${context.workspaceTitle}`,
     );
 
     const prompt = buildTier1ModulesPrompt(context);
@@ -30,7 +31,7 @@ export class TeacherService {
       prompt,
       TEACHER_SYSTEM_PROMPT,
       "teacher",
-      { temperature: 0.2 }
+      { temperature: 0.2 },
     );
 
     const modules = Array.isArray(rawData?.modules) ? rawData.modules : [];
@@ -80,24 +81,26 @@ export class TeacherService {
 
     if (concept.topics && concept.topics.length > 0 && !forceRefresh) {
       console.log(
-        `[TeacherService] Tier 2: Returning cached subtopics from DB for: ${conceptId}`
+        `[TeacherService] Tier 2: Returning cached subtopics from DB for: ${conceptId}`,
       );
       return concept.topics;
     }
 
     // 2. JIT AI Generation
     console.log(
-      `[TeacherService] Tier 2: Generating fresh subtopics for module: ${context.moduleTitle}`
+      `[TeacherService] Tier 2: Generating fresh subtopics for module: ${context.moduleTitle}`,
     );
     const prompt = buildTier2SubtopicsPrompt(context);
     const rawData = await groqProvider.generateJSON(
       prompt,
       TEACHER_SYSTEM_PROMPT,
       "teacher",
-      { temperature: 0.3 }
+      { temperature: 0.3 },
     );
 
-    const subtopics = Array.isArray(rawData?.subtopics) ? rawData.subtopics : [];
+    const subtopics = Array.isArray(rawData?.subtopics)
+      ? rawData.subtopics
+      : [];
 
     // 3. Save Subtopics Array to Concept Document
     concept.topics = subtopics;
@@ -120,12 +123,27 @@ export class TeacherService {
     subtopicTitle: string;
     forceRefresh?: boolean;
   }): Promise<any> {
-    const { conceptId, subtopicId, workspaceId, ownerId, forceRefresh } = context;
+    const { conceptId, subtopicId, workspaceId, ownerId, forceRefresh } =
+      context;
 
     const concept = await ConceptModel.findOne({ conceptId });
     if (!concept) {
       throw new Error(`Concept module not found for ID: ${conceptId}`);
     }
+
+    // Fetch workspace document to resolve string custom workspaceId -> Mongo _id
+    const workspaceDoc = await WorkspaceModel.findOne({
+      $or: [
+        { workspaceId },
+        { _id: workspaceId.match(/^[0-9a-fA-F]{24}$/) ? workspaceId : null },
+      ],
+    });
+
+    if (!workspaceDoc) {
+      throw new Error(`Workspace not found for ID: ${workspaceId}`);
+    }
+
+    const mongoWorkspaceId = workspaceDoc._id;
 
     // 1. DB Cache Check across dedicated models
     if (!forceRefresh) {
@@ -137,7 +155,7 @@ export class TeacherService {
 
       if (existingLesson && existingCards.length > 0 && existingQuiz) {
         console.log(
-          `[TeacherService] Tier 3: Returning cached deep lesson payload for subtopic: ${subtopicId}`
+          `[TeacherService] Tier 3: Returning cached deep lesson payload for subtopic: ${subtopicId}`,
         );
         return {
           markdownContent: existingLesson.markdownContent,
@@ -149,18 +167,21 @@ export class TeacherService {
 
     // 2. JIT AI Generation
     console.log(
-      `[TeacherService] Tier 3: Generating fresh deep lesson payload for: ${context.subtopicTitle}`
+      `[TeacherService] Tier 3: Generating fresh deep lesson payload for: ${context.subtopicTitle}`,
     );
     const prompt = buildTier3LessonPrompt(context);
     const rawData = await groqProvider.generateJSON(
       prompt,
       TEACHER_SYSTEM_PROMPT,
       "teacher",
-      { temperature: 0.3 }
+      { temperature: 0.3 },
     );
 
-    const markdownContent = rawData?.markdownContent || "Content generation failed.";
-    const flashcardsData = Array.isArray(rawData?.flashcards) ? rawData.flashcards : [];
+    const markdownContent =
+      rawData?.markdownContent || "Content generation failed.";
+    const flashcardsData = Array.isArray(rawData?.flashcards)
+      ? rawData.flashcards
+      : [];
     const quizData = Array.isArray(rawData?.quiz) ? rawData.quiz : [];
 
     // 3. Atomically update/save to dedicated collections
@@ -171,11 +192,11 @@ export class TeacherService {
         {
           subtopicId,
           concept: concept._id,
-          workspace: workspaceId,
+          workspace: mongoWorkspaceId,
           owner: ownerId,
           markdownContent,
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: "after" },
       ),
 
       // Refresh Flashcard Documents
@@ -184,7 +205,7 @@ export class TeacherService {
         const cardsToInsert = flashcardsData.map((card: any) => ({
           subtopicId,
           concept: concept._id,
-          workspace: workspaceId,
+          workspace: mongoWorkspaceId,
           owner: ownerId,
           front: card.front || "Question prompt",
           back: card.back || "Answer details",
@@ -198,7 +219,7 @@ export class TeacherService {
         {
           subtopicId,
           concept: concept._id,
-          workspace: workspaceId,
+          workspace: mongoWorkspaceId,
           owner: ownerId,
           questions: quizData.map((q: any) => ({
             question: q?.question || "Question",
@@ -206,7 +227,7 @@ export class TeacherService {
             answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0,
           })),
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: "after" },
       ),
     ]);
 
