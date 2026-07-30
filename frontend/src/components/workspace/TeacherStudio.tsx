@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useTeacherStream } from "../../hooks/useTeacherStream";
 import { evaluateSubmission } from "../../api/ai.api";
 import { ConceptStatus } from "../../types/learning.types";
-import type { QuizQuestion } from "../../types/ai.types";
 
 interface TeacherStudioProps {
   workspaceId: string;
@@ -35,13 +34,11 @@ export function TeacherStudio({
   useEffect(() => {
     if (!workspaceId || !conceptId) return;
 
-    // Reset state when selecting a new concept
     setUserAnswers({});
     setEvaluationScore(null);
     setUnlockedNodes([]);
     setActiveTab("lesson");
 
-    // Fire lesson request to AI Teacher endpoint
     streamLesson({
       workspaceId,
       workspaceTitle: workspaceTitle || "Workspace",
@@ -56,7 +53,6 @@ export function TeacherStudio({
         stopStream();
       }
     };
-    // eslint-disable-next-deps
   }, [workspaceId, workspaceTitle, conceptId, conceptTitle]);
 
   const handleOptionSelect = (questionIndex: number, optionIndex: number) => {
@@ -64,7 +60,7 @@ export function TeacherStudio({
   };
 
   const handleSubmitQuiz = async () => {
-    const quizList: QuizQuestion[] = parsedLesson?.quiz || [];
+    const quizList = parsedLesson?.quiz || [];
     if (quizList.length === 0) return;
 
     setIsEvaluating(true);
@@ -77,12 +73,11 @@ export function TeacherStudio({
             : "No answer provided",
       }));
 
-      // Single unified call for grading and DB update
       const result = await evaluateSubmission({
         workspaceId,
         conceptId,
         conceptTitle,
-        questions: quizList,
+        questions: quizList as any,
         learnerAnswers,
       });
 
@@ -116,7 +111,7 @@ export function TeacherStudio({
             </span>
           </div>
           <h2 className="text-lg font-bold tracking-tight text-white">
-            {conceptTitle}
+            {parsedLesson?.concept || conceptTitle}
           </h2>
         </div>
 
@@ -141,7 +136,7 @@ export function TeacherStudio({
               : "border-transparent text-slate-400 hover:text-slate-200"
           }`}
         >
-          AI Pedagogy Stream
+          Curriculum Pedagogy
         </button>
         <button
           onClick={() => setActiveTab("quiz")}
@@ -173,74 +168,142 @@ export function TeacherStudio({
               </div>
             )}
 
-            {parsedLesson?.overview && (
+            {/* Description / Overview */}
+            {parsedLesson?.description && (
               <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
                 <h3 className="mb-2 text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
-                  Overview
+                  Overview & Description
                 </h3>
                 <p className="text-sm leading-relaxed text-slate-300">
-                  {parsedLesson.overview}
+                  {parsedLesson.description}
                 </p>
               </section>
             )}
 
-            {parsedLesson?.definition && (
+            {/* Objectives */}
+            {parsedLesson?.objectives && parsedLesson.objectives.length > 0 && (
               <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
-                <h3 className="mb-2 text-xs font-mono font-semibold text-sky-400 uppercase tracking-wider">
-                  Core Definition
-                </h3>
-                <p className="text-sm leading-relaxed text-slate-300">
-                  {parsedLesson.definition}
-                </p>
-              </section>
-            )}
-
-            {parsedLesson?.intuition && (
-              <section className="rounded-xl border border-amber-500/20 bg-[#14120B] p-5">
-                <h3 className="mb-2 text-xs font-mono font-semibold text-amber-400 uppercase tracking-wider">
-                  Intuition & Mental Model
-                </h3>
-                <p className="text-sm leading-relaxed text-amber-100/90">
-                  {parsedLesson.intuition}
-                </p>
-              </section>
-            )}
-
-            {parsedLesson?.analogy && (
-              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
-                <h3 className="mb-2 text-xs font-mono font-semibold text-purple-400 uppercase tracking-wider">
-                  Real-World Analogy
-                </h3>
-                <p className="text-sm leading-relaxed text-slate-300">
-                  {parsedLesson.analogy}
-                </p>
-              </section>
-            )}
-
-            {parsedLesson?.explanation && (
-              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
-                <h3 className="mb-2 text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">
-                  Detailed Explanation
-                </h3>
-                <p className="text-sm leading-relaxed text-slate-300 whitespace-pre-line">
-                  {parsedLesson.explanation}
-                </p>
-              </section>
-            )}
-
-            {parsedLesson?.keyPoints && parsedLesson.keyPoints.length > 0 && (
-              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
-                <h3 className="mb-3 text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
-                  Key Takeaways
+                <h3 className="mb-3 text-xs font-mono font-semibold text-sky-400 uppercase tracking-wider">
+                  Learning Objectives
                 </h3>
                 <ul className="space-y-2 text-sm text-slate-300">
-                  {parsedLesson.keyPoints.map((point, i) => (
+                  {parsedLesson.objectives.map((obj, i) => (
                     <li key={i} className="flex items-start gap-2">
-                      <span className="text-[#BCFF3C]">•</span>
-                      <span>{point}</span>
+                      <span className="text-sky-400">•</span>
+                      <span>{obj}</span>
                     </li>
                   ))}
                 </ul>
+              </section>
+            )}
+
+            {/* Topics / Modules */}
+            {parsedLesson?.topics && parsedLesson.topics.length > 0 && (
+              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-4">
+                <h3 className="text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
+                  Curriculum Topics
+                </h3>
+                <div className="space-y-3">
+                  {parsedLesson.topics.map((topic, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg border border-slate-800/80 bg-[#080A0F] p-4"
+                    >
+                      <h4 className="text-sm font-semibold text-white">
+                        {i + 1}. {topic.title}
+                      </h4>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {topic.description}
+                      </p>
+                      {topic.subtopics && topic.subtopics.length > 0 && (
+                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                          {topic.subtopics.map((sub, sIdx) => (
+                            <span
+                              key={sIdx}
+                              className="rounded border border-slate-800 bg-slate-900 px-2 py-0.5 text-[11px] font-mono text-slate-300"
+                            >
+                              {sub}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Hands-on Activities */}
+            {parsedLesson?.activities && parsedLesson.activities.length > 0 && (
+              <section className="rounded-xl border border-amber-500/20 bg-[#14120B] p-5 space-y-3">
+                <h3 className="text-xs font-mono font-semibold text-amber-400 uppercase tracking-wider">
+                  Hands-On Activities
+                </h3>
+                {parsedLesson.activities
+                  .filter((act) => act.type !== "quiz")
+                  .map((act, i) => (
+                    <div key={i} className="space-y-2">
+                      <h4 className="text-sm font-semibold text-amber-200">
+                        {act.title}
+                      </h4>
+                      <p className="text-xs text-amber-100/80">
+                        {act.description}
+                      </p>
+                      {act.instructions && act.instructions.length > 0 && (
+                        <ol className="list-decimal list-inside space-y-1 text-xs text-amber-200/90 pl-1">
+                          {act.instructions.map((inst, idx) => (
+                            <li key={idx}>{inst}</li>
+                          ))}
+                        </ol>
+                      )}
+                    </div>
+                  ))}
+              </section>
+            )}
+
+            {/* External Resources */}
+            {parsedLesson?.resources && parsedLesson.resources.length > 0 && (
+              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-3">
+                <h3 className="text-xs font-mono font-semibold text-purple-400 uppercase tracking-wider">
+                  Recommended Learning Resources
+                </h3>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {parsedLesson.resources.map((res, i) => (
+                    <a
+                      key={i}
+                      href={res.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 rounded-lg border border-slate-800 bg-[#080A0F] p-3 text-xs text-slate-300 transition-colors hover:border-purple-500/40 hover:text-white"
+                    >
+                      <span className="rounded bg-purple-950/60 p-1 text-purple-400 font-mono text-[10px]">
+                        {res.type.toUpperCase()}
+                      </span>
+                      <span className="truncate font-medium">{res.title}</span>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Assessment / Project */}
+            {parsedLesson?.assessment && (
+              <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-2">
+                <h3 className="text-xs font-mono font-semibold text-emerald-400 uppercase tracking-wider">
+                  Cap-Stone Assessment: {parsedLesson.assessment.title}
+                </h3>
+                <p className="text-xs text-slate-300">
+                  {parsedLesson.assessment.description}
+                </p>
+                {parsedLesson.assessment.requirements && (
+                  <ul className="mt-2 space-y-1 text-xs text-slate-400">
+                    {parsedLesson.assessment.requirements.map((req, i) => (
+                      <li key={i} className="flex items-center gap-1.5">
+                        <span className="text-emerald-400">✓</span> {req}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
             )}
           </div>

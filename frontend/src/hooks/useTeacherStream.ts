@@ -1,15 +1,54 @@
 import { useState, useCallback, useRef } from "react";
 import { generateLesson } from "../api/ai.api";
-import type { QuizQuestion } from "../types/ai.types";
+
+export interface TopicItem {
+  title: string;
+  description: string;
+  subtopics?: string[];
+}
+
+export interface ActivityItem {
+  type: string;
+  title: string;
+  description: string;
+  instructions?: string[];
+  questions?: Array<{
+    question: string;
+    options: string[];
+    answer?: string;
+  }>;
+}
+
+export interface ResourceItem {
+  type: string;
+  title: string;
+  url: string;
+}
+
+export interface AssessmentItem {
+  type: string;
+  title: string;
+  description: string;
+  requirements?: string[];
+}
 
 export interface ParsedLesson {
-  overview?: string;
-  definition?: string;
-  intuition?: string;
-  analogy?: string;
-  explanation?: string;
-  keyPoints?: string[];
-  quiz?: QuizQuestion[];
+  concept?: string;
+  domain?: string;
+  description?: string;
+  difficulty?: string;
+  depth?: string;
+  objectives?: string[];
+  topics?: TopicItem[];
+  activities?: ActivityItem[];
+  resources?: ResourceItem[];
+  assessment?: AssessmentItem;
+  // Legacy / fallback quiz mapping
+  quiz?: Array<{
+    question: string;
+    options: string[];
+    answer?: string;
+  }>;
 }
 
 interface StreamOptions {
@@ -38,7 +77,6 @@ export function useTeacherStream() {
 
   const streamLesson = useCallback(
     async (params: StreamOptions) => {
-      // Abort any ongoing request before starting a new one
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -60,10 +98,8 @@ export function useTeacherStream() {
           preferredDepth: params.preferredDepth,
         });
 
-        // If this request was aborted while waiting, do not update state
         if (controller.signal.aborted) return;
 
-        // Safely extract the lesson object regardless of response wrapper levels
         let unpacked: any = rawData;
 
         if (typeof unpacked === "string") {
@@ -74,13 +110,23 @@ export function useTeacherStream() {
           }
         }
 
-        if (unpacked?.lesson) unpacked = unpacked.lesson;
         if (unpacked?.data) unpacked = unpacked.data;
-        if (unpacked?.lesson) unpacked = unpacked.lesson;
 
-        console.log("[useTeacherStream] Unpacked lesson payload:", unpacked);
+        // Extract quiz questions from activities array if present
+        let quizList: any[] = [];
+        if (Array.isArray(unpacked?.activities)) {
+          const quizActivity = unpacked.activities.find((act: any) => act.type === "quiz");
+          if (quizActivity?.questions) {
+            quizList = quizActivity.questions;
+          }
+        }
 
-        setParsedLesson(unpacked as ParsedLesson);
+        const normalizedLesson: ParsedLesson = {
+          ...unpacked,
+          quiz: quizList.length > 0 ? quizList : unpacked.quiz || [],
+        };
+
+        setParsedLesson(normalizedLesson);
       } catch (err: unknown) {
         if (controller.signal.aborted) return;
 
@@ -97,7 +143,7 @@ export function useTeacherStream() {
         }
       }
     },
-    [], // Empty dependency array ensures streamLesson reference remains completely stable
+    []
   );
 
   return { parsedLesson, isLoading, error, streamLesson, stopStream };
