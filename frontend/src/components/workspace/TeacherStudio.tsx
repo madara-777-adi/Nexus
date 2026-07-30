@@ -31,12 +31,19 @@ export function TeacherStudio({
   const [evaluationScore, setEvaluationScore] = useState<number | null>(null);
   const [unlockedNodes, setUnlockedNodes] = useState<string[]>([]);
 
+  // Interactive Subtopic State
+  const [selectedSubtopic, setSelectedSubtopic] = useState<{
+    topicTitle: string;
+    subtopicTitle: string;
+  } | null>(null);
+
   useEffect(() => {
     if (!workspaceId || !conceptId) return;
 
     setUserAnswers({});
     setEvaluationScore(null);
     setUnlockedNodes([]);
+    setSelectedSubtopic(null);
     setActiveTab("lesson");
 
     streamLesson({
@@ -55,6 +62,18 @@ export function TeacherStudio({
     };
   }, [workspaceId, workspaceTitle, conceptId, conceptTitle]);
 
+  const handleRegenerate = () => {
+    streamLesson({
+      workspaceId,
+      workspaceTitle: workspaceTitle || "Workspace",
+      conceptId,
+      conceptTitle: conceptTitle || "Concept",
+      difficulty: "Intermediate",
+      preferredDepth: "Balanced",
+      forceRefresh: true,
+    });
+  };
+
   const handleOptionSelect = (questionIndex: number, optionIndex: number) => {
     setUserAnswers((prev) => ({ ...prev, [questionIndex]: optionIndex }));
   };
@@ -66,9 +85,9 @@ export function TeacherStudio({
     setIsEvaluating(true);
     try {
       const learnerAnswers = quizList.map((q, idx) => ({
-        question: q.question || "Question",
+        question: q?.question || "Question",
         userAnswer:
-          userAnswers[idx] !== undefined && Array.isArray(q.options)
+          userAnswers[idx] !== undefined && Array.isArray(q?.options)
             ? q.options[userAnswers[idx]]
             : "No answer provided",
       }));
@@ -114,15 +133,24 @@ export function TeacherStudio({
           </h2>
         </div>
 
-        <button
-          onClick={() => {
-            if (stopStream) stopStream();
-            onClose();
-          }}
-          className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-400 transition-colors hover:border-slate-700 hover:text-white cursor-pointer"
-        >
-          ✕
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRegenerate}
+            title="Re-generate Lesson & Quiz with AI"
+            className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:border-[#BCFF3C]/50 hover:text-[#BCFF3C] transition-colors cursor-pointer"
+          >
+            🔄 Refresh AI
+          </button>
+          <button
+            onClick={() => {
+              if (stopStream) stopStream();
+              onClose();
+            }}
+            className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-400 transition-colors hover:border-slate-700 hover:text-white cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -148,7 +176,7 @@ export function TeacherStudio({
           Diagnostic Quiz{" "}
           {Array.isArray(parsedLesson?.quiz)
             ? `(${parsedLesson.quiz.length})`
-            : ""}
+            : "(0)"}
         </button>
       </div>
 
@@ -157,6 +185,30 @@ export function TeacherStudio({
         {error && (
           <div className="rounded-xl border border-red-500/30 bg-red-950/20 p-4 text-sm text-red-400">
             {error}
+          </div>
+        )}
+
+        {/* Selected Subtopic Detail Popover */}
+        {selectedSubtopic && (
+          <div className="rounded-xl border border-[#BCFF3C]/40 bg-[#BCFF3C]/5 p-4 text-xs space-y-2 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between">
+              <span className="font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
+                Focus Area: {selectedSubtopic.topicTitle}
+              </span>
+              <button
+                onClick={() => setSelectedSubtopic(null)}
+                className="text-slate-400 hover:text-white font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm font-bold text-white">
+              {selectedSubtopic.subtopicTitle}
+            </p>
+            <p className="text-slate-300 leading-relaxed">
+              Active subtopic focus node. Master this core module before taking
+              the diagnostic assessment!
+            </p>
           </div>
         )}
 
@@ -169,7 +221,7 @@ export function TeacherStudio({
               </div>
             )}
 
-            {/* Description */}
+            {/* Overview / Description */}
             {parsedLesson?.description && (
               <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5">
                 <h3 className="mb-2 text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
@@ -199,35 +251,45 @@ export function TeacherStudio({
                 </section>
               )}
 
-            {/* Topics */}
+            {/* Interactive Topics & Subtopics */}
             {Array.isArray(parsedLesson?.topics) &&
               parsedLesson.topics.length > 0 && (
                 <section className="rounded-xl border border-slate-800 bg-[#0F131C] p-5 space-y-4">
                   <h3 className="text-xs font-mono font-semibold text-[#BCFF3C] uppercase tracking-wider">
-                    Curriculum Topics
+                    Curriculum Topics (Click a topic to focus)
                   </h3>
                   <div className="space-y-3">
                     {parsedLesson.topics.map((topic, i) => (
                       <div
                         key={i}
-                        className="rounded-lg border border-slate-800/80 bg-[#080A0F] p-4"
+                        className="rounded-lg border border-slate-800/80 bg-[#080A0F] p-4 space-y-2"
                       >
                         <h4 className="text-sm font-semibold text-white">
                           {i + 1}. {topic?.title || "Topic"}
                         </h4>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="text-xs text-slate-400">
                           {topic?.description || ""}
                         </p>
                         {Array.isArray(topic?.subtopics) &&
                           topic.subtopics.length > 0 && (
-                            <div className="mt-2.5 flex flex-wrap gap-1.5">
+                            <div className="pt-1 flex flex-wrap gap-1.5">
                               {topic.subtopics.map((sub, sIdx) => (
-                                <span
+                                <button
                                   key={sIdx}
-                                  className="rounded border border-slate-800 bg-slate-900 px-2 py-0.5 text-[11px] font-mono text-slate-300"
+                                  onClick={() =>
+                                    setSelectedSubtopic({
+                                      topicTitle: topic?.title || "Topic",
+                                      subtopicTitle: sub,
+                                    })
+                                  }
+                                  className={`rounded border px-2.5 py-1 text-[11px] font-mono transition-all cursor-pointer ${
+                                    selectedSubtopic?.subtopicTitle === sub
+                                      ? "border-[#BCFF3C] bg-[#BCFF3C]/20 text-white font-bold"
+                                      : "border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-600 hover:text-white"
+                                  }`}
                                 >
                                   {sub}
-                                </span>
+                                </button>
                               ))}
                             </div>
                           )}
@@ -245,7 +307,7 @@ export function TeacherStudio({
                     Hands-On Activities
                   </h3>
                   {parsedLesson.activities
-                    .filter((act) => act && act.type !== "quiz")
+                    .filter((act) => act && act?.type?.toLowerCase() !== "quiz")
                     .map((act, i) => (
                       <div key={i} className="space-y-2">
                         <h4 className="text-sm font-semibold text-amber-200">
@@ -284,10 +346,10 @@ export function TeacherStudio({
                         className="flex items-center gap-2 rounded-lg border border-slate-800 bg-[#080A0F] p-3 text-xs text-slate-300 transition-colors hover:border-purple-500/40 hover:text-white"
                       >
                         <span className="rounded bg-purple-950/60 p-1 text-purple-400 font-mono text-[10px]">
-                          {res?.type?.toUpperCase() || "LINK"}
+                          {(res?.type || "LINK").toUpperCase()}
                         </span>
                         <span className="truncate font-medium">
-                          {res?.title || "Resource"}
+                          {res?.title || "Resource Link"}
                         </span>
                       </a>
                     ))}
@@ -401,8 +463,14 @@ export function TeacherStudio({
                 </button>
               </div>
             ) : (
-              <div className="text-center py-12 text-sm text-slate-500">
-                No diagnostic questions available yet for this concept.
+              <div className="text-center py-12 text-sm text-slate-500 space-y-3">
+                <p>No diagnostic questions found in cached lesson payload.</p>
+                <button
+                  onClick={handleRegenerate}
+                  className="rounded-lg bg-[#BCFF3C]/10 border border-[#BCFF3C]/40 px-4 py-2 font-mono text-xs font-bold text-[#BCFF3C] hover:bg-[#BCFF3C]/20 transition-all cursor-pointer"
+                >
+                  ✨ Click here to re-generate with Quiz
+                </button>
               </div>
             )}
           </div>
