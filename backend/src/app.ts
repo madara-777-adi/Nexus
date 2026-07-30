@@ -42,14 +42,19 @@ const corsOptions: cors.CorsOptions = {
   origin: allowedOrigins,
   credentials: true, // Enables sending/receiving HttpOnly cookies across origins
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+  ],
 };
 
 // 1. Apply CORS middleware
 app.use(cors(corsOptions));
 
 // 2. Explicitly intercept and pass HTTP OPTIONS preflight checks across all routes
-app.options("*", cors(corsOptions) as any);
+app.options("/*path", cors(corsOptions) as any);
 
 // Parse incoming cookies from request headers into req.cookies
 app.use(cookieParser());
