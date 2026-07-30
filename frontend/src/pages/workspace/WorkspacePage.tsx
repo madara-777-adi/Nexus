@@ -83,10 +83,13 @@ export function WorkspacePage() {
           "success",
         );
       } else {
-        showToast("All concepts in this workspace are mastered!", "info");
+        showToast(
+          "You've mastered all current modules in this workspace!",
+          "info",
+        );
       }
     } catch (error) {
-      showToast("Planner offline. Try selecting a module manually.", "error");
+      showToast("Planner offline. Try selecting a module manually.", "warning");
     } finally {
       setIsPlanning(false);
     }
@@ -112,7 +115,9 @@ export function WorkspacePage() {
                 ? "border-red-500/40 bg-[#12141A] text-red-300"
                 : toast.type === "success"
                   ? "border-[#BCFF3C]/50 bg-[#12141A] text-[#BCFF3C]"
-                  : "border-gray-800 bg-[#12141A] text-gray-300"
+                  : toast.type === "warning"
+                    ? "border-amber-500/40 bg-[#12141A] text-amber-300"
+                    : "border-gray-800 bg-[#12141A] text-gray-300"
             }`}
           >
             <span>{toast.message}</span>
@@ -120,7 +125,7 @@ export function WorkspacePage() {
               onClick={() =>
                 setToasts((prev) => prev.filter((t) => t.id !== toast.id))
               }
-              className="text-gray-500 hover:text-white"
+              className="text-gray-500 hover:text-white cursor-pointer"
             >
               ✕
             </button>
@@ -132,14 +137,14 @@ export function WorkspacePage() {
       <header className="absolute top-4 left-4 z-10 flex items-center gap-4 rounded-xl border border-gray-800 bg-[#12141A]/90 p-3 backdrop-blur-md">
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-1.5 rounded-lg border border-gray-800 bg-[#181B22] px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-gray-700 hover:text-white transition-all"
+          className="flex items-center gap-1.5 rounded-lg border border-gray-800 bg-[#181B22] px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-gray-700 hover:text-white transition-all cursor-pointer"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Dashboard
         </button>
 
         <div className="h-4 w-px bg-gray-800" />
 
-        {/* Simple Text Branding */}
+        {/* Branding */}
         <span className="font-mono text-xs font-semibold tracking-wider text-white">
           NEXUS<span className="text-[#BCFF3C]">SPACE</span>
         </span>
@@ -149,7 +154,7 @@ export function WorkspacePage() {
         <button
           onClick={handleAskPlanner}
           disabled={isPlanning || isInitializing}
-          className="flex items-center gap-2 rounded-lg bg-[#00E5FF]/10 border border-[#00E5FF]/30 px-3 py-1.5 text-xs font-semibold text-[#00E5FF] hover:bg-[#00E5FF]/20 transition-all disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-[#00E5FF]/10 border border-[#00E5FF]/30 px-3 py-1.5 text-xs font-semibold text-[#00E5FF] hover:bg-[#00E5FF]/20 transition-all disabled:opacity-50 cursor-pointer"
         >
           {isPlanning ? (
             <Sparkles className="h-3.5 w-3.5 animate-spin" />
@@ -163,7 +168,9 @@ export function WorkspacePage() {
       {/* Main Canvas View */}
       <div className="flex h-full w-full">
         <div
-          className={`h-full transition-all duration-300 ${selectedConcept ? "w-1/2 lg:w-3/5" : "w-full"}`}
+          className={`h-full transition-all duration-300 ${
+            selectedConcept ? "w-1/2 lg:w-3/5" : "w-full"
+          }`}
         >
           {isInitializing ? (
             <div className="flex h-full w-full items-center justify-center text-xs font-mono text-gray-500 gap-3">

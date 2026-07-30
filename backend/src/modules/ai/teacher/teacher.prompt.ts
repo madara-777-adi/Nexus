@@ -14,18 +14,32 @@ export function buildTier1ModulesPrompt(context: {
   workspaceDescription?: string;
 }): string {
   return `
-Create a progressive, 4-to-6 module learning roadmap for the subject: "${context.workspaceTitle}".
+Create a progressive 4-to-6 module learning roadmap for the subject: "${context.workspaceTitle}".
 Context: ${context.workspaceDescription || "N/A"}
 
 STRICT RULES:
-- Modules must follow a logical dependency graph (from fundamentals to advanced).
+1. You MUST generate between 4 and 6 distinct, sequential modules.
+2. Modules must follow a logical dependency graph (from core fundamentals to advanced application).
+3. Do NOT return fewer than 4 modules under any circumstance.
 
 Return JSON matching this exact structure:
 {
   "modules": [
     {
-      "title": "Module Title",
-      "description": "Clear 1-2 sentence overview of what this module covers."
+      "title": "Module 1: Fundamentals & Environment Setup",
+      "description": "Foundational mechanics, environment configuration, and basic syntax."
+    },
+    {
+      "title": "Module 2: Core Data Structures & Logic",
+      "description": "Essential control flow, data handling, and structural patterns."
+    },
+    {
+      "title": "Module 3: Advanced Concepts & System Design",
+      "description": "In-depth architecture, optimization, and real-world implementation."
+    },
+    {
+      "title": "Module 4: Practical Projects & Master Application",
+      "description": "Hands-on implementation and production-grade concepts."
     }
   ]
 }
@@ -71,7 +85,7 @@ export function buildTier3LessonPrompt(context: {
 Generate a deep, comprehensive lesson payload for the subtopic "${context.subtopicTitle}" (Module: "${context.moduleTitle}", Course: "${context.workspaceTitle}").
 
 STRICT GENERATION RULES FOR HIGH DENSITY CONTENT:
-1. "markdownContent": Must be a deep, detailed educational guide (300-500 words). Include technical examples, architectural breakdowns, and formatting (headers, bolding, code blocks).
+1. "markdownContent": Must be a deep, detailed educational guide (300-500 words). Use standard Markdown formatting with headers (##, ###), bold text (**concept**), code blocks, and bullet points. Do NOT escape headers.
 2. "flashcards": Create 4 to 6 active-recall questions focusing on "why" and "how" (e.g., edge cases, mechanisms). NO trivial definitions.
 3. "quiz": Create 3 challenging diagnostic questions with 4 options and an accurate answerIndex.
 

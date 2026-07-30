@@ -27,14 +27,46 @@ export class TeacherService {
     );
 
     const prompt = buildTier1ModulesPrompt(context);
-    const rawData = await groqProvider.generateJSON(
-      prompt,
-      TEACHER_SYSTEM_PROMPT,
-      "teacher",
-      { temperature: 0.2 },
-    );
+    let rawData: any = null;
 
-    const modules = Array.isArray(rawData?.modules) ? rawData.modules : [];
+    try {
+      rawData = await groqProvider.generateJSON(
+        prompt,
+        TEACHER_SYSTEM_PROMPT,
+        "teacher",
+        { temperature: 0.2 },
+      );
+    } catch (err) {
+      console.error("[TeacherService] Tier 1 AI generation error:", err);
+    }
+
+    let modules = Array.isArray(rawData?.modules) ? rawData.modules : [];
+
+    // Fallback if AI returns an empty array or single-item payload
+    if (modules.length === 0) {
+      console.warn(
+        `[TeacherService] Tier 1 returned empty modules array. Applying multi-module fallback roadmap.`,
+      );
+      modules = [
+        {
+          title: `1. ${context.workspaceTitle} Fundamentals`,
+          description: `Core concepts, syntax, and basic architecture for ${context.workspaceTitle}.`,
+        },
+        {
+          title: `2. Data Control & Logical Flow`,
+          description: `Methods, state management, and algorithmic control structures.`,
+        },
+        {
+          title: `3. Intermediate System Patterns`,
+          description: `Modular design, error boundaries, and standard library mechanisms.`,
+        },
+        {
+          title: `4. Advanced Implementation & Mastery`,
+          description: `Optimization, edge-case mitigation, and production deployment patterns.`,
+        },
+      ];
+    }
+
     const createdConcepts = [];
 
     for (let i = 0; i < modules.length; i++) {
@@ -98,9 +130,29 @@ export class TeacherService {
       { temperature: 0.3 },
     );
 
-    const subtopics = Array.isArray(rawData?.subtopics)
-      ? rawData.subtopics
-      : [];
+    let subtopics = Array.isArray(rawData?.subtopics) ? rawData.subtopics : [];
+
+    if (subtopics.length === 0) {
+      subtopics = [
+        {
+          id: "overview-fundamentals",
+          title: "Overview & Fundamentals",
+          description:
+            "Essential architectural principles and foundational mechanics.",
+        },
+        {
+          id: "core-implementation",
+          title: "Core Implementation Mechanics",
+          description: "Practical code structures and standard usage patterns.",
+        },
+        {
+          id: "edge-cases-optimization",
+          title: "Edge Cases & Optimization",
+          description:
+            "Performance bottlenecks, debugging, and advanced patterns.",
+        },
+      ];
+    }
 
     // 3. Save Subtopics Array to Concept Document
     concept.topics = subtopics;
@@ -145,7 +197,7 @@ export class TeacherService {
 
     const mongoWorkspaceId = workspaceDoc._id;
 
-    // 1. DB Cache Check across dedicated models
+    // 1. DB Cache Check across dedicated collections
     if (!forceRefresh) {
       const [existingLesson, existingCards, existingQuiz] = await Promise.all([
         LessonModel.findOne({ concept: concept._id, subtopicId }),
@@ -178,7 +230,8 @@ export class TeacherService {
     );
 
     const markdownContent =
-      rawData?.markdownContent || "Content generation failed.";
+      rawData?.markdownContent ||
+      "## Lesson Generation Notice\n\nContent generation failed. Please refresh.";
     const flashcardsData = Array.isArray(rawData?.flashcards)
       ? rawData.flashcards
       : [];

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { getTier3Lesson, evaluateSubmission } from "../../api/ai.api";
 import { ActiveRecallModal } from "./ActiveRecallModal";
 import { ConceptStatus } from "../../types/learning.types";
@@ -165,7 +166,7 @@ export function TeacherStudio({
           {flashcards.length > 0 && (
             <button
               onClick={() => setIsDeckOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-[#BCFF3C]/40 bg-[#BCFF3C]/10 px-2.5 py-1.5 text-xs font-semibold text-[#BCFF3C] hover:bg-[#BCFF3C]/20 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-[#BCFF3C]/40 bg-[#BCFF3C]/10 px-2.5 py-1.5 text-xs font-semibold text-[#BCFF3C] hover:bg-[#BCFF3C]/20 transition-colors cursor-pointer"
             >
               <Layers className="h-3.5 w-3.5" /> Active Recall (
               {flashcards.length})
@@ -175,7 +176,7 @@ export function TeacherStudio({
           <button
             onClick={() => fetchLessonPayload(true)}
             title="Re-generate with AI"
-            className="rounded-lg border border-gray-800 bg-[#181B22] p-2 text-gray-400 hover:border-gray-700 hover:text-white transition-colors"
+            className="rounded-lg border border-gray-800 bg-[#181B22] p-2 text-gray-400 hover:border-gray-700 hover:text-white transition-colors cursor-pointer"
           >
             <RefreshCw
               className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
@@ -184,7 +185,7 @@ export function TeacherStudio({
 
           <button
             onClick={onClose}
-            className="rounded-lg border border-gray-800 bg-[#181B22] p-2 text-gray-400 hover:border-gray-700 hover:text-white transition-colors"
+            className="rounded-lg border border-gray-800 bg-[#181B22] p-2 text-gray-400 hover:border-gray-700 hover:text-white transition-colors cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
@@ -195,7 +196,7 @@ export function TeacherStudio({
       <div className="flex border-b border-gray-800 bg-[#12141A] px-4">
         <button
           onClick={() => setActiveTab("lesson")}
-          className={`flex items-center gap-2 border-b-2 py-3 px-4 text-xs font-semibold tracking-wide uppercase transition-colors ${
+          className={`flex items-center gap-2 border-b-2 py-3 px-4 text-xs font-semibold tracking-wide uppercase transition-colors cursor-pointer ${
             activeTab === "lesson"
               ? "border-[#00E5FF] text-[#00E5FF]"
               : "border-transparent text-gray-400 hover:text-gray-200"
@@ -205,7 +206,7 @@ export function TeacherStudio({
         </button>
         <button
           onClick={() => setActiveTab("quiz")}
-          className={`flex items-center gap-2 border-b-2 py-3 px-4 text-xs font-semibold tracking-wide uppercase transition-colors ${
+          className={`flex items-center gap-2 border-b-2 py-3 px-4 text-xs font-semibold tracking-wide uppercase transition-colors cursor-pointer ${
             activeTab === "quiz"
               ? "border-[#BCFF3C] text-[#BCFF3C]"
               : "border-transparent text-gray-400 hover:text-gray-200"
@@ -233,8 +234,46 @@ export function TeacherStudio({
           </div>
         ) : activeTab === "lesson" ? (
           <div className="space-y-6">
-            <article className="prose prose-invert max-w-none rounded-xl border border-gray-800 bg-[#12141A] p-6 text-sm leading-relaxed text-gray-300 whitespace-pre-line">
-              {markdownContent}
+            <article className="rounded-xl border border-gray-800 bg-[#12141A] p-6 text-sm text-gray-300">
+              <ReactMarkdown
+                components={{
+                  h2: ({ node, ...props }) => (
+                    <h2
+                      className="text-base font-bold text-white mb-3 mt-4 border-b border-gray-800 pb-1"
+                      {...props}
+                    />
+                  ),
+                  h3: ({ node, ...props }) => (
+                    <h3
+                      className="text-sm font-semibold text-[#00E5FF] mb-2 mt-3"
+                      {...props}
+                    />
+                  ),
+                  p: ({ node, ...props }) => (
+                    <p
+                      className="text-xs text-gray-300 leading-relaxed mb-3"
+                      {...props}
+                    />
+                  ),
+                  strong: ({ node, ...props }) => (
+                    <strong className="font-semibold text-white" {...props} />
+                  ),
+                  ul: ({ node, ...props }) => (
+                    <ul
+                      className="list-disc list-inside space-y-1 my-2 text-xs text-gray-300"
+                      {...props}
+                    />
+                  ),
+                  ol: ({ node, ...props }) => (
+                    <ol
+                      className="list-decimal list-inside space-y-1 my-2 text-xs text-gray-300"
+                      {...props}
+                    />
+                  ),
+                }}
+              >
+                {markdownContent}
+              </ReactMarkdown>
             </article>
           </div>
         ) : (
@@ -278,7 +317,7 @@ export function TeacherStudio({
                         <button
                           key={oIdx}
                           onClick={() => handleOptionSelect(qIdx, oIdx)}
-                          className={`w-full text-left rounded-lg border p-3 text-xs transition-all ${
+                          className={`w-full text-left rounded-lg border p-3 text-xs transition-all cursor-pointer ${
                             userAnswers[qIdx] === oIdx
                               ? "border-[#BCFF3C] bg-[#BCFF3C]/10 text-white font-medium"
                               : "border-gray-800/80 bg-[#181B22] text-gray-300 hover:border-gray-700"
@@ -294,7 +333,7 @@ export function TeacherStudio({
                 <button
                   onClick={handleSubmitQuiz}
                   disabled={isEvaluating}
-                  className="w-full rounded-xl bg-[#BCFF3C] py-3 text-xs font-semibold uppercase tracking-wider text-black transition-all hover:bg-[#aef525] disabled:opacity-50"
+                  className="w-full rounded-xl bg-[#BCFF3C] py-3 text-xs font-semibold uppercase tracking-wider text-black transition-all hover:bg-[#aef525] disabled:opacity-50 cursor-pointer"
                 >
                   {isEvaluating
                     ? "Evaluating Submission..."
