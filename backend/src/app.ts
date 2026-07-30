@@ -49,6 +49,23 @@ app.use(cookieParser());
 
 app.use(express.json());
 
+// Root & Health Check Endpoints (Fixes Render deployment 404 health check errors)
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "NexusSpace API Engine is active.",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.head("/", (_req, res) => {
+  res.status(200).end();
+});
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "OK" });
+});
+
 // Initialize Passport middleware for Google and GitHub OAuth
 app.use(passport.initialize());
 
