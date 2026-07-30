@@ -6,6 +6,7 @@ export interface IConcept extends Document {
   owner: Types.ObjectId;
   title: string;
   description?: string;
+  lessonPayload?: Record<string, any>; // <-- Added for lesson caching
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,6 +42,10 @@ const conceptSchema = new Schema<IConcept>(
       trim: true,
       maxlength: [1000, "Description cannot exceed 1000 characters"],
       default: "",
+    },
+    lessonPayload: {
+      type: Schema.Types.Mixed,
+      default: null,
     },
   },
   {
