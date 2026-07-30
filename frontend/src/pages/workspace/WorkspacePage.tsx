@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { WorkspaceGraph } from "../../components/workspace/WorkspaceGraph";
+import { TopicPathView } from "../../components/workspace/TopicPathView";
 import { TeacherStudio } from "../../components/workspace/TeacherStudio";
 import { ErrorBoundary } from "../../components/common/ErrorBoundary";
 import { initializeWorkspaceProgress } from "../../api/learning.api";
-import { planNextPath } from "../../api/ai.api"; // <-- Import the new planner API
+import { planNextPath } from "../../api/ai.api";
 import { ConceptStatus } from "../../types/learning.types";
 
 export function WorkspacePage() {
@@ -17,9 +17,9 @@ export function WorkspacePage() {
     status: ConceptStatus;
   } | null>(null);
 
-  const [graphRefreshKey, setGraphRefreshKey] = useState<number>(0);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
-  const [isPlanning, setIsPlanning] = useState<boolean>(false); // <-- Planner loading state
+  const [isPlanning, setIsPlanning] = useState<boolean>(false);
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -41,27 +41,24 @@ export function WorkspacePage() {
     (conceptId: string, title: string, status: ConceptStatus) => {
       setSelectedConcept({ id: conceptId, title, status });
     },
-    []
+    [],
   );
 
   const handleProgressUpdated = useCallback(() => {
-    setGraphRefreshKey((prev) => prev + 1);
+    setRefreshKey((prev) => prev + 1);
   }, []);
 
-  // --- NEW: AI Planner Integration ---
   const handleAskPlanner = async () => {
     if (!workspaceId) return;
     setIsPlanning(true);
     try {
-      // We only send the workspaceId. The backend database does all the heavy lifting!
       const plan = await planNextPath({ workspaceId });
-      
-      // If the AI finds an optimal node, automatically open the Teacher Studio for it
+
       if (plan && plan.recommendedNodeId) {
         setSelectedConcept({
           id: plan.recommendedNodeId,
           title: plan.recommendedNodeTitle || "Recommended Concept",
-          status: ConceptStatus.UNLOCKED, // Assume unlocked since it's the recommended next step
+          status: ConceptStatus.UNLOCKED,
         });
       } else {
         alert("You've mastered everything in this workspace!");
@@ -84,7 +81,7 @@ export function WorkspacePage() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#080A0F]">
-      {/* Navigation Header overlay */}
+      {/* Navigation Header Overlay */}
       <header className="absolute top-4 left-4 z-10 flex items-center gap-3 rounded-xl border border-slate-800 bg-[#0F131C]/90 p-3 backdrop-blur-md">
         <button
           onClick={() => navigate("/dashboard")}
@@ -94,11 +91,11 @@ export function WorkspacePage() {
         </button>
         <div className="h-4 w-px bg-slate-800" />
         <span className="text-xs font-mono font-medium text-slate-400">
-          NexusSpace Graph Workspace
+          NexusSpace Curriculum Path
         </span>
         <div className="h-4 w-px bg-slate-800" />
-        
-        {/* NEW: The AI Planner Button */}
+
+        {/* AI Planner Button */}
         <button
           onClick={handleAskPlanner}
           disabled={isPlanning || isInitializing}
@@ -124,14 +121,14 @@ export function WorkspacePage() {
         >
           {isInitializing ? (
             <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
-              Initializing knowledge graph state...
+              Initializing curriculum progression state...
             </div>
           ) : (
             <ErrorBoundary
-              key={`${workspaceId}_${graphRefreshKey}`}
-              fallbackTitle="This workspace graph hit a runtime error"
+              key={`${workspaceId}_${refreshKey}`}
+              fallbackTitle="This workspace hit a runtime error"
             >
-              <WorkspaceGraph
+              <TopicPathView
                 workspaceId={workspaceId}
                 onSelectConcept={handleSelectConcept}
               />
@@ -142,8 +139,7 @@ export function WorkspacePage() {
         {selectedConcept && (
           <div className="h-full w-1/2 lg:w-2/5 animate-in slide-in-from-right duration-300">
             <TeacherStudio
-              // NOTE: Update this if you have the actual Workspace Title available in this scope!
-              workspaceTitle="Workspace Engine" 
+              workspaceTitle="Workspace Engine"
               workspaceId={workspaceId}
               conceptId={selectedConcept.id}
               conceptTitle={selectedConcept.title}

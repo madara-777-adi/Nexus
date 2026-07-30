@@ -12,6 +12,7 @@ export function Dashboard() {
   const [workspaces, setWorkspaces] = useState<IWorkspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   // Fetch workspaces on component mount
@@ -22,7 +23,7 @@ export function Dashboard() {
         setWorkspaces(response.data);
       } catch (err: any) {
         setError(
-          err.response?.data?.message || "Failed to load workspaces.",
+          err.response?.data?.message || "Failed to load workspaces."
         );
       } finally {
         setLoading(false);
@@ -34,6 +35,36 @@ export function Dashboard() {
 
   const handleWorkspaceCreated = (newWorkspace: IWorkspace) => {
     setWorkspaces((prev) => [newWorkspace, ...prev]);
+  };
+
+  const handleDeleteWorkspace = async (
+    e: React.MouseEvent,
+    workspaceId: string,
+    title: string
+  ) => {
+    e.stopPropagation(); // Prevent card click / navigation
+
+    if (
+      !window.confirm(
+        `Are you sure you want to delete "${title}"? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setDeletingId(workspaceId);
+    try {
+      await workspaceApi.deleteWorkspace(workspaceId);
+      setWorkspaces((prev) =>
+        prev.filter((ws) => ws.workspaceId !== workspaceId)
+      );
+    } catch (err: any) {
+      alert(
+        err.response?.data?.message || "Failed to delete workspace."
+      );
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -144,22 +175,41 @@ export function Dashboard() {
               <div
                 key={ws.workspaceId}
                 onClick={() => navigate(`/workspace/${ws.workspaceId}`)}
-                className="group bg-[#0d1117] border border-surface-border hover:border-neon-lime/60 rounded-2xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between hover:shadow-xl hover:shadow-neon-lime/5"
+                className="group bg-[#0d1117] border border-surface-border hover:border-neon-lime/60 rounded-2xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between hover:shadow-xl hover:shadow-neon-lime/5 relative"
               >
                 <div className="flex flex-col gap-2">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-white font-bold text-base group-hover:text-neon-lime transition-colors line-clamp-1">
+                    <h3 className="text-white font-bold text-base group-hover:text-neon-lime transition-colors line-clamp-1 pr-6">
                       {ws.title}
                     </h3>
-                    <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider border ${
-                        ws.visibility === "PUBLIC"
-                          ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
-                          : "bg-surface-border/50 text-gray-400 border-surface-border"
-                      }`}
-                    >
-                      {ws.visibility}
-                    </span>
+
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider border ${
+                          ws.visibility === "PUBLIC"
+                            ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                            : "bg-surface-border/50 text-gray-400 border-surface-border"
+                        }`}
+                      >
+                        {ws.visibility}
+                      </span>
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={(e) =>
+                          handleDeleteWorkspace(e, ws.workspaceId, ws.title)
+                        }
+                        disabled={deletingId === ws.workspaceId}
+                        className="text-gray-500 hover:text-red-400 p-1.5 rounded-lg border border-transparent hover:border-red-500/30 hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
+                        title="Delete Workspace"
+                      >
+                        {deletingId === ws.workspaceId ? (
+                          <span className="h-3 w-3 animate-spin rounded-full border-2 border-red-400 border-t-transparent inline-block" />
+                        ) : (
+                          "🗑️"
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   <p className="text-gray-400 text-xs line-clamp-2 leading-relaxed">
@@ -168,7 +218,7 @@ export function Dashboard() {
                 </div>
 
                 <div className="mt-6 pt-3 border-t border-surface-border/40 flex items-center justify-between text-[11px] text-gray-500">
-                  <span>ID: {ws.workspaceId}</span>
+                  <span className="font-mono text-[10px]">{ws.workspaceId}</span>
                   <span>{new Date(ws.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>
