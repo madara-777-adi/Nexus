@@ -51,6 +51,7 @@ export class TeacherService {
       console.warn(
         `[TeacherService] Tier 1 returned empty modules array. Applying multi-module fallback roadmap.`,
       );
+
       modules = [
         {
           title: `1. ${context.workspaceTitle} Fundamentals`,
@@ -58,25 +59,38 @@ export class TeacherService {
         },
         {
           title: `2. Data Control & Logical Flow`,
-          description: `Methods, state management, and algorithmic control structures.`,
+          description:
+            "Methods, state management, and algorithmic control structures.",
         },
         {
           title: `3. Intermediate System Patterns`,
-          description: `Modular design, error boundaries, and standard library mechanisms.`,
+          description:
+            "Modular design, error boundaries, and standard library mechanisms.",
         },
         {
           title: `4. Advanced Implementation & Mastery`,
-          description: `Optimization, edge-case mitigation, and production deployment patterns.`,
+          description:
+            "Optimization, edge-case mitigation, and production deployment patterns.",
         },
       ];
     }
+
+    // RC-004: Resolve public workspaceId -> Mongo ObjectId
+    const workspaceDoc = await WorkspaceModel.findOne({
+      workspaceId: context.workspaceId,
+    });
+
+    if (!workspaceDoc) {
+      throw new NotFoundError(`Workspace not found: ${context.workspaceId}`);
+    }
+
+    const mongoWorkspaceId = workspaceDoc._id;
 
     const createdConcepts = [];
 
     for (let i = 0; i < modules.length; i++) {
       const mod = modules[i];
 
-      // Audit 5.2 Fix: Guaranteed unique conceptId with collision check loop
       let conceptId: string;
       do {
         conceptId = `concept_${generateUserId()}`;
@@ -84,12 +98,11 @@ export class TeacherService {
 
       const concept = await ConceptModel.create({
         conceptId,
-        workspace: context.workspaceId,
+        workspace: mongoWorkspaceId,
         owner: context.ownerId,
         title: mod.title,
         description: mod.description,
         order: i + 1,
-        // First module is unlocked by default; downstream modules are locked
         isUnlocked: i === 0,
         isMastered: false,
         topics: [],
@@ -128,7 +141,9 @@ export class TeacherService {
         throw new NotFoundError("Parent workspace not found for this concept.");
       }
       if (!workspaceDoc.owner.equals(ownerObjectId)) {
-        throw new ForbiddenError("You do not have access to this workspace module.");
+        throw new ForbiddenError(
+          "You do not have access to this workspace module.",
+        );
       }
     }
 
@@ -204,13 +219,8 @@ export class TeacherService {
       throw new NotFoundError(`Concept module not found for ID: ${conceptId}`);
     }
 
-    // Fetch workspace document to resolve string custom workspaceId -> Mongo _id
-    const workspaceDoc = await WorkspaceModel.findOne({
-      $or: [
-        { workspaceId },
-        { _id: Types.ObjectId.isValid(workspaceId) ? workspaceId : null },
-      ],
-    });
+    // RC-004 Fix: Resolve string custom workspaceId -> Mongo _id
+    const workspaceDoc = await WorkspaceModel.findOne({ workspaceId });
 
     if (!workspaceDoc) {
       throw new NotFoundError(`Workspace not found for ID: ${workspaceId}`);
@@ -219,7 +229,9 @@ export class TeacherService {
     // Audit 1.4 Fix: Validate workspace ownership
     const ownerObjectId = new Types.ObjectId(ownerId);
     if (!workspaceDoc.owner.equals(ownerObjectId)) {
-      throw new ForbiddenError("You do not have access to this workspace or lesson.");
+      throw new ForbiddenError(
+        "You do not have access to this workspace or lesson.",
+      );
     }
 
     const mongoWorkspaceId = workspaceDoc._id;
@@ -272,6 +284,7 @@ export class TeacherService {
         {
           subtopicId,
           concept: concept._id,
+          // RC-004 Fix: strict ObjectId
           workspace: mongoWorkspaceId,
           owner: ownerObjectId,
           markdownContent,

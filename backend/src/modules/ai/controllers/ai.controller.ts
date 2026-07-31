@@ -5,8 +5,10 @@ import { evaluatorService } from "../evaluator/evaluator.service";
 import { plannerService } from "../planner/planner.service";
 import { quizGeneratorService } from "../generator/quiz-generator.service";
 import { resourceGeneratorService } from "../generator/resource-generator.service";
+import { NotFoundError } from "../../../shared/errors/NotFoundError";
 
 // --- GRAPH BRIDGE & MODELS ---
+import Workspace from "../../workspace/models/workspace.model";
 import learningService from "../../learning/services/learning.service";
 import ConceptModel from "../../concept/models/concept.model";
 import { ConceptStatus } from "../../learning/models/learning-progress.model";
@@ -137,22 +139,27 @@ export class AIController {
       );
       const { conceptId } = req.body;
 
+      // 1. Get raw evaluation from Groq AI (Passes single req.body argument cleanly)
       const evaluation = (await evaluatorService.evaluateSubmission(
         req.body,
       )) as any;
 
+      // 2. Map correct field names returned by EvaluatorService
       const masteryScore =
+        evaluation.masteryScore ??
+        evaluation.score ??
         evaluation.mastery ??
         evaluation.evaluationResult?.masteryPercentage ??
         0;
 
+      // 3. Single internal call to persist score and trigger unlock cascades
       const dbResult = await learningService.recordEvaluationResult(
         conceptId,
         userObjectId,
         masteryScore,
       );
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         data: {
           evaluation,
@@ -172,11 +179,22 @@ export class AIController {
   static async planPath(req: Request, res: Response, next: NextFunction) {
     try {
       const { workspaceId, availableTimeMinutes } = req.body;
+
       const userObjectId = new Types.ObjectId(
         (req as any).user._id || (req as any).user.id,
       );
 
-      const concepts = await ConceptModel.find({ workspace: workspaceId });
+      // RC-004: Resolve public workspaceId -> Mongo ObjectId
+      const workspace = await Workspace.findOne({ workspaceId });
+
+      if (!workspace) {
+        throw new NotFoundError("Workspace not found.");
+      }
+
+      const concepts = await ConceptModel.find({
+        workspace: workspace._id,
+      });
+
       const graphNodes = concepts.map((c) => c.conceptId);
 
       const progressRecords = await learningService.getWorkspaceProgress(
@@ -189,6 +207,7 @@ export class AIController {
 
       progressRecords.forEach((record) => {
         const conceptData = record.concept as any;
+
         if (conceptData) {
           masteryMap[conceptData.conceptId] = record.masteryScore;
 
@@ -205,7 +224,7 @@ export class AIController {
         availableTimeMinutes,
       });
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         data: plan,
       });

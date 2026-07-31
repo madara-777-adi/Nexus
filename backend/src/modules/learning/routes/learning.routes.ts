@@ -25,7 +25,10 @@ learningRoutes.get(
   learningController.getWorkspaceProgress,
 );
 
-// Record mastery evaluation from AI and trigger unlock cascades
+/**
+ * @deprecated RC-003 Fix
+ * Block direct client mastery updates. Kept for route matching safety.
+ */
 learningRoutes.post(
   "/learning/record",
   validate(recordProgressSchema),

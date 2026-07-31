@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import learningService from "../services/learning.service";
 import { RecordProgressDTO } from "../validators/learning.validator";
+import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
 
 class LearningController {
   async initializeProgress(req: Request<{ workspaceId: string }>, res: Response) {
@@ -31,19 +32,11 @@ class LearningController {
     });
   }
 
-  async recordEvaluation(req: Request<{}, {}, RecordProgressDTO>, res: Response) {
-    const user = (req as any).user;
-    const result = await learningService.recordEvaluationResult(
-      req.body.conceptId,
-      user._id,
-      req.body.masteryScore,
+  // RC-003 Security Fix: Block direct client updates to mastery scores
+  async recordEvaluation(_req: Request<{}, {}, RecordProgressDTO>, _res: Response) {
+    throw new ForbiddenError(
+      "Direct mastery score updates are disabled. Submissions must be processed through the server-side AI evaluation pipeline."
     );
-
-    return res.status(200).json({
-      success: true,
-      message: "Mastery evaluated and graph state updated successfully",
-      data: result,
-    });
   }
 }
 

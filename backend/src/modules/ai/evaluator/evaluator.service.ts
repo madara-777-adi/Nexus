@@ -4,11 +4,13 @@ import { EVALUATOR_SYSTEM_PROMPT, buildEvaluatorPrompt } from "./evaluator.promp
 export class EvaluatorService {
   async evaluateSubmission(context: any) {
     const prompt = buildEvaluatorPrompt(context);
+    
+    // Pure function: Generates JSON evaluation from Groq AI without side effects
     return groqProvider.generateJSON(
       prompt,
       EVALUATOR_SYSTEM_PROMPT,
       "teacher",
-      { temperature: 0.1 } // Low temperature for deterministic evaluation
+      { temperature: 0.1 }
     );
   }
 }
