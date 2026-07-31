@@ -42,5 +42,5 @@ export const resetPasswordSchema = z.object({
 });
 
 export const resendVerificationSchema = z.object({
-  email: z.string().email("Please enter a valid email address."),
+  email: emailSchema,
 });

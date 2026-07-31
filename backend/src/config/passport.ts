@@ -28,26 +28,32 @@ passport.use(
       done: GoogleVerifyCallback,
     ) => {
       try {
-        // FIXED: Added .trim() to ensure exact string matching with local db records
         const email = profile.emails?.[0]?.value?.toLowerCase().trim();
         if (!email) {
           return done(new Error("No email returned from Google"), undefined);
         }
 
-        // Google primary emails are guaranteed verified
-        const isEmailVerified = profile.emails?.[0]?.verified ?? true;
+        // Strict boolean check for Google email verification status
+        const isEmailVerified = profile.emails?.[0]?.verified === true;
 
         let user = await User.findOne({
           $or: [{ googleId: profile.id }, { email }],
         });
 
         if (user) {
-          // Prevent suspended accounts from linking or proceeding
           if (user.accountStatus === "SUSPENDED") {
             return done(new Error("Account suspended"), undefined);
           }
 
-          // Link Google ID and verify if account was previously unverified
+          // SECURITY FIX: Only link by email if Google explicitly confirms verification
+          const isMatchedByGoogleId = user.googleId === profile.id;
+          if (!isMatchedByGoogleId && !isEmailVerified) {
+            return done(
+              new Error("Cannot link account: Google email is unverified."),
+              undefined,
+            );
+          }
+
           if (!user.googleId) {
             user.googleId = profile.id;
             if (!user.avatar) user.avatar = profile.photos?.[0]?.value;
@@ -105,13 +111,15 @@ passport.use(
     ) => {
       try {
         const primaryEmailObj = profile.emails?.[0];
-        // FIXED: Added .trim()
-        const email =
-          primaryEmailObj?.value?.toLowerCase().trim() ||
-          `${profile.username}@github.noreply.com`.toLowerCase();
+        const rawEmail = primaryEmailObj?.value?.toLowerCase().trim();
+        const isDummyEmail = !rawEmail;
 
-        // Check if GitHub explicitly verified this email address
-        const isEmailVerified = (primaryEmailObj as any)?.verified ?? true;
+        const email =
+          rawEmail || `${profile.username}@github.noreply.com`.toLowerCase();
+
+        // SECURITY FIX: Default to false unless GitHub explicitly confirms verified === true
+        const isEmailVerified =
+          !isDummyEmail && (primaryEmailObj as any)?.verified === true;
 
         let user = await User.findOne({
           $or: [{ githubId: profile.id }, { email }],
@@ -120,6 +128,15 @@ passport.use(
         if (user) {
           if (user.accountStatus === "SUSPENDED") {
             return done(new Error("Account suspended"), undefined);
+          }
+
+          // SECURITY FIX: Reject linking if incoming GitHub email is unverified
+          const isMatchedByGithubId = user.githubId === profile.id;
+          if (!isMatchedByGithubId && !isEmailVerified) {
+            return done(
+              new Error("Cannot link account: GitHub email is unverified."),
+              undefined,
+            );
           }
 
           if (!user.githubId) {

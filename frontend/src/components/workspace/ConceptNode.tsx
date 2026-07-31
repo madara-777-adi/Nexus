@@ -7,7 +7,11 @@ export interface ConceptNodeData extends Record<string, unknown> {
   conceptId: string;
   status: ConceptStatus;
   masteryScore: number;
-  onSelectNode: (conceptId: string, title: string, status: ConceptStatus) => void;
+  onSelectNode: (
+    conceptId: string,
+    title: string,
+    status: ConceptStatus,
+  ) => void;
 }
 
 export type ConceptNodeType = Node<ConceptNodeData, "conceptNode">;
@@ -48,10 +52,24 @@ export const ConceptNode = memo(({ data }: NodeProps<ConceptNodeType>) => {
   const theme = statusThemeMap[status] || statusThemeMap[ConceptStatus.LOCKED];
   const isClickable = status !== ConceptStatus.LOCKED;
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (isClickable && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onSelectNode(conceptId, title, status);
+    }
+  };
+
   return (
     <div
+      role="button"
+      tabIndex={isClickable ? 0 : -1}
+      aria-disabled={!isClickable}
+      aria-label={`Concept node: ${title}. Status: ${status}.${
+        isClickable ? "" : " Locked concept."
+      }`}
       onClick={() => isClickable && onSelectNode(conceptId, title, status)}
-      className={`relative min-w-[220px] rounded-xl border p-4 transition-all duration-200 ${
+      onKeyDown={handleKeyDown}
+      className={`relative min-w-[220px] rounded-xl border p-4 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00E5FF] ${
         isClickable ? "cursor-pointer" : "cursor-not-allowed opacity-60"
       } ${theme.border} ${theme.bg}`}
     >
@@ -70,11 +88,17 @@ export const ConceptNode = memo(({ data }: NodeProps<ConceptNodeType>) => {
         )}
       </div>
 
-      <h4 className={`text-sm font-medium tracking-tight leading-snug ${theme.text}`}>
+      <h4
+        className={`text-sm font-medium tracking-tight leading-snug ${theme.text}`}
+      >
         {title}
       </h4>
 
-      <Handle type="source" position={Position.Bottom} className={theme.handle} />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className={theme.handle}
+      />
     </div>
   );
 });

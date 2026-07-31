@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { isAxiosError } from "axios";
 import { useAuth } from "../../contexts/AuthContext";
 import { SocialAuthButtons } from "./SocialAuthButtons";
 import { loginSchema, type LoginFormData } from "../../utils/auth.schemas";
@@ -39,46 +40,62 @@ export function LoginForm() {
     setErrorMessage("");
 
     try {
-      // 1. Pass credentials directly to AuthContext login
       await login(data);
-
-      // 2. Navigate straight to Dashboard upon success
       navigate("/dashboard");
-    } catch (err: any) {
-      setErrorMessage(
-        err.response?.data?.message ||
-          err.message ||
-          "Invalid email or password.",
-      );
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        setErrorMessage(
+          err.response?.data?.message || "Invalid email or password.",
+        );
+      } else if (err instanceof Error) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage("Invalid email or password.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 w-full">
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex flex-col gap-4 w-full"
+    >
       <h1 className="font-neovision text-3xl text-white tracking-wider mb-2">
         SIGN IN
       </h1>
 
       {errorMessage && (
-        <div className="bg-red-500/20 text-red-400 border border-red-500/30 p-3 rounded-xl text-xs font-semibold">
+        <div
+          role="alert"
+          className="bg-red-500/20 text-red-400 border border-red-500/30 p-3 rounded-xl text-xs font-semibold"
+        >
           {errorMessage}
         </div>
       )}
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-400 font-medium">
+        <label
+          htmlFor="login-email"
+          className="text-xs text-gray-400 font-medium"
+        >
           Email Address
         </label>
         <input
+          id="login-email"
           type="email"
           {...register("email")}
           placeholder="name@example.com"
+          aria-invalid={Boolean(errors.email)}
+          aria-describedby={errors.email ? "login-email-error" : undefined}
           className="bg-surface-border/30 border border-surface-border text-white text-sm rounded-xl p-3 focus:outline-none focus:border-neon-lime transition-colors"
         />
         {errors.email && (
-          <span className="text-[11px] text-red-400 font-medium">
+          <span
+            id="login-email-error"
+            className="text-[11px] text-red-400 font-medium"
+          >
             {errors.email.message}
           </span>
         )}
@@ -86,7 +103,12 @@ export function LoginForm() {
 
       <div className="flex flex-col gap-1">
         <div className="flex justify-between items-center">
-          <label className="text-xs text-gray-400 font-medium">Password</label>
+          <label
+            htmlFor="login-password"
+            className="text-xs text-gray-400 font-medium"
+          >
+            Password
+          </label>
           <Link
             to="/forgot-password"
             className="text-xs text-neon-lime hover:underline transition-all"
@@ -95,13 +117,21 @@ export function LoginForm() {
           </Link>
         </div>
         <input
+          id="login-password"
           type="password"
           {...register("password")}
           placeholder="••••••••"
+          aria-invalid={Boolean(errors.password)}
+          aria-describedby={
+            errors.password ? "login-password-error" : undefined
+          }
           className="bg-surface-border/30 border border-surface-border text-white text-sm rounded-xl p-3 focus:outline-none focus:border-neon-lime transition-colors"
         />
         {errors.password && (
-          <span className="text-[11px] text-red-400 font-medium">
+          <span
+            id="login-password-error"
+            className="text-[11px] text-red-400 font-medium"
+          >
             {errors.password.message}
           </span>
         )}

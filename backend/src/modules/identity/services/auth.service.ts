@@ -36,6 +36,41 @@ import type {
   ResetPasswordDTO,
 } from "../types/identity.dto.js";
 
+/**
+ * Calculates expiry Date based on env.JWT_REFRESH_EXPIRES_IN (e.g., "7d", "30d", "24h")
+ */
+export function getRefreshTokenExpiryMs(): number {
+  const expiresIn = env.JWT_REFRESH_EXPIRES_IN || "7d";
+  const defaultMs = 7 * 24 * 60 * 60 * 1000; // 7 days default fallback
+
+  if (typeof expiresIn === "number") {
+    return expiresIn * 1000;
+  }
+
+  const match = /^(\d+)([dhms])?$/i.exec(expiresIn.trim());
+  if (!match) return defaultMs;
+
+  const value = parseInt(match[1], 10);
+  const unit = (match[2] || "s").toLowerCase();
+
+  switch (unit) {
+    case "d":
+      return value * 24 * 60 * 60 * 1000;
+    case "h":
+      return value * 60 * 60 * 1000;
+    case "m":
+      return value * 60 * 1000;
+    case "s":
+      return value * 1000;
+    default:
+      return defaultMs;
+  }
+}
+
+export function getRefreshTokenExpiryDate(): Date {
+  return new Date(Date.now() + getRefreshTokenExpiryMs());
+}
+
 class AuthService {
   async register(data: RegisterDTO) {
     const existingUser = await User.findOne({
@@ -66,13 +101,30 @@ class AuthService {
 
     const { token, tokenHash } = generateVerificationToken();
 
-    await VerificationToken.create({
+    const verificationRecord = await VerificationToken.create({
       user: user._id,
       tokenHash,
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
     });
 
-    await emailService.sendVerificationEmail(user.email, user.firstName, token);
+    // H5 Fix: Rollback user and token creation if verification email dispatch fails
+    try {
+      await emailService.sendVerificationEmail(
+        user.email,
+        user.firstName,
+        token,
+      );
+    } catch (emailError) {
+      console.error(
+        "[AuthService] Registration verification email dispatch failed. Rolling back user creation:",
+        emailError,
+      );
+      await VerificationToken.deleteOne({ _id: verificationRecord._id });
+      await User.deleteOne({ _id: user._id });
+      throw new Error(
+        "Failed to send verification email. Please try again later.",
+      );
+    }
 
     return {
       message:
@@ -126,7 +178,6 @@ class AuthService {
     try {
       await emailService.sendWelcomeEmail(user.email, user.firstName);
     } catch (emailErr) {
-      // Non-blocking catch to prevent failing account verification if email dispatch drops
       console.error("[AuthService] Failed to send welcome email:", emailErr);
     }
 
@@ -136,7 +187,6 @@ class AuthService {
   }
 
   async login(data: LoginDTO) {
-    // Audit 2.2 Fix: Normalize email to lowercase and trimmed before querying DB
     const normalizedEmail = data.email.toLowerCase().trim();
     const user = await User.findOne({
       email: normalizedEmail,
@@ -146,7 +196,6 @@ class AuthService {
       throw new UnauthorizedError("Invalid email or password.");
     }
 
-    // Handle OAuth users trying to log in via password form
     if (!user.password) {
       throw new UnauthorizedError(
         `This account was created using ${user.provider}. Please sign in using ${user.provider}.`,
@@ -159,7 +208,6 @@ class AuthService {
       throw new UnauthorizedError("Invalid email or password.");
     }
 
-    // Audit 1.5 Fix: Check accountStatus before permitting login
     if (user.accountStatus === "SUSPENDED") {
       throw new ForbiddenError(
         "Your account has been suspended. Please contact support.",
@@ -186,7 +234,7 @@ class AuthService {
     await RefreshToken.create({
       user: user._id,
       tokenHash: refreshTokenHash,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+      expiresAt: getRefreshTokenExpiryDate(),
     });
 
     return {
@@ -196,7 +244,6 @@ class AuthService {
   }
 
   async handleOAuthSuccess(user: any) {
-    // Audit 1.5 Fix: Ensure suspended accounts cannot complete OAuth sign-in
     if (user.accountStatus === "SUSPENDED") {
       throw new ForbiddenError(
         "Your account has been suspended. Please contact support.",
@@ -212,7 +259,6 @@ class AuthService {
       .update(tokens.refreshToken)
       .digest("hex");
 
-    // Allow only one active refresh token session
     await RefreshToken.deleteMany({
       user: user._id,
     });
@@ -220,7 +266,7 @@ class AuthService {
     await RefreshToken.create({
       user: user._id,
       tokenHash: refreshTokenHash,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+      expiresAt: getRefreshTokenExpiryDate(),
     });
 
     return {
@@ -230,7 +276,6 @@ class AuthService {
   }
 
   async forgotPassword(data: ForgotPasswordDTO) {
-    // Audit 2.2 Fix: Normalize email input
     const normalizedEmail = data.email.toLowerCase().trim();
     const user = await User.findOne({
       email: normalizedEmail,
@@ -316,7 +361,6 @@ class AuthService {
       throw new NotFoundError("User not found.");
     }
 
-    // Audit 1.5 Fix: Block token refresh for suspended accounts
     if (user.accountStatus === "SUSPENDED") {
       throw new ForbiddenError(
         "Your account has been suspended. Please contact support.",
@@ -339,7 +383,7 @@ class AuthService {
     await RefreshToken.create({
       user: user._id,
       tokenHash: newRefreshTokenHash,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+      expiresAt: getRefreshTokenExpiryDate(),
     });
 
     return {

@@ -4,7 +4,17 @@ import authMiddleware from "../../../middleware/auth.middleware";
 import {
   heavyAiLimiter,
   fastAiLimiter,
-} from "../../../middleware/rateLimiter.middleware"
+} from "../../../middleware/rateLimiter.middleware";
+import {
+  validateAIRequest,
+  tier1ModulesSchema,
+  tier2SubtopicsSchema,
+  tier3LessonSchema,
+  evaluatorSchema,
+  plannerSchema,
+  resourceGeneratorSchema,
+  quizGeneratorSchema,
+} from "../validators/ai.validator";
 
 const router = Router();
 
@@ -17,6 +27,7 @@ router.use(authMiddleware);
 router.post(
   "/teacher/tier1-modules",
   heavyAiLimiter,
+  validateAIRequest(tier1ModulesSchema),
   AIController.generateTier1Modules,
 );
 
@@ -24,6 +35,7 @@ router.post(
 router.post(
   "/teacher/tier2-subtopics",
   heavyAiLimiter,
+  validateAIRequest(tier2SubtopicsSchema),
   AIController.generateTier2Subtopics,
 );
 
@@ -31,6 +43,7 @@ router.post(
 router.post(
   "/teacher/tier3-lesson",
   heavyAiLimiter,
+  validateAIRequest(tier3LessonSchema),
   AIController.generateTier3Lesson,
 );
 
@@ -39,17 +52,31 @@ router.post(
 router.post(
   "/evaluator/evaluate",
   heavyAiLimiter,
+  validateAIRequest(evaluatorSchema),
   AIController.evaluateSubmission,
 );
-router.post("/planner/plan", heavyAiLimiter, AIController.planPath);
+
+router.post(
+  "/planner/plan",
+  fastAiLimiter,
+  validateAIRequest(plannerSchema),
+  AIController.planPath,
+);
 
 // --- GENERATOR OPERATIONS ---
 
 router.post(
   "/generator/resources",
-  heavyAiLimiter,
+  fastAiLimiter,
+  validateAIRequest(resourceGeneratorSchema),
   AIController.generateResources,
 );
-router.post("/generator/quiz", heavyAiLimiter, AIController.generateQuiz);
+
+router.post(
+  "/generator/quiz",
+  fastAiLimiter,
+  validateAIRequest(quizGeneratorSchema),
+  AIController.generateQuiz,
+);
 
 export default router;

@@ -75,13 +75,27 @@ export class TeacherService {
       ];
     }
 
-    // RC-004: Resolve public workspaceId -> Mongo ObjectId
-    const workspaceDoc = await WorkspaceModel.findOne({
-      workspaceId: context.workspaceId,
-    });
+    // Flexible Workspace Lookup (Custom string workspaceId or raw Mongo _id)
+    const isObjectId = Types.ObjectId.isValid(context.workspaceId);
+    const workspaceDoc = await WorkspaceModel.findOne(
+      isObjectId
+        ? {
+            $or: [
+              { workspaceId: context.workspaceId },
+              { _id: context.workspaceId },
+            ],
+          }
+        : { workspaceId: context.workspaceId },
+    );
 
     if (!workspaceDoc) {
       throw new NotFoundError(`Workspace not found: ${context.workspaceId}`);
+    }
+
+    // C3 Fix: Validate workspace ownership to prevent IDOR
+    const ownerObjectId = new Types.ObjectId(context.ownerId);
+    if (!workspaceDoc.owner.equals(ownerObjectId)) {
+      throw new ForbiddenError("You do not have access to this workspace.");
     }
 
     const mongoWorkspaceId = workspaceDoc._id;
@@ -128,8 +142,14 @@ export class TeacherService {
   }): Promise<any[]> {
     const { conceptId, ownerId, forceRefresh } = context;
 
-    // 1. DB Cache Check & Ownership Validation (Audit 1.4 Fix)
-    const concept = await ConceptModel.findOne({ conceptId });
+    // 1. DB Cache Check & Ownership Validation with Flexible Concept Lookup
+    const isConceptObjectId = Types.ObjectId.isValid(conceptId);
+    const concept = await ConceptModel.findOne(
+      isConceptObjectId
+        ? { $or: [{ conceptId }, { _id: conceptId }] }
+        : { conceptId },
+    );
+
     if (!concept) {
       throw new NotFoundError(`Concept module not found for ID: ${conceptId}`);
     }
@@ -214,19 +234,31 @@ export class TeacherService {
     const { conceptId, subtopicId, workspaceId, ownerId, forceRefresh } =
       context;
 
-    const concept = await ConceptModel.findOne({ conceptId });
+    // Flexible Concept Lookup
+    const isConceptObjectId = Types.ObjectId.isValid(conceptId);
+    const concept = await ConceptModel.findOne(
+      isConceptObjectId
+        ? { $or: [{ conceptId }, { _id: conceptId }] }
+        : { conceptId },
+    );
+
     if (!concept) {
       throw new NotFoundError(`Concept module not found for ID: ${conceptId}`);
     }
 
-    // RC-004 Fix: Resolve string custom workspaceId -> Mongo _id
-    const workspaceDoc = await WorkspaceModel.findOne({ workspaceId });
+    // Flexible Workspace Lookup
+    const isWorkspaceObjectId = Types.ObjectId.isValid(workspaceId);
+    const workspaceDoc = await WorkspaceModel.findOne(
+      isWorkspaceObjectId
+        ? { $or: [{ workspaceId }, { _id: workspaceId }] }
+        : { workspaceId },
+    );
 
     if (!workspaceDoc) {
       throw new NotFoundError(`Workspace not found for ID: ${workspaceId}`);
     }
 
-    // Audit 1.4 Fix: Validate workspace ownership
+    // Validate workspace ownership
     const ownerObjectId = new Types.ObjectId(ownerId);
     if (!workspaceDoc.owner.equals(ownerObjectId)) {
       throw new ForbiddenError(
@@ -284,7 +316,6 @@ export class TeacherService {
         {
           subtopicId,
           concept: concept._id,
-          // RC-004 Fix: strict ObjectId
           workspace: mongoWorkspaceId,
           owner: ownerObjectId,
           markdownContent,

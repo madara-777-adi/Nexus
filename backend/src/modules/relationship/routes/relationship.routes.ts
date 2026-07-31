@@ -1,6 +1,7 @@
 import { Router } from "express";
 import relationshipController from "../controllers/relationship.controller";
 import authMiddleware from "../../../middleware/auth.middleware";
+import { standardApiLimiter } from "../../../middleware/rateLimiter.middleware";
 import validate from "../../../middleware/validate";
 import {
   createRelationshipSchema,
@@ -12,6 +13,7 @@ import {
 const relationshipRoutes = Router({ mergeParams: true });
 
 relationshipRoutes.use(authMiddleware);
+relationshipRoutes.use(standardApiLimiter);
 
 // Create edge
 relationshipRoutes.post(

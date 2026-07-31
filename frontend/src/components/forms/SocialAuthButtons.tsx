@@ -1,18 +1,11 @@
-// Audit 5.3 Fix: Support both VITE_API_BASE_URL and VITE_API_URL fallbacks consistently
-const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api/v1"
-).replace(/\/$/, ""); // Ensures no trailing slash
+import { API_BASE_URL } from "../../api/axios";
 
 export function SocialAuthButtons() {
   const handleGoogleLogin = () => {
-    // Correctly resolves to /api/v1/auth/google
     window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
   const handleGitHubLogin = () => {
-    // Correctly resolves to /api/v1/auth/github
     window.location.href = `${API_BASE_URL}/auth/github`;
   };
 

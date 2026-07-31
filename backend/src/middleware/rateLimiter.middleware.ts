@@ -21,7 +21,7 @@ export const heavyAiLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: createLimitHandler("Generative AI (GEMINI)"),
+  handler: createLimitHandler("Generative AI (Groq)"),
 });
 
 /**

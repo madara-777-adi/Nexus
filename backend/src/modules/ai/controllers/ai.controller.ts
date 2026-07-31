@@ -218,6 +218,7 @@ export class AIController {
       });
 
       const plan = await plannerService.planNextStep({
+        workspaceId,
         graphNodes,
         completedNodes,
         masteryMap,

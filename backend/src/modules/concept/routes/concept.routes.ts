@@ -1,6 +1,7 @@
 import { Router } from "express";
 import conceptController from "../controllers/concept.controller";
 import authMiddleware from "../../../middleware/auth.middleware";
+import { standardApiLimiter } from "../../../middleware/rateLimiter.middleware";
 import validate from "../../../middleware/validate";
 import {
   createConceptSchema,
@@ -11,6 +12,7 @@ import {
 const conceptRoutes = Router({ mergeParams: true });
 
 conceptRoutes.use(authMiddleware);
+conceptRoutes.use(standardApiLimiter);
 
 // Workspace-scoped concepts
 conceptRoutes.post(
@@ -27,10 +29,7 @@ conceptRoutes.get(
 );
 
 // Individual concept actions
-conceptRoutes.get(
-  "/concepts/:conceptId",
-  conceptController.getOne,
-);
+conceptRoutes.get("/concepts/:conceptId", conceptController.getOne);
 
 conceptRoutes.patch(
   "/concepts/:conceptId",
@@ -38,9 +37,6 @@ conceptRoutes.patch(
   conceptController.update,
 );
 
-conceptRoutes.delete(
-  "/concepts/:conceptId",
-  conceptController.delete,
-);
+conceptRoutes.delete("/concepts/:conceptId", conceptController.delete);
 
 export default conceptRoutes;

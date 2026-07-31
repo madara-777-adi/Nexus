@@ -18,7 +18,7 @@ import {
   type ConceptNodeType,
 } from "./ConceptNode";
 import { getWorkspaceProgress } from "../../api/learning.api";
-import api, { getAccessToken, setAccessToken } from "../../api/axios";
+import api from "../../api/axios";
 import {
   ConceptStatus,
   type ILearningProgress,
@@ -30,7 +30,7 @@ interface WorkspaceGraphProps {
   onSelectConcept: (
     conceptId: string,
     title: string,
-    status: ConceptStatus
+    status: ConceptStatus,
   ) => void;
 }
 
@@ -48,37 +48,7 @@ export function WorkspaceGraph({
 
   const nodeTypes: NodeTypes = useMemo(
     () => ({ conceptNode: ConceptNode }),
-    []
-  );
-
-  const fetchGraphPayload = useCallback(
-    async (signal: AbortSignal, isRetry = false): Promise<Response> => {
-      const token = getAccessToken();
-      const response = await fetch(
-        `${api.defaults.baseURL}/workspaces/${workspaceId}/relationships/stream`,
-        {
-          credentials: "include",
-          signal,
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
-      );
-
-      if (response.status === 401 && !isRetry) {
-        try {
-          const refreshRes = await api.post("/auth/refresh-token");
-          const newToken = refreshRes.data?.data?.accessToken;
-          if (newToken) {
-            setAccessToken(newToken);
-            return fetchGraphPayload(signal, true);
-          }
-        } catch {
-          // Token refresh failed
-        }
-      }
-
-      return response;
-    },
-    [workspaceId]
+    [],
   );
 
   const fetchGraphAndProgress = useCallback(
@@ -87,31 +57,24 @@ export function WorkspaceGraph({
       setErrorMessage("");
 
       try {
-        const progressData: ILearningProgress[] =
-          await getWorkspaceProgress(workspaceId);
+        // Concurrently fetch user progression and workspace relationships
+        const [progressData, graphRes] = await Promise.all([
+          getWorkspaceProgress(workspaceId),
+          api.get(`/workspaces/${workspaceId}/relationships/stream`, {
+            signal,
+          }),
+        ]);
+
+        if (signal.aborted) return;
 
         const progressMap = new Map<string, ILearningProgress>();
-        progressData.forEach((item) => {
+        (progressData || []).forEach((item) => {
           if (item.concept?.conceptId) {
             progressMap.set(item.concept.conceptId, item);
           }
         });
 
-        const response = await fetchGraphPayload(signal);
-
-        if (signal.aborted) return;
-
-        if (response.status === 401) {
-          throw new Error("Your session has expired. Please log in again.");
-        }
-        if (!response.ok) {
-          throw new Error(
-            `Failed to load workspace graph (HTTP ${response.status}).`
-          );
-        }
-
-        const json = await response.json();
-        const { concepts = [], relationships = [] } = json.data || {};
+        const { concepts = [], relationships = [] } = graphRes.data?.data || {};
 
         const initialNodes: ConceptNodeType[] = [];
         const initialEdges: Edge[] = [];
@@ -157,18 +120,18 @@ export function WorkspaceGraph({
         setNodes(initialNodes);
         setEdges(initialEdges);
         setLoadState(initialNodes.length > 0 ? "ready" : "empty");
-      } catch (err) {
+      } catch (err: any) {
         if (signal.aborted) return;
         console.error("Error loading graph:", err);
         setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : "Something went wrong while loading the graph."
+          err.response?.data?.message ||
+            err.message ||
+            "Something went wrong while loading the graph.",
         );
         setLoadState("error");
       }
     },
-    [workspaceId, onSelectConcept, setNodes, setEdges, fetchGraphPayload]
+    [workspaceId, onSelectConcept, setNodes, setEdges],
   );
 
   useEffect(() => {

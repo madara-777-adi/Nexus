@@ -1,6 +1,7 @@
 import { Router } from "express";
 import learningController from "../controllers/learning.controller";
 import authMiddleware from "../../../middleware/auth.middleware";
+import { standardApiLimiter } from "../../../middleware/rateLimiter.middleware";
 import validate from "../../../middleware/validate";
 import {
   recordProgressSchema,
@@ -10,6 +11,7 @@ import {
 const learningRoutes = Router({ mergeParams: true });
 
 learningRoutes.use(authMiddleware);
+learningRoutes.use(standardApiLimiter);
 
 // Initialize graph progression state for a workspace
 learningRoutes.post(

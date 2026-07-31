@@ -100,6 +100,7 @@ authRoutes.patch(
   updateProfileController,
 );
 
-authRoutes.post("/logout", authMiddleware, authController.logout);
+// H3 Fix: Unprotected route so users with expired access tokens can log out cleanly
+authRoutes.post("/logout", authController.logout);
 
 export default authRoutes;

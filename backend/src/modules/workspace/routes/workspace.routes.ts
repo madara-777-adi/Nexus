@@ -1,6 +1,7 @@
 import { Router } from "express";
 import workspaceController from "../controllers/workspace.controller";
 import authMiddleware from "../../../middleware/auth.middleware";
+import { standardApiLimiter } from "../../../middleware/rateLimiter.middleware";
 import validate from "../../../middleware/validate";
 import {
   createWorkspaceSchema,
@@ -10,8 +11,9 @@ import {
 
 const workspaceRoutes = Router();
 
-// Protect all workspace endpoints with Auth Middleware
+// Protect all workspace endpoints with Auth Middleware and Rate Limiter
 workspaceRoutes.use(authMiddleware);
+workspaceRoutes.use(standardApiLimiter);
 
 workspaceRoutes.post(
   "/",
@@ -19,10 +21,7 @@ workspaceRoutes.post(
   workspaceController.create,
 );
 
-workspaceRoutes.get(
-  "/",
-  workspaceController.getAll,
-);
+workspaceRoutes.get("/", workspaceController.getAll);
 
 workspaceRoutes.get(
   "/:id",

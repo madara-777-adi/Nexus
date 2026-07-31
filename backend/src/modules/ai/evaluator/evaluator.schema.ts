@@ -1,35 +1,13 @@
-import { SchemaType } from "@google/generative-ai";
+import { z } from "zod";
 
-export const EvaluationResultSchema = {
-  type: SchemaType.OBJECT,
-  properties: {
-    mastery: { type: SchemaType.NUMBER }, // 0 to 100
-    confidence: { type: SchemaType.NUMBER }, // 0 to 100
-    strengths: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
-    },
-    weaknesses: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
-    },
-    misconceptions: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
-    },
-    missingPrerequisites: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
-    },
-    recommendation: { type: SchemaType.STRING },
-  },
-  required: [
-    "mastery",
-    "confidence",
-    "strengths",
-    "weaknesses",
-    "misconceptions",
-    "missingPrerequisites",
-    "recommendation",
-  ],
-};
+export const EvaluationResultSchema = z.object({
+  masteryScore: z.number().min(0).max(100),
+  confidence: z.number().min(0).max(100).optional(),
+  strengths: z.array(z.string()).default([]),
+  weaknesses: z.array(z.string()).default([]),
+  misconceptions: z.array(z.string()).default([]),
+  missingPrerequisites: z.array(z.string()).default([]),
+  recommendation: z.string().default(""),
+});
+
+export type IEvaluationResult = z.infer<typeof EvaluationResultSchema>;

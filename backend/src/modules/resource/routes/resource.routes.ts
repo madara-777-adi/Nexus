@@ -1,6 +1,7 @@
 import { Router } from "express";
 import resourceController from "../controllers/resource.controller";
 import authMiddleware from "../../../middleware/auth.middleware";
+import { standardApiLimiter } from "../../../middleware/rateLimiter.middleware";
 import validate from "../../../middleware/validate";
 import {
   createResourceSchema,
@@ -12,6 +13,7 @@ import {
 const resourceRoutes = Router({ mergeParams: true });
 
 resourceRoutes.use(authMiddleware);
+resourceRoutes.use(standardApiLimiter);
 
 // Attach and list structured text resources scoped to a concept
 resourceRoutes.post(

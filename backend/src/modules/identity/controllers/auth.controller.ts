@@ -21,11 +21,16 @@ const REFRESH_COOKIE_NAME = isProduction
 const cookieOptions = {
   httpOnly: true,
   secure: isProduction,
-  // FIXED: Changed from "strict" to "none".
-  // "none" is strictly required for cookies set during cross-site OAuth redirects.
   sameSite: isProduction ? ("none" as const) : ("lax" as const),
   path: "/",
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
+const clearCookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? ("none" as const) : ("lax" as const),
+  path: "/",
 };
 
 class AuthController {
@@ -99,12 +104,7 @@ class AuthController {
         data,
       });
     } catch (_error) {
-      res.clearCookie(REFRESH_COOKIE_NAME, {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? "none" : "lax",
-        path: "/",
-      });
+      res.clearCookie(REFRESH_COOKIE_NAME, clearCookieOptions);
 
       return res.status(401).json({
         success: false,
@@ -183,12 +183,7 @@ class AuthController {
       }
     }
 
-    res.clearCookie(REFRESH_COOKIE_NAME, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
-      path: "/",
-    });
+    res.clearCookie(REFRESH_COOKIE_NAME, clearCookieOptions);
 
     return res.status(200).json({
       success: true,

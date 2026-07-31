@@ -1,4 +1,4 @@
-import mongoose, { Types } from "mongoose";
+import mongoose, { Types, ClientSession } from "mongoose";
 import Workspace, {
   IWorkspace,
   WorkspaceVisibility,
@@ -23,6 +23,40 @@ import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
 import { plannerService } from "../../ai/planner/planner.service";
 
 class WorkspaceService {
+  /**
+   * Helper to execute database operations inside a Mongo transaction when supported (Replica Sets / Atlas),
+   * falling back cleanly to non-transactional execution for standalone MongoDB setups (local dev).
+   */
+  private async executeWithTransactionFallback<T>(
+    operation: (session: ClientSession | null) => Promise<T>,
+  ): Promise<T> {
+    const session = await mongoose.startSession();
+    try {
+      let result: T | undefined;
+      await session.withTransaction(async () => {
+        result = await operation(session);
+      });
+      return result!;
+    } catch (err: any) {
+      // Check for error code 20 or transaction unsupported message (Standalone mongod)
+      const isTransactionUnsupported =
+        err?.code === 20 ||
+        err?.codeName === "TransactionNumbersAreOnlyAllowedOnReplicaSet" ||
+        (typeof err?.message === "string" &&
+          err.message.includes("Transaction numbers are only allowed"));
+
+      if (isTransactionUnsupported) {
+        console.warn(
+          "[WorkspaceService] MongoDB Transactions unsupported on standalone instance. Executing fallback without session.",
+        );
+        return await operation(null);
+      }
+      throw err;
+    } finally {
+      await session.endSession();
+    }
+  }
+
   /**
    * RC-005 Pure Helper: Normalizes AI raw blueprint output into concept/relationship arrays
    */
@@ -141,110 +175,95 @@ class WorkspaceService {
       rawRelationships = fallback.rawRelationships;
     }
 
-    let createdWorkspace: IWorkspace | null = null;
-
-    // 3. RC-005 Fix: Atomic MongoDB Transaction for database writes
-    const session = await mongoose.startSession();
-    try {
-      await session.withTransaction(async () => {
-        // A. Create Workspace shell inside session
-        const [workspaceDoc] = await Workspace.create(
-          [
-            {
-              workspaceId,
-              owner: ownerObjectId,
-              title: dto.title,
-              description: dto.description || "",
-              visibility: dto.visibility || WorkspaceVisibility.PRIVATE,
-            },
-          ],
-          { session },
-        );
-
-        createdWorkspace = workspaceDoc;
-
-        // B. Map concept lookup keys to Database ObjectIds
-        const conceptDocMap = new Map<string, Types.ObjectId>();
-
-        const conceptDocsToInsert = rawConcepts.map((c: any, index: number) => {
-          const _id = new Types.ObjectId();
-          const conceptId = `concept_${generateUserId()}`;
-
-          const keysToRegister = [
-            c.id,
-            c.conceptId,
-            c.title ? c.title.toLowerCase() : null,
-            `step_${index}`,
-          ].filter(Boolean);
-
-          keysToRegister.forEach((key) => conceptDocMap.set(key, _id));
-
-          return {
-            _id,
-            conceptId,
-            workspace: workspaceDoc._id,
+    // 3. RC-005 Fix: Atomic MongoDB Transaction for database writes with standalone fallback
+    return await this.executeWithTransactionFallback(async (session) => {
+      // A. Create Workspace shell inside session (or null session if fallback)
+      const options = session ? { session } : {};
+      const [workspaceDoc] = await Workspace.create(
+        [
+          {
+            workspaceId,
             owner: ownerObjectId,
-            title: c.title || `Module ${index + 1}`,
-            description: c.description || "",
-            order: index + 1,
-          };
-        });
+            title: dto.title,
+            description: dto.description || "",
+            visibility: dto.visibility || WorkspaceVisibility.PRIVATE,
+          },
+        ],
+        options,
+      );
 
-        // Bulk insert concepts within session
-        await Concept.insertMany(conceptDocsToInsert, { session });
-        console.log(
-          `[AI Planner] Successfully inserted ${conceptDocsToInsert.length} concept nodes.`,
-        );
+      // B. Map concept lookup keys to Database ObjectIds
+      const conceptDocMap = new Map<string, Types.ObjectId>();
 
-        // C. Map relationships and bulk insert within session
-        if (Array.isArray(rawRelationships) && rawRelationships.length > 0) {
-          const relationshipDocsToInsert = rawRelationships
-            .map((r: any) => {
-              const sourceKey =
-                r.sourceConceptId ||
-                r.source ||
-                (r.sourceTitle ? r.sourceTitle.toLowerCase() : "");
-              const targetKey =
-                r.targetConceptId ||
-                r.target ||
-                (r.targetTitle ? r.targetTitle.toLowerCase() : "");
+      const conceptDocsToInsert = rawConcepts.map((c: any, index: number) => {
+        const _id = new Types.ObjectId();
+        const conceptId = `concept_${generateUserId()}`;
 
-              const sourceObjectId = conceptDocMap.get(sourceKey);
-              const targetObjectId = conceptDocMap.get(targetKey);
+        const keysToRegister = [
+          c.id,
+          c.conceptId,
+          c.title ? c.title.toLowerCase() : null,
+          `step_${index}`,
+        ].filter(Boolean);
 
-              if (!sourceObjectId || !targetObjectId) return null;
+        keysToRegister.forEach((key) => conceptDocMap.set(key, _id));
 
-              return {
-                relationshipId: `rel_${generateUserId()}`,
-                workspace: workspaceDoc._id,
-                sourceConcept: sourceObjectId,
-                targetConcept: targetObjectId,
-                type:
-                  (r.type as RelationshipType) || RelationshipType.DEPENDS_ON,
-                owner: ownerObjectId, // RC-005 Improvement: Explicitly attach owner
-              };
-            })
-            .filter(Boolean);
-
-          if (relationshipDocsToInsert.length > 0) {
-            await Relationship.insertMany(relationshipDocsToInsert, {
-              session,
-            });
-            console.log(
-              `[AI Planner] Successfully inserted ${relationshipDocsToInsert.length} relationship edges.`,
-            );
-          }
-        }
+        return {
+          _id,
+          conceptId,
+          workspace: workspaceDoc._id,
+          owner: ownerObjectId,
+          title: c.title || `Module ${index + 1}`,
+          description: c.description || "",
+          order: index + 1,
+        };
       });
-    } finally {
-      await session.endSession();
-    }
 
-    if (!createdWorkspace) {
-      throw new Error("Workspace creation transaction failed.");
-    }
+      // Bulk insert concepts
+      await Concept.insertMany(conceptDocsToInsert, options);
+      console.log(
+        `[AI Planner] Successfully inserted ${conceptDocsToInsert.length} concept nodes.`,
+      );
 
-    return createdWorkspace;
+      // C. Map relationships and bulk insert
+      if (Array.isArray(rawRelationships) && rawRelationships.length > 0) {
+        const relationshipDocsToInsert = rawRelationships
+          .map((r: any) => {
+            const sourceKey =
+              r.sourceConceptId ||
+              r.source ||
+              (r.sourceTitle ? r.sourceTitle.toLowerCase() : "");
+            const targetKey =
+              r.targetConceptId ||
+              r.target ||
+              (r.targetTitle ? r.targetTitle.toLowerCase() : "");
+
+            const sourceObjectId = conceptDocMap.get(sourceKey);
+            const targetObjectId = conceptDocMap.get(targetKey);
+
+            if (!sourceObjectId || !targetObjectId) return null;
+
+            return {
+              relationshipId: `rel_${generateUserId()}`,
+              workspace: workspaceDoc._id,
+              sourceConcept: sourceObjectId,
+              targetConcept: targetObjectId,
+              type: (r.type as RelationshipType) || RelationshipType.DEPENDS_ON,
+              owner: ownerObjectId,
+            };
+          })
+          .filter(Boolean);
+
+        if (relationshipDocsToInsert.length > 0) {
+          await Relationship.insertMany(relationshipDocsToInsert, options);
+          console.log(
+            `[AI Planner] Successfully inserted ${relationshipDocsToInsert.length} relationship edges.`,
+          );
+        }
+      }
+
+      return workspaceDoc;
+    });
   }
 
   async getUserWorkspaces(
@@ -294,7 +313,7 @@ class WorkspaceService {
     return workspace;
   }
 
-  // RC-005 Patch 2: Atomic Delete Workspace Transaction
+  // RC-005 Patch 2: Delete Workspace Transaction with Standalone Fallback
   async deleteWorkspace(
     workspaceId: string,
     userObjectId: Types.ObjectId,
@@ -309,34 +328,20 @@ class WorkspaceService {
       throw new ForbiddenError("You are not allowed to perform this action.");
     }
 
-    const session = await mongoose.startSession();
-    try {
-      await session.withTransaction(async () => {
-        // Cascade delete all child documents and workspace within single transaction
-        await Concept.deleteMany({ workspace: workspace._id }, { session });
-        await Relationship.deleteMany(
-          { workspace: workspace._id },
-          { session },
-        );
-        await ResourceModel.deleteMany(
-          { workspace: workspace._id },
-          { session },
-        );
-        await LearningProgressModel.deleteMany(
-          { workspace: workspace._id },
-          { session },
-        );
-        await LessonModel.deleteMany({ workspace: workspace._id }, { session });
-        await FlashcardModel.deleteMany(
-          { workspace: workspace._id },
-          { session },
-        );
-        await QuizModel.deleteMany({ workspace: workspace._id }, { session });
-        await Workspace.deleteOne({ _id: workspace._id }, { session });
-      });
-    } finally {
-      await session.endSession();
-    }
+    await this.executeWithTransactionFallback(async (session) => {
+      const options = session ? { session } : {};
+      await Concept.deleteMany({ workspace: workspace._id }, options);
+      await Relationship.deleteMany({ workspace: workspace._id }, options);
+      await ResourceModel.deleteMany({ workspace: workspace._id }, options);
+      await LearningProgressModel.deleteMany(
+        { workspace: workspace._id },
+        options,
+      );
+      await LessonModel.deleteMany({ workspace: workspace._id }, options);
+      await FlashcardModel.deleteMany({ workspace: workspace._id }, options);
+      await QuizModel.deleteMany({ workspace: workspace._id }, options);
+      await Workspace.deleteOne({ _id: workspace._id }, options);
+    });
   }
 }
 

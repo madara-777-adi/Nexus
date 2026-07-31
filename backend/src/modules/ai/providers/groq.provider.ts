@@ -8,20 +8,27 @@ export class GroqProvider {
   private groqOrganizer: Groq | null = null;
   private groqTeacher: Groq | null = null;
 
-  // Lazy getter ensures we only instantiate after .env is fully loaded by the server
+  // Lazy getter ensures clients instantiate after .env is fully loaded by the server
   private getClient(role: "organizer" | "teacher"): Groq {
     if (role === "organizer") {
       if (!this.groqOrganizer) {
-        const apiKey = process.env.GROQ_API_KEY_ORGANIZER || process.env.GROQ_API_KEY;
-        if (!apiKey) throw new Error("Missing GROQ_API_KEY_ORGANIZER in .env file");
-        this.groqOrganizer = new Groq({ apiKey });
+        const apiKey =
+          process.env.GROQ_API_KEY_ORGANIZER || process.env.GROQ_API_KEY;
+        if (!apiKey)
+          throw new Error("Missing GROQ_API_KEY_ORGANIZER in .env file");
+
+        // 30-second timeout prevents slow/hanging Groq requests from blocking server connections
+        this.groqOrganizer = new Groq({ apiKey, timeout: 30000 });
       }
       return this.groqOrganizer;
     } else {
       if (!this.groqTeacher) {
-        const apiKey = process.env.GROQ_API_KEY_TEACHER || process.env.GROQ_API_KEY;
-        if (!apiKey) throw new Error("Missing GROQ_API_KEY_TEACHER in .env file");
-        this.groqTeacher = new Groq({ apiKey });
+        const apiKey =
+          process.env.GROQ_API_KEY_TEACHER || process.env.GROQ_API_KEY;
+        if (!apiKey)
+          throw new Error("Missing GROQ_API_KEY_TEACHER in .env file");
+
+        this.groqTeacher = new Groq({ apiKey, timeout: 30000 });
       }
       return this.groqTeacher;
     }
@@ -31,14 +38,16 @@ export class GroqProvider {
     prompt: string,
     systemInstruction?: string,
     role: "organizer" | "teacher" = "teacher",
-    options?: AIRequestOptions
+    options?: AIRequestOptions,
   ): Promise<any> {
     try {
       const client = this.getClient(role);
       const response = await client.chat.completions.create({
         model: "llama-3.3-70b-versatile",
         messages: [
-          ...(systemInstruction ? [{ role: "system" as const, content: systemInstruction }] : []),
+          ...(systemInstruction
+            ? [{ role: "system" as const, content: systemInstruction }]
+            : []),
           { role: "user" as const, content: prompt },
         ],
         response_format: { type: "json_object" },
@@ -59,14 +68,16 @@ export class GroqProvider {
     prompt: string,
     systemInstruction?: string,
     role: "organizer" | "teacher" = "teacher",
-    options?: AIRequestOptions
+    options?: AIRequestOptions,
   ): Promise<string> {
     try {
       const client = this.getClient(role);
       const response = await client.chat.completions.create({
         model: "llama-3.3-70b-versatile",
         messages: [
-          ...(systemInstruction ? [{ role: "system" as const, content: systemInstruction }] : []),
+          ...(systemInstruction
+            ? [{ role: "system" as const, content: systemInstruction }]
+            : []),
           { role: "user" as const, content: prompt },
         ],
         temperature: options?.temperature ?? 0.3,

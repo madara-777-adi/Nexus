@@ -1,12 +1,55 @@
 import { z } from "zod";
 import { Request, Response, NextFunction } from "express";
 
+// Reusable String Constraints
+const shortId = z.string().min(1).max(100, "ID cannot exceed 100 characters");
+const titleText = z
+  .string()
+  .min(1)
+  .max(150, "Title cannot exceed 150 characters");
+const descriptionText = z
+  .string()
+  .max(3000, "Description cannot exceed 3000 characters");
+
+export const tier1ModulesSchema = z.object({
+  body: z.object({
+    workspaceId: shortId,
+    workspaceTitle: titleText,
+    workspaceDescription: descriptionText.optional(),
+  }),
+});
+
+export const tier2SubtopicsSchema = z.object({
+  body: z.object({
+    conceptId: shortId,
+    workspaceTitle: titleText,
+    moduleTitle: titleText,
+    moduleDescription: descriptionText.optional(),
+    forceRefresh: z.boolean().optional(),
+  }),
+});
+
+export const tier3LessonSchema = z.object({
+  body: z.object({
+    conceptId: shortId,
+    subtopicId: shortId,
+    workspaceId: shortId,
+    workspaceTitle: titleText,
+    moduleTitle: titleText,
+    subtopicTitle: titleText,
+    forceRefresh: z.boolean().optional(),
+  }),
+});
+
 export const teacherStreamSchema = z.object({
   body: z.object({
-    workspaceTitle: z.string().min(1, "Workspace title is required"),
-    conceptTitle: z.string().min(1, "Concept title is required"),
-    conceptDescription: z.string().optional(),
-    prerequisites: z.array(z.string()).optional(),
+    workspaceTitle: titleText,
+    conceptTitle: titleText,
+    conceptDescription: descriptionText.optional(),
+    prerequisites: z
+      .array(z.string().max(150))
+      .max(20, "Cannot exceed 20 prerequisites")
+      .optional(),
     difficulty: z.enum(["Beginner", "Intermediate", "Advanced"]).optional(),
     preferredDepth: z.enum(["Overview", "Balanced", "Deep Dive"]).optional(),
   }),
@@ -14,39 +57,54 @@ export const teacherStreamSchema = z.object({
 
 export const evaluatorSchema = z.object({
   body: z.object({
-    conceptTitle: z.string().min(1, "Concept title is required"),
-    questions: z.array(z.any()).min(1, "At least one question is required"),
+    conceptId: shortId,
+    conceptTitle: titleText,
+    questions: z
+      .array(z.any())
+      .min(1, "At least one question is required")
+      .max(20, "Cannot submit more than 20 questions"),
     learnerAnswers: z
       .array(
         z.object({
-          questionId: z.string().optional(),
-          question: z.string().min(1),
-          userAnswer: z.string().min(1, "User answer cannot be empty"),
-          correctAnswer: z.string().optional(),
+          questionId: shortId.optional(),
+          question: z
+            .string()
+            .min(1)
+            .max(1000, "Question text cannot exceed 1000 characters"),
+          userAnswer: z
+            .string()
+            .min(1, "User answer cannot be empty")
+            .max(2000, "Answer cannot exceed 2000 characters"),
+          correctAnswer: z.string().max(1000).optional(),
         }),
       )
-      .min(1, "At least one answer must be submitted"),
+      .min(1, "At least one answer must be submitted")
+      .max(20, "Cannot submit more than 20 answers"),
   }),
 });
 
 export const plannerSchema = z.object({
   body: z.object({
-    workspaceId: z.string().min(1, "Workspace ID is required"),
-    availableTimeMinutes: z.number().positive().optional(),
+    workspaceId: shortId,
+    availableTimeMinutes: z
+      .number()
+      .positive()
+      .max(1440, "Time cannot exceed 24 hours (1440 mins)")
+      .optional(),
   }),
 });
 
 export const resourceGeneratorSchema = z.object({
   body: z.object({
-    conceptTitle: z.string().min(1, "Concept title is required"),
-    domain: z.string().min(1, "Domain is required"),
+    conceptTitle: titleText,
+    domain: titleText,
     targetCount: z.number().min(1).max(10).optional(),
   }),
 });
 
 export const quizGeneratorSchema = z.object({
   body: z.object({
-    conceptTitle: z.string().min(1, "Concept title is required"),
+    conceptTitle: titleText,
     questionCount: z.number().min(1).max(20).optional(),
     difficulty: z.enum(["Beginner", "Intermediate", "Advanced"]).optional(),
   }),
@@ -63,11 +121,19 @@ export const validateAIRequest =
         params: req.params,
       });
       next();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({
+          success: false,
+          message: "Invalid AI Request Payload",
+          details: error.issues,
+        });
+        return;
+      }
+
       res.status(400).json({
         success: false,
         message: "Invalid AI Request Payload",
-        errors: error.errors,
       });
     }
   };

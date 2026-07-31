@@ -12,6 +12,11 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const [error, setError] = useState("");
 
   // Fetch workspaces on component mount
@@ -34,29 +39,31 @@ export function Dashboard() {
     setWorkspaces((prev) => [newWorkspace, ...prev]);
   };
 
-  const handleDeleteWorkspace = async (
+  const handleDeleteClick = (
     e: React.MouseEvent,
     workspaceId: string,
     title: string,
   ) => {
     e.stopPropagation(); // Prevent card click / navigation
+    setDeleteError("");
+    setDeleteTarget({ id: workspaceId, title });
+  };
 
-    if (
-      !window.confirm(
-        `Are you sure you want to delete "${title}"? This cannot be undone.`,
-      )
-    ) {
-      return;
-    }
+  const confirmDeleteWorkspace = async () => {
+    if (!deleteTarget) return;
 
-    setDeletingId(workspaceId);
+    setDeletingId(deleteTarget.id);
+    setDeleteError("");
     try {
-      await workspaceApi.deleteWorkspace(workspaceId);
+      await workspaceApi.deleteWorkspace(deleteTarget.id);
       setWorkspaces((prev) =>
-        prev.filter((ws) => ws.workspaceId !== workspaceId),
+        prev.filter((ws) => ws.workspaceId !== deleteTarget.id),
       );
+      setDeleteTarget(null);
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to delete workspace.");
+      setDeleteError(
+        err.response?.data?.message || "Failed to delete workspace.",
+      );
     } finally {
       setDeletingId(null);
     }
@@ -169,7 +176,7 @@ export function Dashboard() {
                       {/* Delete Button */}
                       <button
                         onClick={(e) =>
-                          handleDeleteWorkspace(e, ws.workspaceId, ws.title)
+                          handleDeleteClick(e, ws.workspaceId, ws.title)
                         }
                         disabled={deletingId === ws.workspaceId}
                         className="text-gray-500 hover:text-red-400 p-1.5 rounded-lg border border-transparent hover:border-red-500/30 hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
@@ -200,6 +207,53 @@ export function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0d1117] border border-surface-border rounded-2xl max-w-md w-full p-6 flex flex-col gap-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-white">Delete Workspace?</h3>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Are you sure you want to delete{" "}
+              <span className="text-neon-lime font-semibold">
+                "{deleteTarget.title}"
+              </span>
+              ? This action cannot be undone and will permanently remove all
+              associated knowledge nodes.
+            </p>
+            {deleteError && (
+              <div className="bg-red-500/20 text-red-400 border border-red-500/30 p-3 rounded-xl text-xs">
+                {deleteError}
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-3 mt-2">
+              <button
+                onClick={() => {
+                  setDeleteTarget(null);
+                  setDeleteError("");
+                }}
+                className="px-4 py-2 text-xs font-semibold text-gray-400 hover:text-white rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteWorkspace}
+                disabled={deletingId === deleteTarget.id}
+                className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {deletingId === deleteTarget.id ? (
+                  <>
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent inline-block" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete Workspace"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Workspace Modal */}
       <CreateWorkspaceModal

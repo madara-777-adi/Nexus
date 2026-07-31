@@ -13,6 +13,39 @@ import { NotFoundError } from "../../../shared/errors/NotFoundError";
 import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
 
 class LearningService {
+  /**
+   * Helper to execute database operations inside a Mongo transaction when supported (Replica Sets / Atlas),
+   * falling back cleanly to non-transactional execution for standalone MongoDB setups (local dev).
+   */
+  private async executeWithTransactionFallback<T>(
+    operation: (session: ClientSession | null) => Promise<T>,
+  ): Promise<T> {
+    const session = await mongoose.startSession();
+    try {
+      let result: T | undefined;
+      await session.withTransaction(async () => {
+        result = await operation(session);
+      });
+      return result!;
+    } catch (err: any) {
+      const isTransactionUnsupported =
+        err?.code === 20 ||
+        err?.codeName === "TransactionNumbersAreOnlyAllowedOnReplicaSet" ||
+        (typeof err?.message === "string" &&
+          err.message.includes("Transaction numbers are only allowed"));
+
+      if (isTransactionUnsupported) {
+        console.warn(
+          "[LearningService] MongoDB Transactions unsupported on standalone instance. Executing fallback without session.",
+        );
+        return await operation(null);
+      }
+      throw err;
+    } finally {
+      await session.endSession();
+    }
+  }
+
   private async verifyWorkspaceOwnership(
     workspaceId: string,
     userObjectId: Types.ObjectId,
@@ -96,7 +129,7 @@ class LearningService {
     }).populate("concept", "conceptId title level");
   }
 
-  // RC-005 Patch 3: Atomic Evaluation & Unlock Cascade Transaction
+  // RC-005 Patch 3: Atomic Evaluation & Unlock Cascade Transaction with Standalone Fallback
   async recordEvaluationResult(
     conceptId: string,
     userObjectId: Types.ObjectId,
@@ -114,76 +147,73 @@ class LearningService {
       );
     }
 
-    let updatedProgress: ILearningProgress | null = null;
-    let unlockedDownstreamIds: string[] = [];
+    return await this.executeWithTransactionFallback(async (session) => {
+      let progressQuery = LearningProgressModel.findOne({
+        user: userObjectId,
+        workspace: concept.workspace,
+        concept: concept._id,
+      });
+      if (session) progressQuery = progressQuery.session(session);
 
-    const session = await mongoose.startSession();
-    try {
-      await session.withTransaction(async () => {
-        let progress = await LearningProgressModel.findOne({
+      let progress = await progressQuery;
+
+      if (!progress) {
+        let progressId: string;
+        do {
+          progressId = `prog_${generateUserId()}`;
+          let existsQuery = LearningProgressModel.exists({ progressId });
+          if (session) existsQuery = existsQuery.session(session);
+
+          var existsResult = await existsQuery;
+        } while (existsResult);
+
+        progress = new LearningProgressModel({
+          progressId,
           user: userObjectId,
           workspace: concept.workspace,
           concept: concept._id,
-        }).session(session);
+          status: ConceptStatus.IN_PROGRESS,
+        });
+      }
 
-        if (!progress) {
-          let progressId: string;
-          do {
-            progressId = `prog_${generateUserId()}`;
-          } while (
-            await LearningProgressModel.exists({ progressId }).session(session)
-          );
+      progress.masteryScore = masteryScore;
+      progress.attemptsCount += 1;
+      progress.lastEvaluatedAt = new Date();
 
-          progress = new LearningProgressModel({
-            progressId,
-            user: userObjectId,
-            workspace: concept.workspace,
-            concept: concept._id,
-            status: ConceptStatus.IN_PROGRESS,
-          });
-        }
+      // Deterministic Progression Rule
+      const PASSING_THRESHOLD = 80;
+      if (masteryScore >= PASSING_THRESHOLD) {
+        progress.status = ConceptStatus.MASTERED;
+      } else if (
+        progress.status === ConceptStatus.LOCKED ||
+        progress.status === ConceptStatus.UNLOCKED
+      ) {
+        progress.status = ConceptStatus.IN_PROGRESS;
+      }
 
-        progress.masteryScore = masteryScore;
-        progress.attemptsCount += 1;
-        progress.lastEvaluatedAt = new Date();
-
-        // Deterministic Progression Rule
-        const PASSING_THRESHOLD = 80;
-        if (masteryScore >= PASSING_THRESHOLD) {
-          progress.status = ConceptStatus.MASTERED;
-        } else if (
-          progress.status === ConceptStatus.LOCKED ||
-          progress.status === ConceptStatus.UNLOCKED
-        ) {
-          progress.status = ConceptStatus.IN_PROGRESS;
-        }
-
+      if (session) {
         await progress.save({ session });
+      } else {
+        await progress.save();
+      }
 
-        // Trigger graph cascade traversal if this node reached MASTERED inside transaction
-        if (progress.status === ConceptStatus.MASTERED) {
-          unlockedDownstreamIds = await this.evaluateAndUnlockDownstreamNodes(
-            concept.workspace,
-            concept._id,
-            userObjectId,
-            session,
-          );
-        }
+      let unlockedDownstreamIds: string[] = [];
 
-        updatedProgress = progress;
-      });
-    } finally {
-      await session.endSession();
-    }
+      // Trigger graph cascade traversal if this node reached MASTERED
+      if (progress.status === ConceptStatus.MASTERED) {
+        unlockedDownstreamIds = await this.evaluateAndUnlockDownstreamNodes(
+          concept.workspace,
+          concept._id,
+          userObjectId,
+          session,
+        );
+      }
 
-    if (!updatedProgress) {
-      throw new Error("Evaluation record transaction failed.");
-    }
-
-    return {
-      progress: updatedProgress,
-      unlockedDownstreamIds,
-    };
+      return {
+        progress,
+        unlockedDownstreamIds,
+      };
+    });
   }
 
   // Graph Traversal: Unlocks downstream nodes ONLY when all required prerequisites are MASTERED (Session-Aware)
@@ -191,14 +221,16 @@ class LearningService {
     workspaceObjectId: Types.ObjectId,
     sourceConceptObjectId: Types.ObjectId,
     userObjectId: Types.ObjectId,
-    session: ClientSession,
+    session: ClientSession | null,
   ): Promise<string[]> {
     // 1. Find all relationships where current concept is DEPENDS_ON prerequisite
-    const outgoingEdges = await RelationshipModel.find({
+    let outgoingQuery = RelationshipModel.find({
       workspace: workspaceObjectId,
       sourceConcept: sourceConceptObjectId,
       type: RelationshipType.DEPENDS_ON,
-    }).session(session);
+    });
+    if (session) outgoingQuery = outgoingQuery.session(session);
+    const outgoingEdges = await outgoingQuery;
 
     const newlyUnlockedConceptIds: string[] = [];
 
@@ -206,38 +238,49 @@ class LearningService {
       const targetConceptObjectId = edge.targetConcept;
 
       // 2. Find ALL prerequisite edges targeting downstream node
-      const prerequisiteEdges = await RelationshipModel.find({
+      let prereqQuery = RelationshipModel.find({
         workspace: workspaceObjectId,
         targetConcept: targetConceptObjectId,
         type: RelationshipType.DEPENDS_ON,
-      }).session(session);
+      });
+      if (session) prereqQuery = prereqQuery.session(session);
+      const prerequisiteEdges = await prereqQuery;
 
       const prereqConceptObjectIds = prerequisiteEdges.map(
         (e) => e.sourceConcept,
       );
 
       // 3. Check if learner has MASTERED every single required prerequisite
-      const masteredPrereqsCount = await LearningProgressModel.countDocuments({
+      let masteredCountQuery = LearningProgressModel.countDocuments({
         user: userObjectId,
         workspace: workspaceObjectId,
         concept: { $in: prereqConceptObjectIds },
         status: ConceptStatus.MASTERED,
-      }).session(session);
+      });
+      if (session) masteredCountQuery = masteredCountQuery.session(session);
+      const masteredPrereqsCount = await masteredCountQuery;
 
       if (masteredPrereqsCount === prereqConceptObjectIds.length) {
-        const targetProgress = await LearningProgressModel.findOne({
+        let targetProgressQuery = LearningProgressModel.findOne({
           user: userObjectId,
           workspace: workspaceObjectId,
           concept: targetConceptObjectId,
-        }).session(session);
+        });
+        if (session) targetProgressQuery = targetProgressQuery.session(session);
+        const targetProgress = await targetProgressQuery;
 
         if (targetProgress && targetProgress.status === ConceptStatus.LOCKED) {
           targetProgress.status = ConceptStatus.UNLOCKED;
-          await targetProgress.save({ session });
+          if (session) {
+            await targetProgress.save({ session });
+          } else {
+            await targetProgress.save();
+          }
 
-          const targetConcept = await ConceptModel.findById(
-            targetConceptObjectId,
-          ).session(session);
+          let targetConceptQuery = ConceptModel.findById(targetConceptObjectId);
+          if (session) targetConceptQuery = targetConceptQuery.session(session);
+          const targetConcept = await targetConceptQuery;
+
           if (targetConcept) {
             newlyUnlockedConceptIds.push(targetConcept.conceptId);
           }

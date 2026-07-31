@@ -2,6 +2,7 @@ import "dotenv/config"; // MUST BE LINE 1!
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 
 import resourceRoutes from "./modules/resource/routes/resource.routes";
 import relationshipRoutes from "./modules/relationship/routes/relationship.routes";
@@ -22,36 +23,43 @@ const app = express();
 
 app.set("trust proxy", 1);
 
-// Audit 7.1 Fix: Apply baseline HTTP security headers middleware
-app.use((_req, res, next) => {
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("X-XSS-Protection", "1; mode=block");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  next();
-});
+// Apply Helmet security headers (HSTS, CSP, COOP, Nosniff, Frameguard)
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
 
-// Combine development origins, both production domain variants (apex & www), and env.FRONTEND_URL
-const rawOrigins = [
+// Dynamically extract allowed origins from environment variables
+const configuredOrigins = (env.FRONTEND_URL || "")
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
+const defaultDevOrigins = [
   "http://localhost:5173",
   "http://localhost:5000",
-  "https://nexusspace.tech",
-  "https://www.nexusspace.tech",
-  env.FRONTEND_URL,
+  "http://localhost:3000",
 ];
 
-// Clean up trailing slashes and remove falsy/duplicate values
+// Combine config origins with fallback dev origins and normalize trailing slashes
 const allowedOrigins = Array.from(
   new Set(
-    rawOrigins
-      .filter((origin): origin is string => Boolean(origin))
-      .map((origin) => (origin.endsWith("/") ? origin.slice(0, -1) : origin)),
+    [...configuredOrigins, ...defaultDevOrigins].map((origin) =>
+      origin.endsWith("/") ? origin.slice(0, -1) : origin,
+    ),
   ),
 );
 
 // Define comprehensive CORS options including preflight allowed methods & headers
 const corsOptions: cors.CorsOptions = {
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    // Allow server-to-server requests or non-browser tools (e.g. Postman, curl) with no origin header
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS origin violation: ${origin} not allowed.`));
+  },
   credentials: true, // Enables sending/receiving HttpOnly cookies across origins
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: [
@@ -68,7 +76,7 @@ app.use(cors(corsOptions));
 // Parse incoming cookies from request headers into req.cookies
 app.use(cookieParser());
 
-// Audit 7.2 Fix: Explicitly configure request body payload limit
+// Explicitly configure request body payload limit
 app.use(express.json({ limit: "10mb" }));
 
 // Root & Health Check Endpoints (Fixes Render deployment 404 health check errors)

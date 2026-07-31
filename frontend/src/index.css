@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
-/* 1. Register Custom Fonts */
+/* 1. Register Custom Fonts (Served from public/fonts/) */
 @font-face {
   font-family: "FT Neovision";
-  src: url("../public/fonts/FtNeovisionFree-aYXBK.otf") format("opentype");
+  src: url("/fonts/FtNeovisionFree-aYXBK.otf") format("opentype");
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -11,7 +11,7 @@
 
 @font-face {
   font-family: "Merkur";
-  src: url("../public/fonts/Merkur-j147.otf") format("opentype");
+  src: url("/fonts/Merkur-j147.otf") format("opentype");
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -19,9 +19,11 @@
 
 /* 2. Configure Tailwind CSS v4 Theme Tokens */
 @theme {
-  /* Font Utility Classes: font-neovision, font-merkur */
-  --font-neovision: "FT Neovision", sans-serif;
-  --font-merkur: "Merkur", cursive, sans-serif;
+  /* Font Utility Classes: font-neovision, font-merkur with robust fallbacks */
+  --font-neovision:
+    "FT Neovision", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+  --font-merkur: "Merkur", "Georgia", "Cambria", cursive, serif;
 
   /* Color Utility Classes: bg-midnight, text-neon-lime, bg-surface, etc. */
   --color-midnight: #080a0f;

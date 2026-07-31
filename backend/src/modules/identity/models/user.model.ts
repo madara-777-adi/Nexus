@@ -59,12 +59,14 @@ const userSchema = new Schema<IUser>(
     googleId: {
       type: String,
       default: null,
-      sparse: true, // Sparse allows multiple documents to have 'null' without unique constraint collisions
+      unique: true,
+      sparse: true, // Sparse allows multiple nulls while unique prevents dual account collisions
     },
 
     githubId: {
       type: String,
       default: null,
+      unique: true,
       sparse: true,
     },
 
