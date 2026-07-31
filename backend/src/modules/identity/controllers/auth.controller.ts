@@ -14,9 +14,7 @@ import type {
 } from "../types/identity.dto.js";
 
 const isProduction = process.env.NODE_ENV === "production";
-const REFRESH_COOKIE_NAME = isProduction
-  ? "__Host-refreshToken"
-  : "refreshToken";
+const REFRESH_COOKIE_NAME = "refresh-token";
 
 const cookieOptions = {
   httpOnly: true,
