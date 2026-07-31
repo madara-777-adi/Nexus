@@ -1,4 +1,4 @@
-import "dotenv/config"; // MUST BE LINE 1!
+import "dotenv/config"; // MUST BE LINE 1![cite: 19]
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -36,18 +36,26 @@ const configuredOrigins = (env.FRONTEND_URL || "")
   .map((url) => url.trim())
   .filter(Boolean);
 
+// Hardcoded production fallbacks so CORS never fails even if env injection drops
+const defaultProductionOrigins = [
+  "https://nexusspace.tech",
+  "https://www.nexusspace.tech",
+];
+
 const defaultDevOrigins = [
   "http://localhost:5173",
   "http://localhost:5000",
   "http://localhost:3000",
 ];
 
-// Combine config origins with fallback dev origins and normalize trailing slashes
+// Combine config origins with production and development fallbacks, normalizing trailing slashes
 const allowedOrigins = Array.from(
   new Set(
-    [...configuredOrigins, ...defaultDevOrigins].map((origin) =>
-      origin.endsWith("/") ? origin.slice(0, -1) : origin,
-    ),
+    [
+      ...configuredOrigins,
+      ...defaultProductionOrigins,
+      ...defaultDevOrigins,
+    ].map((origin) => (origin.endsWith("/") ? origin.slice(0, -1) : origin)),
   ),
 );
 
