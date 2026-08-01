@@ -1,5 +1,24 @@
 import { SchemaType } from "@google/generative-ai";
 
+export const TeacherTopicSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    topics: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          title: { type: SchemaType.STRING },
+          description: { type: SchemaType.STRING },
+          estimatedMinutes: { type: SchemaType.NUMBER },
+        },
+        required: ["title", "description", "estimatedMinutes"],
+      },
+    },
+  },
+  required: ["topics"],
+};
+
 export const TeacherLessonSchema = {
   type: SchemaType.OBJECT,
   properties: {

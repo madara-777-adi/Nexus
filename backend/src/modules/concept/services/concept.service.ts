@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
-import ConceptModel, { IConcept } from "../models/concept.model";
+import crypto from "crypto";
+import ConceptModel, { IConcept, ITopic } from "../models/concept.model";
 import Workspace from "../../workspace/models/workspace.model";
 import RelationshipModel from "../../relationship/models/relationship.model";
 import ResourceModel from "../../resource/models/resource.model";
@@ -15,6 +16,8 @@ import {
 import generateUserId from "../../../shared/utils/generateUserId";
 import { NotFoundError } from "../../../shared/errors/NotFoundError";
 import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
+import { RawTopicAIOutput } from "../../ai/teacher/teacher.service";
+import {teacherService} from "../../ai/teacher/teacher.service";
 
 class ConceptService {
   private async verifyWorkspaceOwnership(
@@ -33,6 +36,38 @@ class ConceptService {
     return workspace;
   }
 
+  private async generateTopicsForConcept(concept: IConcept): Promise<IConcept> {
+    const workspace = await Workspace.findById(concept.workspace);
+
+    // Placeholder: Concrete generation parameters (depth/granularity) will be passed here.
+    const generatedTopics = await teacherService.generateTopics({
+      conceptTitle: concept.title,
+      conceptDescription: concept.description,
+      workspaceContext: workspace
+        ? {
+            workspaceTitle: workspace.title,
+          }
+        : undefined,
+    });
+
+    const populatedTopics: ITopic[] = generatedTopics.topics.map(
+      (topic: RawTopicAIOutput, index: number) => ({
+        id: `tpc_${crypto.randomUUID()}`,
+        title: topic.title,
+        description: topic.description,
+        order: index + 1,
+        estimatedMinutes: topic.estimatedMinutes,
+        generationStatus: "COMPLETED",
+        unlockRequirements: {},
+      }),
+    );
+
+    concept.topics = populatedTopics;
+    await concept.save();
+
+    return concept;
+  }
+
   async createConcept(
     workspaceId: string,
     userObjectId: Types.ObjectId,
@@ -47,13 +82,19 @@ class ConceptService {
     do {
       conceptId = `cpt_${generateUserId()}`;
     } while (await ConceptModel.exists({ conceptId }));
+    const conceptCount = await ConceptModel.countDocuments({
+      workspace: workspace._id,
+    });
 
+    const nextOrder = conceptCount + 1;
     return ConceptModel.create({
       conceptId,
       workspace: workspace._id,
       owner: userObjectId,
       title: dto.title,
       description: dto.description || "",
+      order: nextOrder,
+      topics: [],
     });
   }
 
@@ -66,7 +107,7 @@ class ConceptService {
       userObjectId,
     );
     return ConceptModel.find({ workspace: workspace._id }).sort({
-      createdAt: -1,
+      order: 1,
     });
   }
 
@@ -83,6 +124,10 @@ class ConceptService {
       throw new ForbiddenError(
         "You do not have permission to view this concept.",
       );
+    }
+
+    if (!concept.topics || concept.topics.length === 0) {
+      return this.generateTopicsForConcept(concept);
     }
 
     return concept;
@@ -122,7 +167,6 @@ class ConceptService {
       throw new ForbiddenError("You are not allowed to perform this action.");
     }
 
-    // Audit 5.1 Fix: Cascade delete all connected relationships, progress, and lesson documents
     await Promise.all([
       RelationshipModel.deleteMany({
         $or: [{ sourceConcept: concept._id }, { targetConcept: concept._id }],

@@ -47,25 +47,45 @@ Return JSON matching this exact structure:
 }
 
 /**
- * TIER 2: Generate Subtopics (2nd Pillars)
- * Called ONLY when a user clicks an unlocked Module node.
+ * TIER 2: Generate Topics (2nd Pillars)
+ * Called ONLY when a Concept is opened for the first time.
  */
-export function buildTier2SubtopicsPrompt(context: {
-  workspaceTitle: string;
-  moduleTitle: string;
-  moduleDescription?: string;
+export function buildTier2TopicsPrompt(context: {
+  conceptTitle: string;
+  conceptDescription?: string;
+  workspaceContext?: {
+    workspaceTitle: string;
+  };
 }): string {
+  const workspaceInfo = context.workspaceContext
+    ? `Within Workspace: "${context.workspaceContext.workspaceTitle}"`
+    : "";
+
   return `
-Break down the module "${context.moduleTitle}" (within the course "${context.workspaceTitle}") into 3 to 5 core subtopics.
-Module Description: ${context.moduleDescription || "N/A"}
+Your task is to decompose the following Concept "${context.conceptTitle}" ${workspaceInfo} into a progressive sequence of learning Topics.
+
+Each Topic must build naturally upon the previous one.
+Do not skip prerequisite knowledge.
+Do not repeat concepts.
+Avoid overlapping Topics.
+
+Concept Context: ${context.conceptDescription || "N/A"}
+
+STRICT RULES:
+1. You MUST generate between 4 and 6 distinct Topics.
+2. Generate ONLY educational content: "title", "description", and "estimatedMinutes".
+3. Every Topic title MUST be unique. Do not generate duplicate or overlapping Topics.
+4. Return Topics in the EXACT learning order. The first Topic must always be the prerequisite for the next.
+5. Do NOT generate IDs, order numbers, unlock conditions, or state flags.
+6. "estimatedMinutes" must be a realistic completion estimate (e.g., between 5 and 30 minutes).
 
 Return JSON matching this exact structure:
 {
-  "subtopics": [
+  "topics": [
     {
-      "id": "slugified-subtopic-title",
-      "title": "Subtopic Name",
-      "description": "Short explanation of the specific technical concept."
+      "title": "Topic Name",
+      "description": "Short explanation of the specific technical topic.",
+      "estimatedMinutes": 15
     }
   ]
 }

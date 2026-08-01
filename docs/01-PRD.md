@@ -1,4 +1,4 @@
-# Nexus
+# NexusSpace
 
 Status: Approved
 Version: 1.0
@@ -8,7 +8,9 @@ Owner: Aditya Upadhyay
 
 ## Product Overview
 
-Nexus is an AI-powered Knowledge Operating System designed to help learners build a deep understanding of complex subjects through interconnected knowledge rather than isolated notes.
+NexusSpace is an AI-assisted Learning Operating System designed to help learners build deep understanding through structured learning journeys rather than isolated notes.
+
+Instead of presenting learners with disconnected AI conversations or static documents, NexusSpace transforms a subject into a dependency-aware concept graph. Artificial Intelligence designs the curriculum, expands concepts, teaches individual lessons, evaluates understanding, and provides reinforcement when necessary, while the backend manages progression, unlocking, persistence, and correctness.
 
 Unlike traditional note-taking applications that focus on storing information, Nexus focuses on organizing knowledge as a network of concepts. Every idea, topic, or definition is represented as an independent concept that can be connected to other concepts through meaningful relationships.
 
@@ -171,6 +173,14 @@ The onboarding experience introduces the philosophy of connected knowledge rathe
 
 ## Step 2 — Create a Workspace
 
+The learner also selects a learning profile:
+
+• Casual
+• Intermediate
+• Serious
+
+The selected profile determines curriculum depth, lesson depth and evaluation strictness without changing the learning architecture.
+
 The learner creates a workspace dedicated to a specific subject, project, or area of study.
 
 Examples include:
@@ -185,7 +195,27 @@ Examples include:
 
 ---
 
-## Step 3 — Build Knowledge
+## Step 3 — Curriculum Generation
+
+The Curriculum Architect AI generates an ordered curriculum blueprint for the workspace.
+
+Only the first module is unlocked initially. Remaining modules stay locked until prerequisite mastery is achieved.
+
+---
+
+## Step 4 — Module Expansion
+
+When the learner opens an unlocked module for the first time, the Learning Architect AI generates the complete concept graph for that module.
+
+Only the graph structure is generated at this stage.
+
+---
+
+## Step 5 — Learning Experience
+
+When a learner opens an individual concept, the Teacher AI generates a Learning Package consisting of explanations, examples, analogies, flashcards, practice questions and reflection prompts.
+
+Learning content is generated lazily and stored permanently.
 
 Instead of writing large documents, the learner creates individual concepts.
 
@@ -193,13 +223,13 @@ Each concept represents a single idea that can later be expanded and connected.
 
 ---
 
-## Step 4 — Connect Concepts
+## Step 6 — Evaluation
 
 Relationships are established between concepts, gradually forming a visual knowledge graph that represents the learner's understanding of the subject.
 
 ---
 
-## Step 5 — Enrich Knowledge
+## Step 7 — Progressive Unlocking
 
 Learners attach resources such as PDFs, articles, videos, images, and external references to concepts.
 
@@ -207,7 +237,7 @@ Artificial Intelligence assists by suggesting related concepts, explanations, an
 
 ---
 
-## Step 6 — Learn Actively
+## Step 8 — Continuous Growth
 
 Rather than rereading notes, learners interact with their knowledge graph through AI-assisted explanations, quizzes, and conceptual revision.
 
@@ -440,6 +470,63 @@ The initial version of Nexus intentionally excludes the following capabilities.
 These decisions allow the team to remain focused on the primary mission:
 
 Helping learners build connected understanding through concepts and relationships.
+
+
+
+# Learning Engine
+
+NexusSpace follows a structured learning engine.
+
+Workspace
+↓
+Curriculum Architect
+↓
+Curriculum Blueprint
+↓
+Learning Architect
+↓
+Concept Graph
+↓
+Teacher
+↓
+Learning Package
+↓
+Evaluator
+↓
+Reinforcement Coach (if required)
+↓
+Learning Progress
+↓
+Backend Unlock Engine
+↓
+Learning Planner
+
+## Learning Principles
+
+- AI designs learning; the backend manages learning.
+- Every AI stage has exactly one responsibility.
+- Content is generated lazily.
+- Generated artifacts are persisted and reused.
+- Progress is based on mastery, not content consumption.
+- Backend determines what unlocks next.
+- AI explains why the next concept matters.
+
+## Learning Profiles
+
+Casual
+- Faster progression
+- Smaller curriculum
+- Short lessons
+
+Intermediate
+- Balanced curriculum
+- Balanced evaluations
+
+Serious
+- Deeper curriculum
+- Higher mastery thresholds
+- Richer learning packages
+
 
 ## Success Metrics
 

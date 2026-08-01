@@ -1,10 +1,13 @@
 import { Schema, model, Document, Types } from "mongoose";
 
-// Layer 2: Micro Curriculum Structure (2nd Pillars)
-export interface ISubtopic {
-  id: string; // Unique slug for routing and linking to Tier 3 records
+export interface ITopic {
+  id: string;
   title: string;
   description?: string;
+  order: number;
+  estimatedMinutes: number;
+  generationStatus: "PENDING" | "GENERATING" | "COMPLETED" | "FAILED";
+  unlockRequirements?: Record<string, unknown>;
 }
 
 export interface IConcept extends Document {
@@ -13,18 +16,33 @@ export interface IConcept extends Document {
   owner: Types.ObjectId;
   title: string;
   description?: string;
-  
-  // Progression & UI State
   order: number;
   isUnlocked: boolean;
   isMastered: boolean;
-  
-  // Layer 2 Storage
-  topics?: ISubtopic[];
-  
+  topics: ITopic[];
   createdAt: Date;
   updatedAt: Date;
 }
+
+const topicSchema = new Schema<ITopic>(
+  {
+    id: {
+      type: String,
+      required: true,
+    },
+    title: { type: String, required: true, trim: true },
+    description: { type: String, default: "", trim: true },
+    order: { type: Number, required: true, default: 1 },
+    estimatedMinutes: { type: Number, default: 0 },
+    generationStatus: {
+      type: String,
+      enum: ["PENDING", "GENERATING", "COMPLETED", "FAILED"],
+      default: "PENDING",
+    },
+    unlockRequirements: { type: Schema.Types.Mixed, default: {} },
+  },
+  { _id: false },
+);
 
 const conceptSchema = new Schema<IConcept>(
   {
@@ -71,21 +89,16 @@ const conceptSchema = new Schema<IConcept>(
       type: Boolean,
       default: false,
     },
-    // Layer 2 Storage
-    topics: [
-      {
-        id: { type: String, required: true },
-        title: { type: String, required: true },
-        description: { type: String, default: "" },
-      },
-    ],
+    topics: {
+      type: [topicSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,
   },
 );
 
-// Compound index for fast lookup within a workspace
 conceptSchema.index({ workspace: 1, title: 1 });
 
 const ConceptModel = model<IConcept>("Concept", conceptSchema);

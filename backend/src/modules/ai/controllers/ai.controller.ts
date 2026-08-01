@@ -43,45 +43,6 @@ export class AIController {
       next(error);
     }
   }
-
-  /**
-   * TIER 2: GENERATE MODULE SUBTOPICS (2nd Pillars)
-   * Triggered JIT when a user selects a specific concept node.
-   */
-  static async generateTier2Subtopics(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) {
-    try {
-      const userId = (req as any).user?._id || (req as any).user?.id;
-      const {
-        conceptId,
-        workspaceTitle,
-        moduleTitle,
-        moduleDescription,
-        forceRefresh,
-      } = req.body;
-
-      const subtopics = await teacherService.generateTier2Subtopics({
-        conceptId,
-        ownerId: userId?.toString(),
-        workspaceTitle,
-        moduleTitle,
-        moduleDescription,
-        forceRefresh,
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: "Tier 2 subtopics retrieved successfully",
-        data: subtopics,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
   /**
    * TIER 3: GENERATE DEEP LESSON, FLASHCARDS & QUIZ
    * Triggered JIT when a user clicks a subtopic to launch the deep-dive view.

@@ -31,14 +31,6 @@ router.post(
   AIController.generateTier1Modules,
 );
 
-// Tier 2: Generate 2nd Pillar Subtopics for a specific concept
-router.post(
-  "/teacher/tier2-subtopics",
-  heavyAiLimiter,
-  validateAIRequest(tier2SubtopicsSchema),
-  AIController.generateTier2Subtopics,
-);
-
 // Tier 3: Generate 3rd Level Deep Markdown Lesson, Flashcards & Quiz
 router.post(
   "/teacher/tier3-lesson",

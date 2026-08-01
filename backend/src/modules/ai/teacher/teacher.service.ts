@@ -11,11 +11,63 @@ import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
 import {
   TEACHER_SYSTEM_PROMPT,
   buildTier1ModulesPrompt,
-  buildTier2SubtopicsPrompt,
+  buildTier2TopicsPrompt,
   buildTier3LessonPrompt,
 } from "./teacher.prompt";
 
+export interface RawTopicAIOutput {
+  title: string;
+  description: string;
+  estimatedMinutes: number;
+}
+
+export interface RawTopicResponseDTO {
+  topics: RawTopicAIOutput[];
+}
+
 export class TeacherService {
+  /**
+   * Pure AI Orchestration: Generate Tier 2 Topics
+   * Generates, validates, and returns structured topic DTOs without performing DB persistence or state assignment.
+   */
+  async generateTopics(context: {
+    conceptTitle: string;
+    conceptDescription?: string;
+    workspaceContext?: {
+      workspaceTitle: string;
+    };
+  }): Promise<RawTopicResponseDTO> {
+    const prompt = buildTier2TopicsPrompt(context);
+
+    const rawData = await groqProvider.generateJSON(
+      prompt,
+      TEACHER_SYSTEM_PROMPT,
+      "teacher",
+      {
+        temperature: 0.3,
+      },
+    );
+
+    const rawTopics = Array.isArray(rawData?.topics) ? rawData.topics : [];
+
+    const mappedTopics: RawTopicAIOutput[] = rawTopics.map((topic: any) => ({
+      title: String(topic.title || "").trim(),
+      description: String(topic.description || "").trim(),
+      estimatedMinutes:
+        typeof topic.estimatedMinutes === "number" && topic.estimatedMinutes > 0
+          ? topic.estimatedMinutes
+          : 15,
+    }));
+
+    if (mappedTopics.length === 0) {
+      throw new Error("AI generation failed to produce valid topics.");
+    }
+
+    return {
+      topics: mappedTopics,
+    };
+  }
+
   /**
    * TIER 1: Generate Top-Level Modules (1st Pillars)
    * Triggered when creating a new workspace. Saves lightweight Concept documents.
@@ -46,7 +98,6 @@ export class TeacherService {
 
     let modules = Array.isArray(rawData?.modules) ? rawData.modules : [];
 
-    // Fallback if AI returns an empty array or single-item payload
     if (modules.length === 0) {
       console.warn(
         `[TeacherService] Tier 1 returned empty modules array. Applying multi-module fallback roadmap.`,
@@ -75,7 +126,6 @@ export class TeacherService {
       ];
     }
 
-    // Flexible Workspace Lookup (Custom string workspaceId or raw Mongo _id)
     const isObjectId = Types.ObjectId.isValid(context.workspaceId);
     const workspaceDoc = await WorkspaceModel.findOne(
       isObjectId
@@ -92,7 +142,6 @@ export class TeacherService {
       throw new NotFoundError(`Workspace not found: ${context.workspaceId}`);
     }
 
-    // C3 Fix: Validate workspace ownership to prevent IDOR
     const ownerObjectId = new Types.ObjectId(context.ownerId);
     if (!workspaceDoc.owner.equals(ownerObjectId)) {
       throw new ForbiddenError("You do not have access to this workspace.");
@@ -100,8 +149,8 @@ export class TeacherService {
 
     const mongoWorkspaceId = workspaceDoc._id;
 
-    const createdConcepts = [];
-
+    const createdConcepts: any[] = [];
+    
     for (let i = 0; i < modules.length; i++) {
       const mod = modules[i];
 
@@ -129,95 +178,6 @@ export class TeacherService {
   }
 
   /**
-   * TIER 2: Generate Subtopics (2nd Pillars)
-   * Triggered when clicking a Module node. Checks DB cache first.
-   */
-  async generateTier2Subtopics(context: {
-    conceptId: string;
-    ownerId?: string;
-    workspaceTitle: string;
-    moduleTitle: string;
-    moduleDescription?: string;
-    forceRefresh?: boolean;
-  }): Promise<any[]> {
-    const { conceptId, ownerId, forceRefresh } = context;
-
-    // 1. DB Cache Check & Ownership Validation with Flexible Concept Lookup
-    const isConceptObjectId = Types.ObjectId.isValid(conceptId);
-    const concept = await ConceptModel.findOne(
-      isConceptObjectId
-        ? { $or: [{ conceptId }, { _id: conceptId }] }
-        : { conceptId },
-    );
-
-    if (!concept) {
-      throw new NotFoundError(`Concept module not found for ID: ${conceptId}`);
-    }
-
-    if (ownerId) {
-      const ownerObjectId = new Types.ObjectId(ownerId);
-      const workspaceDoc = await WorkspaceModel.findById(concept.workspace);
-      if (!workspaceDoc) {
-        throw new NotFoundError("Parent workspace not found for this concept.");
-      }
-      if (!workspaceDoc.owner.equals(ownerObjectId)) {
-        throw new ForbiddenError(
-          "You do not have access to this workspace module.",
-        );
-      }
-    }
-
-    if (concept.topics && concept.topics.length > 0 && !forceRefresh) {
-      console.log(
-        `[TeacherService] Tier 2: Returning cached subtopics from DB for: ${conceptId}`,
-      );
-      return concept.topics;
-    }
-
-    // 2. JIT AI Generation
-    console.log(
-      `[TeacherService] Tier 2: Generating fresh subtopics for module: ${context.moduleTitle}`,
-    );
-    const prompt = buildTier2SubtopicsPrompt(context);
-    const rawData = await groqProvider.generateJSON(
-      prompt,
-      TEACHER_SYSTEM_PROMPT,
-      "teacher",
-      { temperature: 0.3 },
-    );
-
-    let subtopics = Array.isArray(rawData?.subtopics) ? rawData.subtopics : [];
-
-    if (subtopics.length === 0) {
-      subtopics = [
-        {
-          id: "overview-fundamentals",
-          title: "Overview & Fundamentals",
-          description:
-            "Essential architectural principles and foundational mechanics.",
-        },
-        {
-          id: "core-implementation",
-          title: "Core Implementation Mechanics",
-          description: "Practical code structures and standard usage patterns.",
-        },
-        {
-          id: "edge-cases-optimization",
-          title: "Edge Cases & Optimization",
-          description:
-            "Performance bottlenecks, debugging, and advanced patterns.",
-        },
-      ];
-    }
-
-    // 3. Save Subtopics Array to Concept Document
-    concept.topics = subtopics;
-    await concept.save();
-
-    return subtopics;
-  }
-
-  /**
    * TIER 3: Generate Deep Lesson, Flashcards, and Quiz (The Deep Dive)
    * Triggered when clicking a specific Subtopic to learn. Saves across separate models.
    */
@@ -234,7 +194,6 @@ export class TeacherService {
     const { conceptId, subtopicId, workspaceId, ownerId, forceRefresh } =
       context;
 
-    // Flexible Concept Lookup
     const isConceptObjectId = Types.ObjectId.isValid(conceptId);
     const concept = await ConceptModel.findOne(
       isConceptObjectId
@@ -246,7 +205,6 @@ export class TeacherService {
       throw new NotFoundError(`Concept module not found for ID: ${conceptId}`);
     }
 
-    // Flexible Workspace Lookup
     const isWorkspaceObjectId = Types.ObjectId.isValid(workspaceId);
     const workspaceDoc = await WorkspaceModel.findOne(
       isWorkspaceObjectId
@@ -258,7 +216,6 @@ export class TeacherService {
       throw new NotFoundError(`Workspace not found for ID: ${workspaceId}`);
     }
 
-    // Validate workspace ownership
     const ownerObjectId = new Types.ObjectId(ownerId);
     if (!workspaceDoc.owner.equals(ownerObjectId)) {
       throw new ForbiddenError(
@@ -268,7 +225,6 @@ export class TeacherService {
 
     const mongoWorkspaceId = workspaceDoc._id;
 
-    // 1. DB Cache Check across dedicated collections
     if (!forceRefresh) {
       const [existingLesson, existingCards, existingQuiz] = await Promise.all([
         LessonModel.findOne({ concept: concept._id, subtopicId }),
@@ -288,7 +244,6 @@ export class TeacherService {
       }
     }
 
-    // 2. JIT AI Generation
     console.log(
       `[TeacherService] Tier 3: Generating fresh deep lesson payload for: ${context.subtopicTitle}`,
     );
@@ -308,9 +263,7 @@ export class TeacherService {
       : [];
     const quizData = Array.isArray(rawData?.quiz) ? rawData.quiz : [];
 
-    // 3. Atomically update/save to dedicated collections
     const [savedLesson, savedCards, savedQuiz] = await Promise.all([
-      // Upsert Lesson Document
       LessonModel.findOneAndUpdate(
         { concept: concept._id, subtopicId },
         {
@@ -323,7 +276,6 @@ export class TeacherService {
         { upsert: true, returnDocument: "after" },
       ),
 
-      // Refresh Flashcard Documents
       (async () => {
         await FlashcardModel.deleteMany({ concept: concept._id, subtopicId });
         const cardsToInsert = flashcardsData.map((card: any) => ({
@@ -337,7 +289,6 @@ export class TeacherService {
         return FlashcardModel.insertMany(cardsToInsert);
       })(),
 
-      // Upsert Quiz Document
       QuizModel.findOneAndUpdate(
         { concept: concept._id, subtopicId },
         {

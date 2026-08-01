@@ -21,30 +21,13 @@ Nothing outside this document belongs in V1.
 If a feature is not listed here, it is considered out of scope.
 
 ---
-```
 
----
-
-# 1. Product Goal
-
-Not copied from the PRD.
-
-Reduced to one sentence.
-
-```
 NexusSpace V1 enables learners to build structured understanding through AI-assisted concept graphs.
 
 The objective is not to replace note-taking.
 
-The objective is to transform learning into an interconnected graph of concepts that continuously evolves with the learner.```
+The objective is to transform learning into an interconnected graph of concepts that continuously evolves with the learner.
 
-This comes directly from the PRD's product overview and principles.  
-
----
-
-# 2. Feature Freeze
-
-```md
 No new features may be introduced during V1 development.
 
 Only the following work is permitted:
@@ -57,29 +40,7 @@ Only the following work is permitted:
 - UX polish
 
 Everything else is postponed until V2.
-```
 
----
-
-# 3. Core Modules
-
-Every module gets
-
-Purpose
-
-Acceptance Criteria
-
-Regression Tests
-
-Status
-
----
-
-Example
-
-# Authentication
-
-```md
 Purpose
 
 Provide secure identity management.
@@ -120,13 +81,7 @@ Acceptance
 Status
 
 NOT VERIFIED
-```
 
----
-
-# Workspace
-
-```md
 Purpose
 
 Represents an independent learning environment.
@@ -154,13 +109,7 @@ Acceptance
 Status
 
 NOT VERIFIED
-```
 
----
-
-# Concept Graph
-
-```md
 Acceptance
 
 □ Concepts created
@@ -180,19 +129,7 @@ Acceptance
 Status
 
 NOT VERIFIED
-```
 
----
-
-# AI Teacher
-
-Split by tiers.
-
----
-
-## Tier 1
-
-```md
 Acceptance
 
 □ Modules generated
@@ -210,13 +147,7 @@ Acceptance
 Status
 
 NOT VERIFIED
-```
 
----
-
-## Tier 2
-
-```md
 Acceptance
 
 □ Subtopics generated
@@ -230,13 +161,7 @@ Acceptance
 Status
 
 NOT VERIFIED
-```
 
----
-
-## Tier 3
-
-```md
 Acceptance
 
 □ Lesson generated
@@ -256,13 +181,7 @@ Acceptance
 Status
 
 NOT VERIFIED
-```
 
----
-
-# AI Planner
-
-```md
 Acceptance
 
 □ Planner returns recommendation
@@ -278,13 +197,7 @@ Acceptance
 Status
 
 NOT VERIFIED
-```
 
----
-
-# AI Evaluation
-
-```md
 Acceptance
 
 □ Submission evaluated
@@ -302,13 +215,7 @@ Acceptance
 Status
 
 NOT VERIFIED
-```
 
----
-
-# Learning
-
-```md
 Acceptance
 
 □ Progress initialized
@@ -324,13 +231,7 @@ Acceptance
 Status
 
 NOT VERIFIED
-```
 
----
-
-# Resources
-
-```md
 Acceptance
 
 □ Resources generated
@@ -346,13 +247,7 @@ Acceptance
 Status
 
 NOT VERIFIED
-```
 
----
-
-# Profile
-
-```md
 Acceptance
 
 □ Profile update
@@ -366,15 +261,7 @@ Acceptance
 Status
 
 NOT VERIFIED
-```
 
----
-
-# 4. Engineering Standards
-
-This is new.
-
-```md
 Every backend endpoint must satisfy:
 
 ✓ Authentication
@@ -390,13 +277,7 @@ Every backend endpoint must satisfy:
 ✓ Consistent response format
 
 ✓ Regression tested
-```
 
----
-
-AI
-
-```md
 Every AI endpoint must satisfy:
 
 Prompt
@@ -428,15 +309,8 @@ Transaction
 ↓
 
 Persistence
-```
 
-This becomes the AI contract for V1.
 
----
-
-Database
-
-```md
 Every multi-document write must be atomic.
 
 Every ownership rule must be enforced.
@@ -444,13 +318,8 @@ Every ownership rule must be enforced.
 Every public identifier must resolve consistently.
 
 LearningProgress is the authoritative learning state unless explicitly documented otherwise.
-```
 
----
 
-Frontend
-
-```md
 Every page must
 
 ✓ Desktop
@@ -464,17 +333,10 @@ support.
 No page may require horizontal scrolling.
 
 No interaction may become inaccessible on touch devices.
-```
 
----
 
 # 5. Out of Scope
 
-Copy directly from PRD
-
-plus ours.
-
-```md
 Collaboration
 
 Organizations
@@ -512,182 +374,3 @@ Background Workers
 Complex Caching
 
 Enterprise Features
-```
-
-This aligns with the PRD's future features and non-goals. 
-
----
-
-# 6. Release Gates
-
-This is the important part.
-
-Every module
-
-must satisfy
-
-```md
-Feature Complete
-
-PASS
-
-Regression
-
-PASS
-
-Security
-
-PASS
-
-Mobile
-
-PASS
-
-Engineering
-
-PASS
-
-Documentation
-
-PASS
-```
-
-Otherwise
-
-Release
-
-BLOCKED
-
----
-
-# 7. RC Roadmap
-
-Not detailed.
-
-Just
-
-```md
-RC-006
-
-Transactions
-
-RC-007
-
-AI Pipeline Standardization
-
-RC-008
-
-Learning State
-
-RC-009
-
-Shared Transaction Helper
-
-RC-010
-
-Provider Interface
-
-RC-011
-
-Type Cleanup
-
-RC-012
-
-Validators
-
-RC-013
-
-Dead Code
-
-RC-014
-
-Logging
-
-RC-015
-
-Ordering
-
-RC-016
-
-Frontend State
-
-RC-017
-
-Auth Cleanup
-
-RC-018
-
-Mobile First
-```
-
----
-
-# 8. Definition of Done
-
-This is the most important section.
-
-```md
-NexusSpace V1 is complete when:
-
-Every module passes its acceptance criteria.
-
-Every RC is complete.
-
-Every regression test passes.
-
-No known Critical bugs remain.
-
-No known High severity bugs remain.
-
-All pages function correctly on desktop and mobile.
-
-The complete learning flow works without manual intervention.
-
-The application satisfies the Product Goal.
-
-No new features remain under active development.
-```
-
----
-
-## One improvement I'd make
-
-I'd add **one more section that almost every project forgets**.
-
-# 9. V1 Demo Script
-
-This answers:
-
-> "If someone gives us 10 minutes to demonstrate NexusSpace V1, what exact journey do we show?"
-
-For example:
-
-1. Register a new account.
-2. Verify email.
-3. Log in.
-4. Create a "Compiler Design" workspace.
-5. Generate the AI roadmap.
-6. Open the graph.
-7. Generate Tier 2 subtopics.
-8. Open a lesson.
-9. Study flashcards.
-10. Complete the quiz.
-11. Submit evaluation.
-12. Watch progress update.
-13. Use the planner to choose the next concept.
-14. View the updated graph.
-
-If this full journey succeeds without errors, you've demonstrated the core promise described in the PRD: an AI-assisted, graph-based learning experience focused on building understanding rather than collecting notes. 
-
----
-
-## This becomes our working agreement
-
-From this point forward:
-
-* We **do not invent new features**.
-* We **do not optimize for hypothetical scale**.
-* We **do not patch without a corresponding acceptance criterion**.
-* We **only ship when every item in this specification is either marked PASS or explicitly deferred out of V1**.
-
-I think this will make the remaining work dramatically more focused and reduce the risk of scope creep while giving you a clear, defensible definition of what "NexusSpace V1" actually is.
