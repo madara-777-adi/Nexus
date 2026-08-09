@@ -2,6 +2,7 @@ import { Schema, model, Document, Types } from "mongoose";
 
 export interface ILesson extends Document {
   subtopicId: string; // Links directly to the 'id' of the ISubtopic in Layer 2
+  lessonId: string; // Tier 4 identity: links to the 'id' of the ILessonNode in Layer 3
   concept: Types.ObjectId; // Parent Concept reference
   workspace: Types.ObjectId; // Parent Workspace reference
   owner: Types.ObjectId; // User who generated/owns this lesson
@@ -16,6 +17,10 @@ const lessonSchema = new Schema<ILesson>(
       type: String,
       required: true,
       index: true,
+    },
+    lessonId: {
+      type: String,
+      required: true,
     },
     concept: {
       type: Schema.Types.ObjectId,
@@ -45,8 +50,8 @@ const lessonSchema = new Schema<ILesson>(
   }
 );
 
-// Compound index: A specific subtopic within a concept should only have one lesson payload
-lessonSchema.index({ concept: 1, subtopicId: 1 }, { unique: true });
+// Compound index: A specific lesson within a concept should only have one lesson payload
+lessonSchema.index({ concept: 1, lessonId: 1 }, { unique: true });
 
 const LessonModel = model<ILesson>("Lesson", lessonSchema);
 

@@ -11,7 +11,6 @@ import {
   tier2SubtopicsSchema,
   tier3LessonsSchema,
   lessonExperienceSchema,
-  tier3LessonSchema,
   evaluatorSchema,
   plannerSchema,
   resourceGeneratorSchema,
@@ -58,14 +57,6 @@ router.post(
   heavyAiLimiter,
   validateAIRequest(lessonExperienceSchema),
   AIController.generateLessonExperience,
-);
-
-// Legacy: Generate 3rd Level Deep Markdown Lesson, Flashcards & Quiz
-router.post(
-  "/teacher/tier3-lesson",
-  heavyAiLimiter,
-  validateAIRequest(tier3LessonSchema),
-  AIController.generateTier3Lesson,
 );
 
 // --- EVALUATION & PLANNING OPERATIONS ---

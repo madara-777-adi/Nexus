@@ -62,18 +62,6 @@ export const lessonExperienceSchema = z.object({
   }),
 });
 
-export const tier3LessonSchema = z.object({
-  body: z.object({
-    conceptId: shortId,
-    subtopicId: shortId,
-    workspaceId: shortId,
-    workspaceTitle: titleText,
-    moduleTitle: titleText,
-    subtopicTitle: titleText,
-    forceRefresh: z.boolean().optional(),
-  }),
-});
-
 export const teacherStreamSchema = z.object({
   body: z.object({
     workspaceTitle: titleText,

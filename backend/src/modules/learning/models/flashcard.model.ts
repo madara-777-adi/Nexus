@@ -2,6 +2,7 @@ import { Schema, model, Document, Types } from "mongoose";
 
 export interface IFlashcard extends Document {
   subtopicId: string; // Links directly to the 'id' of the ISubtopic in Layer 2
+  lessonId: string; // Tier 4 identity: links to the 'id' of the ILessonNode in Layer 3
   concept: Types.ObjectId; // Parent Concept reference
   workspace: Types.ObjectId; // Parent Workspace reference
   owner: Types.ObjectId; // User who generated/owns this flashcard
@@ -21,6 +22,10 @@ const flashcardSchema = new Schema<IFlashcard>(
       type: String,
       required: true,
       index: true,
+    },
+    lessonId: {
+      type: String,
+      required: true,
     },
     concept: {
       type: Schema.Types.ObjectId,
@@ -60,8 +65,8 @@ const flashcardSchema = new Schema<IFlashcard>(
   }
 );
 
-// Compound index: Quickly fetch all flashcards for a specific subtopic
-flashcardSchema.index({ concept: 1, subtopicId: 1 });
+// Compound index: Quickly fetch all flashcards for a specific lesson
+flashcardSchema.index({ concept: 1, lessonId: 1 });
 
 // Index for future feature: Fetching all non-mastered flashcards for a user's workspace
 flashcardSchema.index({ workspace: 1, owner: 1, isMastered: 1 });

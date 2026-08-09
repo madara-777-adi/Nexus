@@ -184,47 +184,6 @@ export class AIController {
       next(error);
     }
   }
-  /**
-   * TIER 3: GENERATE DEEP LESSON, FLASHCARDS & QUIZ
-   * Triggered JIT when a user clicks a subtopic to launch the deep-dive view.
-   */
-  static async generateTier3Lesson(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) {
-    try {
-      const userId = (req as any).user?._id || (req as any).user?.id;
-      const {
-        conceptId,
-        subtopicId,
-        workspaceId,
-        workspaceTitle,
-        moduleTitle,
-        subtopicTitle,
-        forceRefresh,
-      } = req.body;
-
-      const lessonPayload = await teacherService.generateTier3Lesson({
-        conceptId,
-        subtopicId,
-        workspaceId,
-        ownerId: userId?.toString(),
-        workspaceTitle,
-        moduleTitle,
-        subtopicTitle,
-        forceRefresh,
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: "Tier 3 deep lesson payload generated successfully",
-        data: lessonPayload, // Returns { markdownContent, flashcards, quiz }
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
 
   /**
    * EVALUATE SUBMISSION & BACKEND DECISION ENGINE

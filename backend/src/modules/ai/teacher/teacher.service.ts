@@ -15,7 +15,6 @@ import {
   buildTier2TopicsPrompt,
   buildTier3LessonsPrompt,
   buildLearningExperiencePrompt,
-  buildTier3LessonPrompt,
 } from "./teacher.prompt";
 
 export interface RawTopicAIOutput {
@@ -630,8 +629,8 @@ export class TeacherService {
    *
    * Previously there was no route wired to Tier 2, so concepts were always
    * created with `topics: []`, which made it impossible for the frontend to
-   * ever obtain a valid `subtopicId` to call Tier 3 (`/teacher/tier3-lesson`)
-   * with. Generating topics inline here, as part of Tier 1 module creation,
+   * obtain a valid `subtopicId` for navigating the chapter hierarchy.
+   * Generating topics inline here, as part of Tier 1 module creation,
    * closes that gap without changing the `/teacher/tier1-modules` response
    * contract — concepts already declared a `topics: ITopic[]` field, this
    * just actually populates it.
@@ -682,134 +681,6 @@ export class TeacherService {
     }
   }
 
-  async generateTier3Lesson(context: {
-    conceptId: string;
-    subtopicId: string;
-    workspaceId: string;
-    ownerId: string;
-    workspaceTitle: string;
-    moduleTitle: string;
-    subtopicTitle: string;
-    forceRefresh?: boolean;
-  }): Promise<any> {
-    const { conceptId, subtopicId, workspaceId, ownerId, forceRefresh } =
-      context;
-
-    const isConceptObjectId = Types.ObjectId.isValid(conceptId);
-    const concept = await ConceptModel.findOne(
-      isConceptObjectId
-        ? { $or: [{ conceptId }, { _id: conceptId }] }
-        : { conceptId },
-    );
-
-    if (!concept) {
-      throw new NotFoundError(`Concept module not found for ID: ${conceptId}`);
-    }
-
-    const isWorkspaceObjectId = Types.ObjectId.isValid(workspaceId);
-    const workspaceDoc = await WorkspaceModel.findOne(
-      isWorkspaceObjectId
-        ? { $or: [{ workspaceId }, { _id: workspaceId }] }
-        : { workspaceId },
-    );
-
-    if (!workspaceDoc) {
-      throw new NotFoundError(`Workspace not found for ID: ${workspaceId}`);
-    }
-
-    const ownerObjectId = new Types.ObjectId(ownerId);
-    if (!workspaceDoc.owner.equals(ownerObjectId)) {
-      throw new ForbiddenError(
-        "You do not have access to this workspace or lesson.",
-      );
-    }
-
-    const mongoWorkspaceId = workspaceDoc._id;
-
-    if (!forceRefresh) {
-      const [existingLesson, existingCards, existingQuiz] = await Promise.all([
-        LessonModel.findOne({ concept: concept._id, subtopicId }),
-        FlashcardModel.find({ concept: concept._id, subtopicId }),
-        QuizModel.findOne({ concept: concept._id, subtopicId }),
-      ]);
-
-      if (existingLesson && existingCards.length > 0 && existingQuiz) {
-        console.log(
-          `[TeacherService] Tier 3: Returning cached deep lesson payload for subtopic: ${subtopicId}`,
-        );
-        return {
-          markdownContent: existingLesson.markdownContent,
-          flashcards: existingCards,
-          quiz: existingQuiz.questions,
-        };
-      }
-    }
-
-    console.log(
-      `[TeacherService] Tier 3: Generating fresh deep lesson payload for: ${context.subtopicTitle}`,
-    );
-    const prompt = buildTier3LessonPrompt(context);
-    const rawData = await ProviderFactory.getInstance()
-      .getTier3Provider()
-      .generate<any>(prompt, TEACHER_SYSTEM_PROMPT, { temperature: 0.3 });
-
-    const markdownContent =
-      rawData?.markdownContent ||
-      "## Lesson Generation Notice\n\nContent generation failed. Please refresh.";
-    const flashcardsData = Array.isArray(rawData?.flashcards)
-      ? rawData.flashcards
-      : [];
-    const quizData = Array.isArray(rawData?.quiz) ? rawData.quiz : [];
-
-    const [savedLesson, savedCards, savedQuiz] = await Promise.all([
-      LessonModel.findOneAndUpdate(
-        { concept: concept._id, subtopicId },
-        {
-          subtopicId,
-          concept: concept._id,
-          workspace: mongoWorkspaceId,
-          owner: ownerObjectId,
-          markdownContent,
-        },
-        { upsert: true, returnDocument: "after" },
-      ),
-
-      (async () => {
-        await FlashcardModel.deleteMany({ concept: concept._id, subtopicId });
-        const cardsToInsert = flashcardsData.map((card: any) => ({
-          subtopicId,
-          concept: concept._id,
-          workspace: mongoWorkspaceId,
-          owner: ownerObjectId,
-          front: card.front || "Question prompt",
-          back: card.back || "Answer details",
-        }));
-        return FlashcardModel.insertMany(cardsToInsert);
-      })(),
-
-      QuizModel.findOneAndUpdate(
-        { concept: concept._id, subtopicId },
-        {
-          subtopicId,
-          concept: concept._id,
-          workspace: mongoWorkspaceId,
-          owner: ownerObjectId,
-          questions: quizData.map((q: any) => ({
-            question: q?.question || "Question",
-            options: Array.isArray(q?.options) ? q.options : [],
-            answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0,
-          })),
-        },
-        { upsert: true, returnDocument: "after" },
-      ),
-    ]);
-
-    return {
-      markdownContent: savedLesson.markdownContent,
-      flashcards: savedCards,
-      quiz: savedQuiz.questions,
-    };
-  }
 }
 
 export const teacherService = new TeacherService();

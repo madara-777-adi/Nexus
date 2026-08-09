@@ -8,6 +8,7 @@ export interface IQuizQuestion {
 
 export interface IQuiz extends Document {
   subtopicId: string; // Links directly to the 'id' of the ISubtopic in Layer 2
+  lessonId: string; // Tier 4 identity: links to the 'id' of the ILessonNode in Layer 3
   concept: Types.ObjectId; // Parent Concept reference
   workspace: Types.ObjectId; // Parent Workspace reference
   owner: Types.ObjectId; // User who generated/owns this quiz
@@ -53,6 +54,10 @@ const quizSchema = new Schema<IQuiz>(
       required: true,
       index: true,
     },
+    lessonId: {
+      type: String,
+      required: true,
+    },
     concept: {
       type: Schema.Types.ObjectId,
       ref: "Concept",
@@ -93,8 +98,8 @@ const quizSchema = new Schema<IQuiz>(
   }
 );
 
-// Compound index: A specific subtopic should only have one master quiz payload
-quizSchema.index({ concept: 1, subtopicId: 1 }, { unique: true });
+// Compound index: A specific lesson should only have one master quiz payload
+quizSchema.index({ concept: 1, lessonId: 1 }, { unique: true });
 
 const QuizModel = model<IQuiz>("Quiz", quizSchema);
 
