@@ -35,8 +35,16 @@ export class CerebrasProvider implements IAIProvider {
   }
 
   private static buildForTier(tierLabel: string): CerebrasProvider {
-    const apiKey = process.env.CEREBRAS_API_KEY;
-    if (!apiKey) throw new Error("Missing CEREBRAS_API_KEY in environment.");
+    const apiKey =
+      tierLabel === "Tier1"
+        ? process.env.AI_TIER1_API_KEY
+        : tierLabel === "Tier2"
+          ? process.env.AI_TIER2_API_KEY
+          : process.env.AI_TIER3_API_KEY;
+    if (!apiKey)
+      throw new Error(
+        `Missing AI_TIER${tierLabel.slice(-1)}_API_KEY in environment.`,
+      );
     return new CerebrasProvider(apiKey, tierLabel);
   }
 

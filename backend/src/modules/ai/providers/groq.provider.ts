@@ -37,8 +37,8 @@ export class GroqProvider implements IAIProvider {
   }
 
   static forTier3(): GroqProvider {
-    const apiKey = process.env.AI_TIER2_API_KEY;
-    if (!apiKey) throw new Error("Missing AI_TIER2_API_KEY in environment.");
+    const apiKey = process.env.AI_TIER3_API_KEY;
+    if (!apiKey) throw new Error("Missing AI_TIER3_API_KEY in environment.");
     return new GroqProvider(apiKey, "Tier3");
   }
 
