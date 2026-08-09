@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { isAxiosError } from "axios";
-import { getTier3Lesson, evaluateSubmission } from "../../api/ai.api";
+import { getLearningExperience, evaluateSubmission } from "../../api/ai.api";
 import { ActiveRecallModal } from "./ActiveRecallModal";
 import { ConceptStatus } from "../../types/learning.types";
 import type { Flashcard, QuizQuestion } from "../../types/ai.types";
@@ -15,13 +15,16 @@ import {
 } from "lucide-react";
 
 interface TeacherStudioProps {
-  workspaceId: string;
+  workspaceId?: string;
   workspaceTitle: string;
+  /** Unit that owns this lesson. The evaluator stays Unit-scoped. */
   conceptId: string;
   conceptTitle: string;
   status: ConceptStatus;
-  subtopicId?: string;
-  subtopicTitle?: string;
+  chapterId?: string;
+  chapterTitle?: string;
+  lessonId: string;
+  lessonTitle: string;
   onClose: () => void;
   onProgressUpdated?: () => void;
 }
@@ -32,8 +35,10 @@ export function TeacherStudio({
   conceptId,
   conceptTitle,
   status,
-  subtopicId = "overview",
-  subtopicTitle = "Overview & Fundamentals",
+  chapterId,
+  chapterTitle,
+  lessonId,
+  lessonTitle,
   onClose,
   onProgressUpdated,
 }: TeacherStudioProps) {
@@ -58,13 +63,15 @@ export function TeacherStudio({
     setIsLoading(true);
     setError(null);
     try {
-      const data = await getTier3Lesson({
+      const data = await getLearningExperience({
         conceptId,
-        subtopicId,
+        chapterId,
+        lessonId,
         workspaceId,
         workspaceTitle: workspaceTitle || "Workspace",
         moduleTitle: conceptTitle || "Module",
-        subtopicTitle,
+        chapterTitle,
+        lessonTitle,
         forceRefresh,
       });
 
@@ -75,12 +82,12 @@ export function TeacherStudio({
       console.error("Failed to load Tier 3 lesson:", err);
       if (isAxiosError(err)) {
         setError(
-          err.response?.data?.message || "Failed to load deep lesson payload.",
+          err.response?.data?.message || "Failed to load learning experience.",
         );
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Failed to load deep lesson payload.");
+        setError("Failed to load learning experience.");
       }
     } finally {
       setIsLoading(false);
@@ -88,12 +95,12 @@ export function TeacherStudio({
   };
 
   useEffect(() => {
-    if (!conceptId || !workspaceId) return;
+    if (!conceptId || !workspaceId || !lessonId) return;
     setUserAnswers({});
     setEvaluationScore(null);
     setActiveTab("lesson");
     fetchLessonPayload(false);
-  }, [conceptId, subtopicId, workspaceId]);
+  }, [conceptId, chapterId, lessonId, workspaceId]);
 
   const handleOptionSelect = (questionIndex: number, optionIndex: number) => {
     setUserAnswers((prev) => ({ ...prev, [questionIndex]: optionIndex }));
@@ -113,14 +120,19 @@ export function TeacherStudio({
       }));
 
       const result = await evaluateSubmission({
-        workspaceId,
         conceptId,
         conceptTitle,
         questions: quizQuestions,
         learnerAnswers,
       });
 
-      const masteryScore = result.evaluation?.mastery ?? 0;
+      // Prefer the persisted, authoritative masteryScore (backend already
+      // reconciles several possible AI field names before writing this) over
+      // the raw evaluation payload, whose field name depends entirely on
+      // unvalidated AI output.
+      const masteryScore =
+        (result.progress as { masteryScore?: number } | undefined)
+          ?.masteryScore ?? result.evaluation?.mastery ?? 0;
       setEvaluationScore(masteryScore);
 
       if (onProgressUpdated) {
@@ -138,7 +150,7 @@ export function TeacherStudio({
       {/* Floating Active Recall Deck Overlay */}
       <ActiveRecallModal
         isOpen={isDeckOpen}
-        subtopicTitle={subtopicTitle}
+        subtopicTitle={lessonTitle}
         cards={flashcards}
         onClose={() => setIsDeckOpen(false)}
       />
@@ -162,7 +174,7 @@ export function TeacherStudio({
             </span>
           </div>
           <h2 className="text-base font-medium tracking-tight text-white mt-0.5">
-            {subtopicTitle}
+            {lessonTitle}
           </h2>
         </div>
 

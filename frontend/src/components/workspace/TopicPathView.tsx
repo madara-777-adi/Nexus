@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
-import { getWorkspaceProgress } from "../../api/learning.api";
-import api from "../../api/axios";
 import {
   ConceptStatus,
   type ILearningProgress,
 } from "../../types/learning.types";
+import type { IConcept } from "../../types/workspace.types";
 import {
   Lock,
   CheckCircle2,
@@ -13,84 +11,33 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+export type LoadState = "loading" | "ready" | "empty" | "error";
+
 interface TopicPathViewProps {
-  workspaceId: string;
-  onSelectConcept: (
-    conceptId: string,
-    title: string,
-    status: ConceptStatus,
-  ) => void;
+  concepts: IConcept[];
+  progressMap: Map<string, ILearningProgress>;
+  loadState: LoadState;
+  errorMessage: string;
+  isRegenerating?: boolean;
+  onSelectUnit: (unit: IConcept) => void;
+  onRegenerateCurriculum?: () => void;
+  onRetry: () => void;
 }
 
-type LoadState = "loading" | "ready" | "empty" | "error";
-
-interface ConceptData {
-  conceptId: string;
-  title: string;
-  description?: string;
-  level?: number;
-}
-
+/**
+ * Presentational Unit curriculum view. WorkspacePage owns all data fetching
+ * and JIT Tier-2 orchestration; this component only renders state via props.
+ */
 export function TopicPathView({
-  workspaceId,
-  onSelectConcept,
+  concepts,
+  progressMap,
+  loadState,
+  errorMessage,
+  isRegenerating,
+  onSelectUnit,
+  onRegenerateCurriculum,
+  onRetry,
 }: TopicPathViewProps) {
-  const [concepts, setConcepts] = useState<ConceptData[]>([]);
-  const [progressMap, setProgressMap] = useState<
-    Map<string, ILearningProgress>
-  >(new Map());
-  const [loadState, setLoadState] = useState<LoadState>("loading");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [retryToken, setRetryToken] = useState(0);
-
-  const loadData = useCallback(
-    async (signal: AbortSignal) => {
-      setLoadState("loading");
-      setErrorMessage("");
-
-      try {
-        const progressData: ILearningProgress[] =
-          await getWorkspaceProgress(workspaceId);
-
-        const pMap = new Map<string, ILearningProgress>();
-        progressData.forEach((item) => {
-          if (item.concept?.conceptId) {
-            pMap.set(item.concept.conceptId, item);
-          }
-        });
-        setProgressMap(pMap);
-
-        // Audit 4.1 Fix: Use shared Axios instance to handle Bearer headers & 401 retries automatically
-        const response = await api.get(
-          `/workspaces/${workspaceId}/relationships/stream`,
-          { signal },
-        );
-
-        if (signal.aborted) return;
-
-        const rawConcepts: ConceptData[] = response.data?.data?.concepts || [];
-
-        setConcepts(rawConcepts);
-        setLoadState(rawConcepts.length > 0 ? "ready" : "empty");
-      } catch (err: any) {
-        if (signal.aborted) return;
-        console.error("Error loading curriculum:", err);
-        setErrorMessage(
-          err.response?.data?.message ||
-            err.message ||
-            "Something went wrong loading the topics.",
-        );
-        setLoadState("error");
-      }
-    },
-    [workspaceId],
-  );
-
-  useEffect(() => {
-    const controller = new AbortController();
-    loadData(controller.signal);
-    return () => controller.abort();
-  }, [loadData, retryToken]);
 
   if (loadState === "loading") {
     return (
@@ -109,7 +56,7 @@ export function TopicPathView({
         </p>
         <p className="max-w-sm text-xs text-gray-500">{errorMessage}</p>
         <button
-          onClick={() => setRetryToken((n) => n + 1)}
+          onClick={onRetry}
           className="flex items-center gap-2 rounded-xl border border-gray-800 bg-[#12141A] px-4 py-2 text-xs font-medium text-gray-200 transition-colors hover:border-[#00E5FF]/60 hover:text-white cursor-pointer"
         >
           <RefreshCw className="h-3.5 w-3.5" /> Retry
@@ -120,8 +67,20 @@ export function TopicPathView({
 
   if (loadState === "empty") {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-[#080A0F] p-8 text-center text-gray-500 text-xs">
-        No topics found in this workspace blueprint.
+      <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-[#080A0F] p-8 text-center text-gray-500 text-xs">
+        <span>No topics found in this workspace blueprint.</span>
+        {onRegenerateCurriculum && (
+          <button
+            onClick={onRegenerateCurriculum}
+            disabled={isRegenerating}
+            className="flex items-center gap-2 rounded-xl border border-[#00E5FF]/40 bg-[#00E5FF]/10 px-4 py-2 text-xs font-semibold text-[#00E5FF] transition-colors hover:bg-[#00E5FF]/20 disabled:opacity-50 cursor-pointer"
+          >
+            <Sparkles
+              className={`h-3.5 w-3.5 ${isRegenerating ? "animate-spin" : ""}`}
+            />
+            {isRegenerating ? "Generating..." : "Generate Curriculum"}
+          </button>
+        )}
       </div>
     );
   }
@@ -171,7 +130,7 @@ export function TopicPathView({
                 key={concept.conceptId}
                 onClick={() => {
                   if (!isLocked) {
-                    onSelectConcept(concept.conceptId, concept.title, status);
+                    onSelectUnit(concept);
                   }
                 }}
                 className={`group relative flex items-center justify-between rounded-xl border p-5 transition-all duration-200 ${cardStyle}`}

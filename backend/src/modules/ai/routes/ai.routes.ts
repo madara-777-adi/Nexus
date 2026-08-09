@@ -9,6 +9,8 @@ import {
   validateAIRequest,
   tier1ModulesSchema,
   tier2SubtopicsSchema,
+  tier3LessonsSchema,
+  lessonExperienceSchema,
   tier3LessonSchema,
   evaluatorSchema,
   plannerSchema,
@@ -18,7 +20,10 @@ import {
 
 const router = Router();
 
-// Protect ALL AI routes with authentication middleware (Audit 1.1 & 1.2)
+// Re-enabled: this was temporarily commented out for local curl/Postman
+// testing of the AI pipeline. Now that app.ts mounts this router before the
+// broader /api/v1-prefixed routers, this no longer gets shadowed, so there's
+// no reason left to leave AI routes unauthenticated.
 router.use(authMiddleware);
 
 // --- 3-TIER JIT TEACHER OPERATIONS ---
@@ -31,7 +36,31 @@ router.post(
   AIController.generateTier1Modules,
 );
 
-// Tier 3: Generate 3rd Level Deep Markdown Lesson, Flashcards & Quiz
+// Tier 2: Generate 2nd Level Chapters for a Unit
+router.post(
+  "/teacher/tier2-subtopics",
+  heavyAiLimiter,
+  validateAIRequest(tier2SubtopicsSchema),
+  AIController.generateTier2Subtopics,
+);
+
+// Tier 3: Generate 3rd Level Lesson Nodes for a Chapter
+router.post(
+  "/teacher/tier3-lessons",
+  heavyAiLimiter,
+  validateAIRequest(tier3LessonsSchema),
+  AIController.generateTier3Lessons,
+);
+
+// Learning Experience: Generate Markdown Lesson, Flashcards & Quiz for a LessonNode
+router.post(
+  "/teacher/lesson-experience",
+  heavyAiLimiter,
+  validateAIRequest(lessonExperienceSchema),
+  AIController.generateLessonExperience,
+);
+
+// Legacy: Generate 3rd Level Deep Markdown Lesson, Flashcards & Quiz
 router.post(
   "/teacher/tier3-lesson",
   heavyAiLimiter,

@@ -43,6 +43,147 @@ export class AIController {
       next(error);
     }
   }
+
+  /**
+   * TIER 2: GENERATE CHAPTERS FOR ONE SELECTED UNIT
+   * Triggered JIT when a user expands a Unit to view its Chapters.
+   */
+  static async generateTier2Subtopics(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const userId = (req as any).user?._id || (req as any).user?.id;
+      const {
+        conceptId,
+        workspaceTitle,
+        moduleTitle,
+        moduleDescription,
+        difficulty,
+        forceRefresh,
+      } = req.body;
+
+      const chapters = await teacherService.generateTier2Subtopics({
+        conceptId,
+        ownerId: userId?.toString(),
+        workspaceTitle,
+        moduleTitle,
+        moduleDescription,
+        difficulty,
+        forceRefresh: Boolean(forceRefresh),
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Tier 2 chapters generated successfully",
+        data: chapters,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * TIER 3: GENERATE LESSON NODES FOR ONE SELECTED CHAPTER
+   * Triggered JIT when a user expands a Chapter to view its learnable Lessons.
+   */
+  static async generateTier3Lessons(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const userId = (req as any).user?._id || (req as any).user?.id;
+      const {
+        conceptId,
+        chapterId,
+        subtopicId,
+        workspaceTitle,
+        moduleTitle,
+        chapterTitle,
+        subtopicTitle,
+        chapterDescription,
+        difficulty,
+        forceRefresh,
+      } = req.body;
+
+      const targetChapterId = chapterId || subtopicId;
+      const targetChapterTitle = chapterTitle || subtopicTitle || "Selected Chapter";
+
+      const lessons = await teacherService.generateTier3Lessons({
+        conceptId,
+        chapterId: targetChapterId,
+        ownerId: userId?.toString(),
+        workspaceTitle,
+        moduleTitle,
+        chapterTitle: targetChapterTitle,
+        chapterDescription,
+        difficulty,
+        forceRefresh: Boolean(forceRefresh),
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Tier 3 lesson nodes generated successfully",
+        data: lessons,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * LEARNING EXPERIENCE: GENERATE LESSON CONTENT, FLASHCARDS & QUIZ
+   * Triggered JIT when a learner selects a specific LessonNode to study.
+   */
+  static async generateLessonExperience(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const userId = (req as any).user?._id || (req as any).user?.id;
+      const {
+        conceptId,
+        chapterId,
+        subtopicId,
+        lessonId,
+        workspaceId,
+        workspaceTitle,
+        moduleTitle,
+        chapterTitle,
+        subtopicTitle,
+        lessonTitle,
+        difficulty,
+        forceRefresh,
+      } = req.body;
+
+      const experiencePayload = await teacherService.generateLessonExperience({
+        conceptId,
+        chapterId,
+        subtopicId,
+        lessonId,
+        ownerId: userId?.toString(),
+        workspaceId,
+        workspaceTitle,
+        moduleTitle,
+        chapterTitle,
+        subtopicTitle,
+        lessonTitle,
+        difficulty,
+        forceRefresh: Boolean(forceRefresh),
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Learning experience payload generated successfully",
+        data: experiencePayload,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
   /**
    * TIER 3: GENERATE DEEP LESSON, FLASHCARDS & QUIZ
    * Triggered JIT when a user clicks a subtopic to launch the deep-dive view.

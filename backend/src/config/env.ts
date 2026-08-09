@@ -26,12 +26,22 @@ const envSchema = z.object({
 
   FRONTEND_URL: z.string().url(),
 
+  CEREBRAS_MODEL: z.string().min(1),
+
+  GROQ_MODEL: z.string().min(1),
 
   // Groq AI Keys (Dual-Key Routing)
-  GROQ_API_KEY_ORGANIZER: z
-    .string()
-    .min(1, "GROQ_API_KEY_ORGANIZER is required"),
-  GROQ_API_KEY_TEACHER: z.string().min(1, "GROQ_API_KEY_TEACHER is required"),
+  AI_TIER1_API_KEY: z.string().min(1, "AI_TIER1_API_KEY is required"),
+  AI_TIER2_API_KEY: z.string().min(1, "GROQ_API_KEY_TEACHER is required"),
+
+  // Per-tier provider selection (ECR-001). Each tier independently selects its provider.
+  AI_TIER1_PROVIDER: z.enum(["groq", "cerebras"]).default("groq"),
+  AI_TIER2_PROVIDER: z.enum(["groq", "cerebras"]).default("groq"),
+  AI_TIER3_PROVIDER: z.enum(["groq", "cerebras"]).default("groq"),
+
+  // Cerebras key — single shared key across all tiers that select it.
+  // Optional: only required if a tier's provider is set to "cerebras".
+  CEREBRAS_API_KEY: z.string().min(1).optional(),
 
   // Google OAuth
   GOOGLE_CLIENT_ID: z.string().min(1),

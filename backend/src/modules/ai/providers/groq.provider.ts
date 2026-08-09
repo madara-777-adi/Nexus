@@ -1,49 +1,55 @@
 import Groq from "groq-sdk";
+import { IAIProvider, AIRequestOptions } from "./provider.interface";
+import env from "../../../config/env";
 
-export interface AIRequestOptions {
-  temperature?: number;
-}
+/**
+ * GroqProvider — implements IAIProvider for the Groq inference backend.
+ *
+ * Key rotation is encapsulated here via static tier factory methods.
+ * Callers never reference organizer/teacher terminology — they request a tier.
+ *
+ *   Tier 1 → planning, blueprints, resource discovery  (AI_TIER1_API_KEY)
+ *   Tier 2 → lessons, topics, quizzes, evaluations     (AI_TIER2_API_KEY)
+ *   Tier 3 → deep lesson generation (heavy loads)      (falls back to AI_TIER2_API_KEY)
+ *
+ * Instances are constructed once by ProviderFactory at application startup
+ * and reused for the lifetime of the process.
+ */
+export class GroqProvider implements IAIProvider {
+  private readonly client: Groq;
+  private readonly tierLabel: string;
 
-export class GroqProvider {
-  private groqOrganizer: Groq | null = null;
-  private groqTeacher: Groq | null = null;
-
-  // Lazy getter ensures clients instantiate after .env is fully loaded by the server
-  private getClient(role: "organizer" | "teacher"): Groq {
-    if (role === "organizer") {
-      if (!this.groqOrganizer) {
-        const apiKey =
-          process.env.GROQ_API_KEY_ORGANIZER || process.env.GROQ_API_KEY;
-        if (!apiKey)
-          throw new Error("Missing GROQ_API_KEY_ORGANIZER in .env file");
-
-        // 30-second timeout prevents slow/hanging Groq requests from blocking server connections
-        this.groqOrganizer = new Groq({ apiKey, timeout: 30000 });
-      }
-      return this.groqOrganizer;
-    } else {
-      if (!this.groqTeacher) {
-        const apiKey =
-          process.env.GROQ_API_KEY_TEACHER || process.env.GROQ_API_KEY;
-        if (!apiKey)
-          throw new Error("Missing GROQ_API_KEY_TEACHER in .env file");
-
-        this.groqTeacher = new Groq({ apiKey, timeout: 30000 });
-      }
-      return this.groqTeacher;
-    }
+  private constructor(apiKey: string, tierLabel: string) {
+    this.client = new Groq({ apiKey, timeout: 30000 });
+    this.tierLabel = tierLabel;
   }
 
-  async generateJSON(
+  static forTier1(): GroqProvider {
+    const apiKey = process.env.AI_TIER1_API_KEY;
+    if (!apiKey) throw new Error("Missing AI_TIER1_API_KEY in environment.");
+    return new GroqProvider(apiKey, "Tier1");
+  }
+
+  static forTier2(): GroqProvider {
+    const apiKey = process.env.AI_TIER2_API_KEY;
+    if (!apiKey) throw new Error("Missing AI_TIER2_API_KEY in environment.");
+    return new GroqProvider(apiKey, "Tier2");
+  }
+
+  static forTier3(): GroqProvider {
+    const apiKey = process.env.AI_TIER2_API_KEY;
+    if (!apiKey) throw new Error("Missing AI_TIER2_API_KEY in environment.");
+    return new GroqProvider(apiKey, "Tier3");
+  }
+
+  async generate<T>(
     prompt: string,
     systemInstruction?: string,
-    role: "organizer" | "teacher" = "teacher",
     options?: AIRequestOptions,
-  ): Promise<any> {
+  ): Promise<T> {
     try {
-      const client = this.getClient(role);
-      const response = await client.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+      const response = await this.client.chat.completions.create({
+        model: env.GROQ_MODEL,
         messages: [
           ...(systemInstruction
             ? [{ role: "system" as const, content: systemInstruction }]
@@ -52,46 +58,35 @@ export class GroqProvider {
         ],
         response_format: { type: "json_object" },
         temperature: options?.temperature ?? 0.2,
+        ...(options?.maxTokens ? { max_tokens: options.maxTokens } : {}),
       });
 
       const content = response.choices[0]?.message?.content;
-      if (!content) throw new Error("Empty response received from Groq.");
+      if (!content)
+        throw new Error(
+          `Empty response received from Groq (${this.tierLabel}).`,
+        );
 
-      return JSON.parse(content);
+      return JSON.parse(content) as T;
     } catch (error) {
-      console.error(`[GroqProvider JSON Error (${role})]:`, error);
-      throw error;
-    }
-  }
-
-  async generateText(
-    prompt: string,
-    systemInstruction?: string,
-    role: "organizer" | "teacher" = "teacher",
-    options?: AIRequestOptions,
-  ): Promise<string> {
-    try {
-      const client = this.getClient(role);
-      const response = await client.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          ...(systemInstruction
-            ? [{ role: "system" as const, content: systemInstruction }]
-            : []),
-          { role: "user" as const, content: prompt },
-        ],
-        temperature: options?.temperature ?? 0.3,
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) throw new Error("Empty response received from Groq.");
-
-      return content;
-    } catch (error) {
-      console.error(`[GroqProvider Text Error (${role})]:`, error);
+      console.error(`[GroqProvider ${this.tierLabel} Error]:`, error);
       throw error;
     }
   }
 }
 
-export const groqProvider = new GroqProvider();
+export const groqProvider = {
+  generateJSON<T = any>(
+    prompt: string,
+    systemInstruction?: string,
+    role: "organizer" | "teacher" = "teacher",
+    options?: AIRequestOptions,
+  ): Promise<T> {
+    const provider =
+      role === "organizer"
+        ? GroqProvider.forTier1()
+        : GroqProvider.forTier2();
+
+    return provider.generate<T>(prompt, systemInstruction, options);
+  },
+};

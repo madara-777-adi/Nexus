@@ -43,7 +43,8 @@ class WorkspaceService {
         err?.code === 20 ||
         err?.codeName === "TransactionNumbersAreOnlyAllowedOnReplicaSet" ||
         (typeof err?.message === "string" &&
-          err.message.includes("Transaction numbers are only allowed"));
+          (err.message.includes("Transaction numbers are only allowed") ||
+            err.message.includes("does not support retryable writes")));
 
       if (isTransactionUnsupported) {
         console.warn(

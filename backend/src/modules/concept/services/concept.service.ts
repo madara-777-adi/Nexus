@@ -36,7 +36,7 @@ class ConceptService {
     return workspace;
   }
 
-  private async generateTopicsForConcept(concept: IConcept): Promise<IConcept> {
+  public async generateTopicsForConcept(concept: IConcept): Promise<IConcept> {
     const workspace = await Workspace.findById(concept.workspace);
 
     // Placeholder: Concrete generation parameters (depth/granularity) will be passed here.
@@ -59,6 +59,7 @@ class ConceptService {
         estimatedMinutes: topic.estimatedMinutes,
         generationStatus: "COMPLETED",
         unlockRequirements: {},
+        lessons: [],
       }),
     );
 
@@ -124,10 +125,6 @@ class ConceptService {
       throw new ForbiddenError(
         "You do not have permission to view this concept.",
       );
-    }
-
-    if (!concept.topics || concept.topics.length === 0) {
-      return this.generateTopicsForConcept(concept);
     }
 
     return concept;

@@ -111,10 +111,11 @@ app.use(passport.initialize());
 app.use("/api/v1/auth", authLimiter, authRoutes);
 
 app.use("/api/v1/workspaces", workspaceRoutes);
+app.use("/api/v1/ai", aiRoutes);
 app.use("/api/v1", conceptRoutes);
 app.use("/api/v1", relationshipRoutes);
 app.use("/api/v1", resourceRoutes);
-app.use("/api/v1/ai", aiRoutes);
+// app.use("/api/v1/ai", aiRoutes);
 app.use("/api/v1", learningRoutes);
 
 app.use(notFoundMiddleware);

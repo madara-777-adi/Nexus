@@ -4,17 +4,15 @@ export interface AIRequestOptions {
   responseSchema?: Record<string, any>;
 }
 
+/**
+ * IAIProvider — V1 contract.
+ * Only includes methods actively used in V1.
+ * Streaming is deferred to a future ECR.
+ */
 export interface IAIProvider {
   generate<T>(
     prompt: string,
     systemInstruction?: string,
-    options?: AIRequestOptions
+    options?: AIRequestOptions,
   ): Promise<T>;
-
-  generateStream(
-    prompt: string,
-    systemInstruction?: string,
-    onChunk?: (chunk: string) => void,
-    options?: AIRequestOptions
-  ): Promise<string>;
 }

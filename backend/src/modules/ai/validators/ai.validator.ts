@@ -25,6 +25,39 @@ export const tier2SubtopicsSchema = z.object({
     workspaceTitle: titleText,
     moduleTitle: titleText,
     moduleDescription: descriptionText.optional(),
+    difficulty: z.enum(["Beginner", "Intermediate", "Advanced"]).optional(),
+    forceRefresh: z.boolean().optional(),
+  }),
+});
+
+export const tier3LessonsSchema = z.object({
+  body: z.object({
+    conceptId: shortId,
+    chapterId: shortId.optional(),
+    subtopicId: shortId.optional(),
+    workspaceTitle: titleText,
+    moduleTitle: titleText,
+    chapterTitle: titleText.optional(),
+    subtopicTitle: titleText.optional(),
+    chapterDescription: descriptionText.optional(),
+    difficulty: z.enum(["Beginner", "Intermediate", "Advanced"]).optional(),
+    forceRefresh: z.boolean().optional(),
+  }),
+});
+
+export const lessonExperienceSchema = z.object({
+  body: z.object({
+    conceptId: shortId,
+    chapterId: shortId.optional(),
+    subtopicId: shortId.optional(),
+    lessonId: shortId,
+    workspaceId: shortId.optional(),
+    workspaceTitle: titleText,
+    moduleTitle: titleText,
+    chapterTitle: titleText.optional(),
+    subtopicTitle: titleText.optional(),
+    lessonTitle: titleText,
+    difficulty: z.enum(["Beginner", "Intermediate", "Advanced"]).optional(),
     forceRefresh: z.boolean().optional(),
   }),
 });
