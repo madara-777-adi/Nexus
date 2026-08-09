@@ -78,6 +78,16 @@ export function WorkspacePage() {
   const activeTier2UnitIdRef = useRef<string | null>(null);
   const activeTier3ChapterIdRef = useRef<string | null>(null);
 
+  // Set when POST /learning/init fails. Read by loadConcepts so a failed
+  // initialization can never masquerade as a genuinely all-LOCKED curriculum.
+  const initErrorRef = useRef<string | null>(null);
+
+  // True while the bootstrap effect is mid-flight. Refs are synchronous, so
+  // even when a Retry re-runs both effects in the same commit, the load effect
+  // — which executes after this effect — can never fire GET /learning
+  // concurrently with POST /learning/init.
+  const bootstrapInFlightRef = useRef<boolean>(false);
+
   const showToast = useCallback(
     (
       message: string,
@@ -123,15 +133,28 @@ export function WorkspacePage() {
     }
   };
 
+  // Bootstrap: POST /learning/init first (idempotent server-side), then
+  // release the load effect so the canonical GET /learning always runs AFTER
+  // the LearningProgress records exist. Failure is recorded explicitly so the
+  // load path can surface an actionable error instead of misleading LOCKED
+  // Units. Re-runs (via retryToken) re-attempt initialization.
   useEffect(() => {
     if (!workspaceId) return;
     let cancelled = false;
+    bootstrapInFlightRef.current = true;
 
     const init = async () => {
       try {
         await initializeWorkspaceProgress(workspaceId);
-      } catch (err) {
-        showToast("Failed to sync workspace progress.", "error");
+        if (!cancelled) initErrorRef.current = null;
+      } catch (err: any) {
+        if (!cancelled) {
+          const message =
+            err?.response?.data?.message ||
+            "Failed to sync workspace progress.";
+          initErrorRef.current = message;
+          showToast(message, "error");
+        }
       }
 
       try {
@@ -144,7 +167,10 @@ export function WorkspacePage() {
       } catch (err) {
         showToast("Failed to load workspace details.", "error");
       } finally {
-        if (!cancelled) setIsInitializing(false);
+        if (!cancelled) {
+          bootstrapInFlightRef.current = false;
+          setIsInitializing(false);
+        }
       }
     };
 
@@ -152,7 +178,7 @@ export function WorkspacePage() {
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, showToast]);
+  }, [workspaceId, showToast, retryToken]);
 
   // --- Curriculum loading (owned by WorkspacePage; TopicPathView is presentational) ---
   const loadConcepts = useCallback(
@@ -180,6 +206,18 @@ export function WorkspacePage() {
         if (signal.aborted) return;
         const rawConcepts = conceptsResponse.data || [];
         setConcepts(rawConcepts);
+
+        // If progress initialization failed AND there is no progress data to
+        // render, surface an actionable error instead of silently presenting
+        // the empty progressMap as a genuinely all-LOCKED curriculum.
+        if (initErrorRef.current && pMap.size === 0 && rawConcepts.length > 0) {
+          setErrorMessage(
+            `${initErrorRef.current} Unit states could not be initialized. Please retry.`,
+          );
+          setLoadState("error");
+          return;
+        }
+
         setLoadState(rawConcepts.length > 0 ? "ready" : "empty");
       } catch (err: any) {
         if (signal.aborted) return;
@@ -197,10 +235,17 @@ export function WorkspacePage() {
 
   useEffect(() => {
     if (!workspaceId) return;
+    // Sequencing guard: never load progress while initialization is still
+    // running (first mount, or a Retry that re-runs the bootstrap effect).
+    // The bootstrap effect sets bootstrapInFlightRef synchronously before this
+    // effect's body executes, so GET /learning can never race ahead of
+    // POST /learning/init. Once isInitializing flips false this effect re-runs
+    // and performs the canonical, populated progress load.
+    if (isInitializing || bootstrapInFlightRef.current) return;
     const controller = new AbortController();
     loadConcepts(controller.signal);
     return () => controller.abort();
-  }, [workspaceId, loadConcepts, refreshKey, retryToken]);
+  }, [workspaceId, loadConcepts, refreshKey, retryToken, isInitializing]);
 
   // Silent refetch of curriculum + progress after JIT generation completes.
   const refetchCurriculum = useCallback(
