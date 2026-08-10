@@ -72,7 +72,7 @@ export function Dashboard() {
   return (
     <div className="min-h-screen bg-midnight text-white flex flex-col">
       {/* Top Navigation */}
-      <header className="border-b border-surface-border bg-[#0d1117]/80 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-surface-border bg-[#0d1117]/80 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="font-neovision text-neon-lime text-xl tracking-wider uppercase font-bold">
             NexusSpace
@@ -87,7 +87,7 @@ export function Dashboard() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 flex flex-col gap-8">
         {/* Welcome Section & CTA */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-surface-border/50">
-          <div>
+          <div className="w-full sm:w-auto">
             <h1 className="font-neovision text-2xl md:text-3xl text-white tracking-wide">
               WORKSPACES
             </h1>
@@ -98,7 +98,7 @@ export function Dashboard() {
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-neon-lime text-midnight font-bold text-xs uppercase tracking-wider px-5 py-3 rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-neon-lime/10"
+            className="w-full sm:w-auto bg-neon-lime text-midnight font-bold text-xs uppercase tracking-wider px-5 py-3 min-h-[44px] rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-neon-lime/10"
           >
             <span>+</span> New Workspace
           </button>
@@ -113,7 +113,7 @@ export function Dashboard() {
 
         {/* Loading State Skeleton */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
@@ -149,7 +149,7 @@ export function Dashboard() {
           </div>
         ) : (
           /* Workspace Cards Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
             {workspaces.map((ws) => (
               <div
                 key={ws.workspaceId}
@@ -179,7 +179,7 @@ export function Dashboard() {
                           handleDeleteClick(e, ws.workspaceId, ws.title)
                         }
                         disabled={deletingId === ws.workspaceId}
-                        className="text-gray-500 hover:text-red-400 p-1.5 rounded-lg border border-transparent hover:border-red-500/30 hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
+                        className="text-gray-500 hover:text-red-400 min-h-[44px] min-w-[44px] p-2 rounded-lg border border-transparent hover:border-red-500/30 hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
                         title="Delete Workspace"
                       >
                         {deletingId === ws.workspaceId ? (

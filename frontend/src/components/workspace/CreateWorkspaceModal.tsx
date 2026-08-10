@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { workspaceApi } from "../../api/workspace.api";
-import type { IWorkspace, WorkspaceVisibility } from "../../types/workspace.types";
+import type {
+  IWorkspace,
+  WorkspaceVisibility,
+} from "../../types/workspace.types";
 import { X, Sparkles } from "lucide-react";
 
 interface CreateWorkspaceModalProps {
@@ -41,7 +44,9 @@ export function CreateWorkspaceModal({
       onClose();
     } catch (err: any) {
       setErrorMessage(
-        err.response?.data?.message || err.message || "Failed to create workspace."
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to create workspace.",
       );
     } finally {
       setLoading(false);
@@ -50,27 +55,30 @@ export function CreateWorkspaceModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#080A0F]/80 backdrop-blur-md p-4 transition-all">
-      <div className="w-full max-w-md rounded-2xl border border-gray-800 bg-[#12141A] p-6 shadow-2xl flex flex-col gap-5">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-800 bg-[#12141A] p-4 sm:p-6 shadow-2xl flex flex-col gap-4 sm:gap-5">
         {/* Modal Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-800/80">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#00E5FF]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#00E5FF]">
               Learning Hub
-            </span>
-            <h2 className="text-base font-medium tracking-tight text-white mt-0.5">
+            </p>
+            <h2 className="mt-1 font-neovision text-xl tracking-wide text-white">
               New Workspace Blueprint
             </h2>
           </div>
+
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
+            className="min-h-[44px] min-w-[44px] rounded-xl border border-gray-800 bg-[#181B22] p-2 text-gray-400 transition-all hover:border-gray-700 hover:text-white cursor-pointer flex items-center justify-center"
+            aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {errorMessage && (
-          <div className="rounded-xl border border-red-500/30 bg-red-950/30 p-3 text-xs text-red-400 font-medium">
+          <div className="rounded-xl border border-red-500/30 bg-red-950/30 p-3 text-xs font-medium text-red-400 break-words">
             {errorMessage}
           </div>
         )}
@@ -87,7 +95,7 @@ export function CreateWorkspaceModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Distributed Systems Architecture"
-              className="w-full rounded-xl border border-gray-800 bg-[#181B22] p-3 text-sm text-white placeholder-gray-600 focus:border-[#00E5FF] focus:outline-none transition-colors"
+              className="w-full min-h-[44px] rounded-xl border border-gray-800 bg-[#181B22] p-3 text-sm text-white placeholder-gray-600 focus:border-[#00E5FF] focus:outline-none transition-colors"
             />
           </div>
 
@@ -101,7 +109,7 @@ export function CreateWorkspaceModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief summary of concepts covered..."
               rows={3}
-              className="w-full rounded-xl border border-gray-800 bg-[#181B22] p-3 text-sm text-white placeholder-gray-600 focus:border-[#00E5FF] focus:outline-none transition-colors resize-none"
+              className="w-full min-h-[44px] rounded-xl border border-gray-800 bg-[#181B22] p-3 text-sm text-white placeholder-gray-600 focus:border-[#00E5FF] focus:outline-none transition-colors resize-none"
             />
           </div>
 
@@ -112,8 +120,10 @@ export function CreateWorkspaceModal({
             </label>
             <select
               value={visibility}
-              onChange={(e) => setVisibility(e.target.value as WorkspaceVisibility)}
-              className="w-full rounded-xl border border-gray-800 bg-[#181B22] p-3 text-sm text-white focus:border-[#00E5FF] focus:outline-none transition-colors"
+              onChange={(e) =>
+                setVisibility(e.target.value as WorkspaceVisibility)
+              }
+              className="w-full min-h-[44px] rounded-xl border border-gray-800 bg-[#181B22] p-3 text-sm text-white focus:border-[#00E5FF] focus:outline-none transition-colors"
             >
               <option value="PRIVATE">Private (Only you)</option>
               <option value="PUBLIC">Public (Accessible via link)</option>
@@ -125,14 +135,15 @@ export function CreateWorkspaceModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-gray-800 bg-[#181B22] px-4 py-2.5 text-xs font-medium text-gray-300 hover:border-gray-700 hover:text-white transition-all cursor-pointer"
+              className="min-h-[44px] rounded-xl border border-gray-800 bg-[#181B22] px-4 py-2.5 text-xs font-medium text-gray-300 hover:border-gray-700 hover:text-white transition-all cursor-pointer"
             >
               Cancel
             </button>
+
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 rounded-xl bg-[#BCFF3C] px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-black transition-all hover:bg-[#aef525] disabled:opacity-50 cursor-pointer"
+              className="flex min-h-[44px] items-center gap-2 rounded-xl bg-[#BCFF3C] px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-black transition-all hover:bg-[#aef525] disabled:opacity-50 cursor-pointer"
             >
               {loading && <Sparkles className="h-3.5 w-3.5 animate-spin" />}
               <span>{loading ? "Initializing..." : "Create Workspace"}</span>

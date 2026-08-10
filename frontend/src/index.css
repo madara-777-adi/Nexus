@@ -19,20 +19,39 @@
 
 /* 2. Configure Tailwind CSS v4 Theme Tokens */
 @theme {
-  /* Font Utility Classes: font-neovision, font-merkur with robust fallbacks */
+  /* Font Utility Classes */
   --font-neovision:
     "FT Neovision", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, sans-serif;
   --font-merkur: "Merkur", "Georgia", "Cambria", cursive, serif;
 
-  /* Color Utility Classes: bg-midnight, text-neon-lime, bg-surface, etc. */
+  /* Color Utility Classes */
   --color-midnight: #080a0f;
   --color-neon-lime: #bcff3c;
   --color-surface: #121620;
   --color-surface-border: #1e2846;
+
+  /*
+   * Locked responsive breakpoints:
+   * Mobile  < 640px
+   * Tablet  640px–1023px
+   * Desktop >= 1024px
+   *
+   * md is intentionally aligned with lg so legacy md:
+   * utilities do not activate inside the tablet range.
+   */
+  --breakpoint-sm: 40rem; /* 640px */
+  --breakpoint-md: 64rem; /* 1024px */
+  --breakpoint-lg: 64rem; /* 1024px */
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 96rem;
 }
 
 /* 3. Base Body Defaults */
+html {
+  min-height: 100%;
+}
+
 body {
   background-color: var(--color-midnight);
   color: #ffffff;

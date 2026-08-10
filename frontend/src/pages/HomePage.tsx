@@ -43,17 +43,17 @@ export function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-midnight text-white flex flex-col items-center justify-center p-4 selection:bg-neon-lime selection:text-midnight overflow-hidden relative font-sans">
-      {/* Light Ambient Glow (Hardware Accelerated) */}
+    <div className="min-h-screen bg-midnight text-white flex flex-col items-center justify-center px-4 sm:px-6 py-8 selection:bg-neon-lime selection:text-midnight overflow-x-hidden overflow-y-auto relative font-sans">
+      {/* Light Ambient Glow — scaled so it never dominates mobile */}
       <div
-        className={`absolute w-[450px] h-[450px] bg-neon-lime/10 rounded-full blur-3xl pointer-events-none transition-opacity duration-1000 ease-out will-change-[opacity] ${
+        className={`absolute w-[240px] h-[240px] sm:w-[360px] sm:h-[360px] lg:w-[450px] lg:h-[450px] bg-neon-lime/10 rounded-full blur-3xl pointer-events-none transition-opacity duration-1000 ease-out will-change-[opacity] ${
           isTransitioning ? "opacity-40" : "opacity-20"
         }`}
       />
 
       {/* Hero Content Container */}
       <div
-        className={`text-center max-w-xl mx-auto flex flex-col items-center gap-6 z-10 transition-all duration-700 ease-in-out will-change-[opacity,transform] ${
+        className={`text-center w-full max-w-xl mx-auto flex flex-col items-center gap-4 sm:gap-6 z-10 transition-all duration-700 ease-in-out will-change-[opacity,transform] ${
           isTransitioning
             ? "opacity-0 -translate-y-4 pointer-events-none"
             : "opacity-100 translate-y-0"
@@ -65,7 +65,7 @@ export function HomePage() {
             stage >= 1 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
           }`}
         >
-          <span className="font-merkur text-neon-lime text-2xl tracking-widest uppercase block drop-shadow-[0_0_8px_rgba(188,255,60,0.4)]">
+          <span className="font-merkur text-neon-lime text-base sm:text-xl lg:text-2xl tracking-widest uppercase block drop-shadow-[0_0_8px_rgba(188,255,60,0.4)]">
             BUILD • LEARN • GROW
           </span>
         </div>
@@ -76,7 +76,7 @@ export function HomePage() {
             stage >= 2 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
           }`}
         >
-          <h1 className="font-neovision text-5xl md:text-6xl text-white tracking-wider leading-tight">
+          <h1 className="font-neovision text-3xl sm:text-5xl lg:text-6xl text-white tracking-wider leading-tight">
             WELCOME TO <br />
             <span className="text-neon-lime drop-shadow-[0_0_20px_rgba(188,255,60,0.3)]">
               NEXUSSPACE
@@ -90,7 +90,7 @@ export function HomePage() {
             stage >= 3 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
           }`}
         >
-          <p className="text-gray-400 text-sm md:text-base max-w-md leading-relaxed">
+          <p className="text-gray-400 text-sm sm:text-base max-w-md mx-auto leading-relaxed px-1">
             Your next-generation interactive learning environment and workspace.
             Connect, innovate, and master your technical skills.
           </p>
@@ -98,7 +98,7 @@ export function HomePage() {
 
         {/* LINE 4: Interactive Button */}
         <div
-          className={`transition-all duration-700 ease-out mt-2 ${
+          className={`transition-all duration-700 ease-out mt-2 w-full flex justify-center ${
             stage >= 4
               ? "opacity-100 translate-y-0"
               : "opacity-0 translate-y-4 pointer-events-none"
@@ -107,7 +107,7 @@ export function HomePage() {
           <button
             onClick={handleBegin}
             disabled={isTransitioning}
-            className={`font-neovision font-bold text-lg px-10 py-4 rounded-full transition-all duration-300 cursor-pointer uppercase tracking-wider relative overflow-hidden ${
+            className={`font-neovision font-bold text-sm sm:text-lg w-full max-w-xs sm:w-auto sm:max-w-none min-h-[44px] px-8 sm:px-10 py-3.5 sm:py-4 rounded-full transition-all duration-300 cursor-pointer uppercase tracking-wider relative overflow-hidden ${
               isTransitioning
                 ? "bg-neon-lime text-midnight opacity-90"
                 : "bg-neon-lime text-midnight shadow-[0_0_25px_rgba(188,255,60,0.35)] hover:shadow-[0_0_40px_rgba(188,255,60,0.6)] hover:scale-105"

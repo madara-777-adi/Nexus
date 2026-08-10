@@ -53,25 +53,25 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-midnight text-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-surface-dark border border-surface-border p-8 rounded-2xl shadow-xl flex flex-col gap-6">
+    <div className="min-h-screen bg-midnight text-white flex items-center justify-center px-4 sm:px-6 py-6 sm:py-8 overflow-x-hidden">
+      <div className="w-full max-w-md bg-surface-dark border border-surface-border p-5 sm:p-8 rounded-2xl shadow-xl flex flex-col gap-5 sm:gap-6">
         <div>
-          <h1 className="font-neovision text-3xl tracking-wider mb-2">
+          <h1 className="font-neovision text-2xl sm:text-3xl tracking-wider mb-2">
             RESET PASSWORD
           </h1>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 leading-relaxed">
             Enter your new password below.
           </p>
         </div>
 
         {successMessage && (
-          <div className="bg-neon-lime/10 text-neon-lime border border-neon-lime/30 p-4 rounded-xl text-xs font-semibold">
+          <div className="bg-neon-lime/10 text-neon-lime border border-neon-lime/30 p-3 sm:p-4 rounded-xl text-xs font-semibold break-words">
             {successMessage} Redirecting to login...
           </div>
         )}
 
         {errorMessage && (
-          <div className="bg-red-500/20 text-red-400 border border-red-500/30 p-4 rounded-xl text-xs font-semibold">
+          <div className="bg-red-500/20 text-red-400 border border-red-500/30 p-3 sm:p-4 rounded-xl text-xs font-semibold break-words">
             {errorMessage}
           </div>
         )}
@@ -88,7 +88,7 @@ export function ResetPasswordPage() {
               required
               minLength={8}
               placeholder="••••••••"
-              className="bg-surface-border/30 border border-surface-border text-white text-sm rounded-xl p-3 focus:outline-none focus:border-neon-lime transition-colors"
+              className="bg-surface-border/30 border border-surface-border text-white text-sm rounded-xl p-3 min-h-[44px] focus:outline-none focus:border-neon-lime transition-colors w-full"
             />
           </div>
 
@@ -103,14 +103,14 @@ export function ResetPasswordPage() {
               required
               minLength={8}
               placeholder="••••••••"
-              className="bg-surface-border/30 border border-surface-border text-white text-sm rounded-xl p-3 focus:outline-none focus:border-neon-lime transition-colors"
+              className="bg-surface-border/30 border border-surface-border text-white text-sm rounded-xl p-3 min-h-[44px] focus:outline-none focus:border-neon-lime transition-colors w-full"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 bg-neon-lime text-midnight font-neovision font-bold py-3.5 rounded-xl hover:opacity-90 transition-opacity cursor-pointer uppercase tracking-wider disabled:opacity-50"
+            className="mt-2 w-full bg-neon-lime text-midnight font-neovision font-bold py-3.5 min-h-[44px] rounded-xl hover:opacity-90 transition-opacity cursor-pointer uppercase tracking-wider disabled:opacity-50"
           >
             {loading ? "Resetting..." : "Reset Password"}
           </button>
@@ -119,7 +119,7 @@ export function ResetPasswordPage() {
         <div className="text-center pt-2">
           <Link
             to="/login"
-            className="text-xs text-gray-400 hover:text-white transition-colors"
+            className="text-xs text-gray-400 hover:text-white transition-colors inline-flex items-center min-h-[44px] px-2"
           >
             &larr; Back to Sign In
           </Link>

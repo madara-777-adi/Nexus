@@ -16,49 +16,64 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-midnight text-white flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
-      {/* AUTH CONTAINER CARD */}
-      <div className="w-full max-w-4xl bg-surface border border-surface-border rounded-3xl shadow-2xl overflow-hidden min-h-[520px] flex flex-col md:flex-row relative">
-        {/* SLIDING COLOR PANEL OVERLAY (Shuffles Right-to-Left) */}
+    <div className="min-h-screen bg-midnight text-white flex flex-col items-center justify-center px-4 sm:px-6 py-6 sm:py-8 relative overflow-x-hidden overflow-y-auto font-sans">
+      {/* AUTH CONTAINER CARD
+          Mobile/Tablet (< lg): single-column form card only.
+          Desktop (>= lg): dual-panel with sliding lime overlay. */}
+      <div className="w-full max-w-md lg:max-w-4xl bg-surface border border-surface-border rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden lg:min-h-[520px] flex flex-col lg:flex-row relative">
+        {/* SLIDING COLOR PANEL OVERLAY — desktop only */}
         <div
-          className={`hidden md:block absolute top-0 right-0 w-1/2 h-full bg-neon-lime rounded-3xl z-20 transition-transform duration-500 ease-in-out will-change-[transform] ${
+          className={`hidden lg:block absolute top-0 right-0 w-1/2 h-full bg-neon-lime rounded-3xl z-20 transition-transform duration-500 ease-in-out will-change-[transform] ${
             isSwitching ? "-translate-x-full" : "translate-x-0"
           }`}
         />
 
         {/* LEFT PANEL: Login Form Content */}
         <div
-          className={`w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center bg-surface text-white z-10 transition-all duration-500 ease-in-out will-change-[transform,opacity] ${
+          className={`w-full lg:w-1/2 p-5 sm:p-8 lg:p-12 flex flex-col justify-center bg-surface text-white z-10 transition-all duration-500 ease-in-out will-change-[transform,opacity] ${
             isSwitching
               ? "opacity-20 translate-x-6"
               : "opacity-100 translate-x-0"
           }`}
         >
           <LoginForm />
+
+          {/* Mobile/Tablet secondary nav — replaces desktop banner CTA */}
+          <div className="mt-6 pt-5 border-t border-surface-border lg:hidden text-center">
+            <p className="text-xs text-gray-400">
+              New here?{" "}
+              <button
+                type="button"
+                onClick={handleSwitchToRegister}
+                disabled={isSwitching}
+                className="text-neon-lime font-semibold hover:underline transition-all cursor-pointer min-h-[44px] inline-flex items-center px-1"
+              >
+                Create Account
+              </button>
+            </p>
+          </div>
         </div>
 
-        {/* RIGHT PANEL: Banner Content (Above Sliding Overlay) */}
+        {/* RIGHT PANEL: Banner Content — desktop only */}
         <div
-          className={`w-full md:w-1/2 p-8 md:p-12 flex flex-col items-center justify-center text-center gap-4 text-midnight z-30 transition-all duration-500 ease-in-out will-change-[transform,opacity] ${
+          className={`hidden lg:flex w-1/2 p-8 lg:p-12 flex-col items-center justify-center text-center gap-4 text-midnight z-30 transition-all duration-500 ease-in-out will-change-[transform,opacity] ${
             isSwitching
               ? "opacity-0 -translate-x-6"
               : "opacity-100 translate-x-0"
           }`}
         >
-          <span className="font-merkur text-xl text-midnight/80">
-            New Here?
-          </span>
+          <span className="font-merkur text-xl text-midnight/80">New Here?</span>
           <h2 className="font-neovision text-4xl font-bold tracking-wider">
             CREATE ACCOUNT!
           </h2>
           <p className="text-sm text-midnight/80 max-w-xs leading-relaxed">
-            Sign up if you don't have an account yet and start exploring
+            Sign up if you don&apos;t have an account yet and start exploring
             NexusSpace.
           </p>
           <button
             onClick={handleSwitchToRegister}
             disabled={isSwitching}
-            className="mt-4 border-2 border-midnight text-midnight font-neovision font-bold px-8 py-3 rounded-full hover:bg-midnight hover:text-neon-lime transition-all cursor-pointer uppercase tracking-wider"
+            className="mt-4 border-2 border-midnight text-midnight font-neovision font-bold px-8 py-3 rounded-full hover:bg-midnight hover:text-neon-lime transition-all cursor-pointer uppercase tracking-wider min-h-[44px]"
           >
             Sign Up
           </button>
