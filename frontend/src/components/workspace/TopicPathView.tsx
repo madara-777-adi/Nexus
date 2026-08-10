@@ -86,8 +86,8 @@ export function TopicPathView({
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-[#080A0F] p-6 md:p-10">
-      <div className="max-w-3xl mx-auto flex flex-col gap-6 pt-16">
+    <div className="h-full w-full overflow-y-auto bg-[#080A0F] p-4 sm:p-6 md:p-10">
+      <div className="max-w-3xl mx-auto flex flex-col gap-4 sm:gap-6 pt-28 sm:pt-16">
         <div className="border-b border-gray-800/80 pb-4">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-[#00E5FF]">
             1st Pillars
@@ -133,9 +133,9 @@ export function TopicPathView({
                     onSelectUnit(concept);
                   }
                 }}
-                className={`group relative flex items-center justify-between rounded-xl border p-5 transition-all duration-200 ${cardStyle}`}
+                className={`group relative flex flex-col sm:flex-row sm:items-center justify-between rounded-xl border p-4 sm:p-5 transition-all duration-200 gap-4 sm:gap-0 ${cardStyle}`}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-start sm:items-center gap-3 sm:gap-4">
                   {/* Step Number Badge */}
                   <div
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-semibold ${badgeStyle}`}
@@ -144,8 +144,8 @@ export function TopicPathView({
                   </div>
 
                   {/* Topic Details */}
-                  <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2.5">
+                  <div className="flex flex-col gap-1 sm:gap-0.5">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
                       <h3
                         className={`text-sm font-medium transition-colors ${
                           isLocked
@@ -165,7 +165,7 @@ export function TopicPathView({
                     </div>
 
                     {concept.description && (
-                      <p className="text-xs text-gray-400 line-clamp-1 font-normal">
+                      <p className="text-xs text-gray-400 line-clamp-1 font-normal break-words whitespace-normal">
                         {concept.description}
                       </p>
                     )}
@@ -173,7 +173,7 @@ export function TopicPathView({
                 </div>
 
                 {/* Right Indicator / Mastery Score */}
-                <div className="flex items-center gap-3 pl-4">
+                <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pl-12 sm:pl-4 pt-1 sm:pt-0">
                   {!isLocked && (
                     <div className="text-right">
                       <span className="block text-[10px] font-mono text-gray-500 uppercase">

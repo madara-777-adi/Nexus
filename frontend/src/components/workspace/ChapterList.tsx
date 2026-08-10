@@ -29,8 +29,8 @@ export function ChapterList({
   onGenerateChapters,
 }: ChapterListProps) {
   return (
-    <div className="h-full w-full overflow-y-auto bg-[#080A0F] p-6 md:p-10">
-      <div className="max-w-3xl mx-auto flex flex-col gap-6 pt-16">
+    <div className="h-full w-full overflow-y-auto bg-[#080A0F] p-4 sm:p-6 md:p-10">
+      <div className="max-w-3xl mx-auto flex flex-col gap-4 sm:gap-6 pt-28 sm:pt-16">
         <div className="border-b border-gray-800/80 pb-4">
           <button
             onClick={onBackToUnits}
@@ -69,22 +69,22 @@ export function ChapterList({
                 <div
                   key={chapter.id}
                   onClick={() => onSelectChapter(chapter)}
-                  className="group relative flex items-center justify-between rounded-xl border border-gray-800 bg-[#12141A] p-5 text-gray-200 transition-all duration-200 hover:border-[#00E5FF]/60 cursor-pointer"
+                  className="group relative flex flex-col sm:flex-row sm:items-center justify-between rounded-xl border border-gray-800 bg-[#12141A] p-4 sm:p-5 text-gray-200 transition-all duration-200 hover:border-[#00E5FF]/60 cursor-pointer gap-4 sm:gap-0"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-start sm:items-center gap-3 sm:gap-4">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#00E5FF]/10 font-mono text-xs font-semibold text-[#00E5FF]">
                       {chapter.order}
                     </div>
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-1 sm:gap-0.5">
                       <h3 className="text-sm font-medium text-white transition-colors group-hover:text-[#00E5FF]">
                         {chapter.title}
                       </h3>
                       {chapter.description && (
-                        <p className="line-clamp-1 text-xs font-normal text-gray-400">
+                        <p className="line-clamp-2 sm:line-clamp-1 text-xs font-normal text-gray-400 break-words whitespace-normal">
                           {chapter.description}
                         </p>
                       )}
-                      <div className="mt-0.5 flex items-center gap-3 font-mono text-[10px] text-gray-500">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3 font-mono text-[10px] text-gray-500">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" /> {chapter.estimatedMinutes}{" "}
                           min
@@ -111,7 +111,7 @@ export function ChapterList({
                       </div>
                     </div>
                   </div>
-                  <div className="text-gray-500 transition-colors group-hover:text-white">
+                  <div className="flex justify-end w-full sm:w-auto text-gray-500 transition-colors group-hover:text-white pl-12 sm:pl-4">
                     <ChevronRight className="h-4 w-4 text-[#00E5FF] transition-transform duration-200 group-hover:translate-x-0.5" />
                   </div>
                 </div>
