@@ -80,13 +80,10 @@ export const getLearningExperience = async (
  * EVALUATION & PLANNING
  */
 export const evaluateSubmission = async (payload: {
-  /**
-   * @deprecated The evaluator schema does not accept workspaceId (it is stripped
-   * server-side). Retained as optional only for the unmigrated TeacherStudio
-   * caller; new callers must not send it.
-   */
   workspaceId?: string;
   conceptId: string;
+  chapterId: string;
+  lessonId: string;
   conceptTitle: string;
   questions: QuizQuestion[];
   learnerAnswers: Array<{

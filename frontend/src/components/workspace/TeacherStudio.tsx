@@ -125,6 +125,8 @@ export function TeacherStudio({
 
       const result = await evaluateSubmission({
         conceptId,
+        chapterId: chapterId!,
+        lessonId,
         conceptTitle,
         questions: quizQuestions,
         learnerAnswers,
@@ -136,7 +138,9 @@ export function TeacherStudio({
       // unvalidated AI output.
       const masteryScore =
         (result.progress as { masteryScore?: number } | undefined)
-          ?.masteryScore ?? result.evaluation?.mastery ?? 0;
+          ?.masteryScore ??
+        result.evaluation?.mastery ??
+        0;
       setEvaluationScore(masteryScore);
 
       if (onProgressUpdated) {
@@ -168,7 +172,7 @@ export function TeacherStudio({
           >
             <ChevronLeft className="h-4 w-4 shrink-0" /> Back to Workspace
           </button>
-          
+
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 truncate max-w-[200px]">
               {workspaceTitle || "Workspace"}
@@ -195,8 +199,10 @@ export function TeacherStudio({
               onClick={() => setIsDeckOpen(true)}
               className="flex flex-1 sm:flex-none justify-center items-center gap-1.5 rounded-lg border border-[#BCFF3C]/40 bg-[#BCFF3C]/10 px-2.5 py-2 sm:py-1.5 text-xs font-semibold text-[#BCFF3C] hover:bg-[#BCFF3C]/20 transition-colors cursor-pointer min-h-[36px]"
             >
-              <Layers className="h-3.5 w-3.5 shrink-0" /> <span className="whitespace-nowrap">Active Recall (
-              {flashcards.length})</span>
+              <Layers className="h-3.5 w-3.5 shrink-0" />{" "}
+              <span className="whitespace-nowrap">
+                Active Recall ({flashcards.length})
+              </span>
             </button>
           )}
 
