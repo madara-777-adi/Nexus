@@ -162,14 +162,16 @@ class LearningService {
     if (session) progressQuery = progressQuery.session(session);
     const progress = await progressQuery;
 
-    if (progress?.status === ConceptStatus.UNLOCKED) {
+    if (progress && progress.status !== ConceptStatus.LOCKED) {
       await this.ensureFirstLessonProgressUnlocked(
         userObjectId,
         concept,
         session,
       );
     }
+
   }
+
 
   async initializeWorkspaceProgress(
     workspaceId: string,
