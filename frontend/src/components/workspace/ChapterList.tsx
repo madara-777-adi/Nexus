@@ -40,6 +40,10 @@ export function ChapterList({
   const isChapterAccessible = (chapter: IConceptTopic): boolean => {
     if (!chapter.lessons || chapter.lessons.length === 0) {
       // No lessons yet — chapter cannot be accessed via lesson progress
+    // V1 Patch: First chapter of unit is always accessible if unit exists and is not locked
+    const sortedChapters = [...chapters].sort((a, b) => a.order - b.order);
+    if (chapter.id === sortedChapters[0]?.id) return true;
+
       return false;
     }
     // Find first lesson by order (without mutating the array)
