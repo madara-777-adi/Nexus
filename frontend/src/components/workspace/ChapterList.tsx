@@ -38,14 +38,17 @@ export function ChapterList({
    * Missing progress record = LOCKED.
    */
   const isChapterAccessible = (chapter: IConceptTopic): boolean => {
-    if (!chapter.lessons || chapter.lessons.length === 0) {
-      // No lessons yet — chapter cannot be accessed via lesson progress
-    // V1 Patch: First chapter of unit is always accessible if unit exists and is not locked
+    // V1 Patch: First chapter of unit is always accessible if the unit is accessible.
+    // This allows the JIT generation to proceed for the first lesson path without
+    // requiring lesson progress that doesn't exist yet.
     const sortedChapters = [...chapters].sort((a, b) => a.order - b.order);
     if (chapter.id === sortedChapters[0]?.id) return true;
 
+    if (!chapter.lessons || chapter.lessons.length === 0) {
+      // No lessons yet for subsequent chapters — cannot be accessed yet
       return false;
     }
+
     // Find first lesson by order (without mutating the array)
     const sortedLessons = [...chapter.lessons].sort((a, b) => a.order - b.order);
     const firstLesson = sortedLessons[0];
@@ -53,8 +56,10 @@ export function ChapterList({
 
     const key = `${unit.conceptId}:${chapter.id}:${firstLesson.id}`;
     const progress = lessonProgressMap.get(key);
+
     // Missing progress = LOCKED
     if (!progress) return false;
+
     return (
       progress.status === "UNLOCKED" ||
       progress.status === "IN_PROGRESS" ||

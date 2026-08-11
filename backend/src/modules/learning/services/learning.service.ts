@@ -181,19 +181,16 @@ class LearningService {
       workspaceId,
       userObjectId,
     );
-    const concepts = await ConceptModel.find({ workspace: workspace._id });
+    const concepts = await ConceptModel.find({ workspace: workspace._id }).sort({ order: 1 });
     const progressRecords: ILearningProgress[] = [];
 
-    for (const concept of concepts) {
-      const hasPrerequisites = await RelationshipModel.exists({
-        workspace: workspace._id,
-        targetConcept: concept._id,
-        type: RelationshipType.DEPENDS_ON,
-      });
+    for (let i = 0; i < concepts.length; i++) {
+      const concept = concepts[i];
 
-      const initialStatus = hasPrerequisites
-        ? ConceptStatus.LOCKED
-        : ConceptStatus.UNLOCKED;
+      // V1 Bootstrap explicit patch: FIRST unit by order is UNLOCKED.
+      // Everything else remains strictly LOCKED until progression tests are passed.
+      const initialStatus =
+        i === 0 ? ConceptStatus.UNLOCKED : ConceptStatus.LOCKED;
 
       let progress = await LearningProgressModel.findOne({
         user: userObjectId,

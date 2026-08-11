@@ -383,6 +383,8 @@ export function WorkspacePage() {
 
   const handleGenerateChapters = useCallback(() => {
     if (selectedUnit) {
+      // Optional cleanup: Guard against unnecessary re-generation of chapters.
+      if (selectedUnit.topics && selectedUnit.topics.length > 0) return;
       generateChaptersForUnit(selectedUnit);
     }
   }, [selectedUnit, generateChaptersForUnit]);
@@ -466,6 +468,7 @@ export function WorkspacePage() {
 
   const handleGenerateLessons = useCallback(() => {
     if (selectedUnit && selectedChapter) {
+      if (selectedChapter.lessons && selectedChapter.lessons.length > 0) return;
       generateLessonsForChapter(selectedUnit, selectedChapter);
     }
   }, [selectedUnit, selectedChapter, generateLessonsForChapter]);
