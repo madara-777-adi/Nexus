@@ -191,8 +191,13 @@ export function WorkspacePage() {
           workspaceId,
         );
         if (signal.aborted) return;
+        // Defensive: the progress payload can come back as a 204-like empty
+        // response or otherwise non-array. Never let the refresh throw on
+        // .forEach — an empty array degrades to "no progress yet" instead of a
+        // stale, frozen progressMap.
+        const safeProgress = Array.isArray(progressData) ? progressData : [];
         const pMap = new Map<string, ILearningProgress>();
-        progressData.forEach((item) => {
+        safeProgress.forEach((item) => {
           if (item.concept?.conceptId) {
             pMap.set(item.concept.conceptId, item);
           }
@@ -255,8 +260,11 @@ export function WorkspacePage() {
         const progressData: ILearningProgress[] = await getWorkspaceProgress(
           workspaceId,
         );
+        // Defensive: same guard as loadConcepts — an empty/204-like payload
+        // must not crash the post-submit / post-generation refresh path.
+        const safeProgress = Array.isArray(progressData) ? progressData : [];
         const pMap = new Map<string, ILearningProgress>();
-        progressData.forEach((item) => {
+        safeProgress.forEach((item) => {
           if (item.concept?.conceptId) {
             pMap.set(item.concept.conceptId, item);
           }

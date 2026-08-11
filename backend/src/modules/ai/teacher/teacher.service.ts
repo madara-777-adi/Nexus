@@ -609,11 +609,7 @@ export class TeacherService {
         order: i + 1,
         isUnlocked: i === 0,
         isMastered: false,
-        topics: await this.generateTopicsForModule({
-          conceptTitle: mod.title,
-          conceptDescription: mod.description,
-          workspaceContext: { workspaceTitle: context.workspaceTitle },
-        }),
+        topics: [],
       });
 
       createdConcepts.push(concept);
@@ -622,65 +618,6 @@ export class TeacherService {
     return createdConcepts;
   }
 
-  /**
-   * Populates a newly-created concept's `topics` (subtopics) using the
-   * existing (previously unused) generateTopics() pipeline, so every module
-   * is created with real, navigable subtopics instead of an empty array.
-   *
-   * Previously there was no route wired to Tier 2, so concepts were always
-   * created with `topics: []`, which made it impossible for the frontend to
-   * obtain a valid `subtopicId` for navigating the chapter hierarchy.
-   * Generating topics inline here, as part of Tier 1 module creation,
-   * closes that gap without changing the `/teacher/tier1-modules` response
-   * contract — concepts already declared a `topics: ITopic[]` field, this
-   * just actually populates it.
-   *
-   * Falls back to a single generic topic (rather than failing the whole
-   * Tier 1 request) if topic generation fails for one module, matching the
-   * fallback approach already used for Tier 1 itself.
-   */
-  private async generateTopicsForModule(context: {
-    conceptTitle: string;
-    conceptDescription?: string;
-    workspaceContext: { workspaceTitle: string };
-  }): Promise<
-    Array<{
-      id: string;
-      title: string;
-      description: string;
-      order: number;
-      estimatedMinutes: number;
-      generationStatus: "PENDING" | "COMPLETED";
-    }>
-  > {
-    try {
-      const { topics } = await this.generateTopics(context);
-      return topics.map((topic, index) => ({
-        id: `topic_${generateUserId()}`,
-        title: topic.title,
-        description: topic.description,
-        order: index + 1,
-        estimatedMinutes: topic.estimatedMinutes,
-        generationStatus: "COMPLETED" as const,
-      }));
-    } catch (err) {
-      console.error(
-        `[TeacherService] Tier 2 topic generation failed for module "${context.conceptTitle}". Applying single-topic fallback.`,
-        err,
-      );
-      return [
-        {
-          id: `topic_${generateUserId()}`,
-          title: `Introduction to ${context.conceptTitle}`,
-          description: context.conceptDescription || context.conceptTitle,
-          order: 1,
-          estimatedMinutes: 15,
-          generationStatus: "COMPLETED" as const,
-        },
-      ];
-    }
   }
-
-}
 
 export const teacherService = new TeacherService();

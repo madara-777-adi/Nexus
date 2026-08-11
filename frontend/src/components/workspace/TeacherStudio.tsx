@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import { isAxiosError } from "axios";
 import { getLearningExperience, evaluateSubmission } from "../../api/ai.api";
 import { ActiveRecallModal } from "./ActiveRecallModal";
@@ -299,6 +302,8 @@ export function TeacherStudio({
                     />
                   ),
                 }}
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
               >
                 {markdownContent}
               </ReactMarkdown>

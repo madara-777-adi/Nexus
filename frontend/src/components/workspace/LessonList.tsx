@@ -95,13 +95,15 @@ export function LessonList({
                       <span
                         className={`rounded border px-1.5 py-0.5 uppercase tracking-wider ${
                           lesson.generationStatus === "COMPLETED"
-                            ? "border-[#BCFF3C]/30 bg-[#BCFF3C]/10 text-[#BCFF3C]"
+                            ? "border-gray-700 bg-gray-800/60 text-gray-300"
                             : lesson.generationStatus === "FAILED"
                               ? "border-red-500/30 bg-red-500/10 text-red-400"
                               : "border-gray-800 bg-gray-800/60 text-gray-500"
                         }`}
                       >
-                        {lesson.generationStatus}
+                        {lesson.generationStatus === "COMPLETED"
+                          ? "Ready"
+                          : lesson.generationStatus}
                       </span>
                     </div>
                   </div>

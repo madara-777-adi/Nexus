@@ -156,14 +156,56 @@ export function buildLearningExperiencePrompt(context: {
 Generate a deep, comprehensive learning experience payload specifically for the lesson "${context.lessonTitle}" (Chapter: "${context.chapterTitle}", Unit: "${context.moduleTitle}", Course: "${context.workspaceTitle}").
 ${difficultyInfo}
 
+INSTRUCTIONAL STRUCTURE REQUIREMENTS:
+The markdownContent MUST follow this progression where applicable:
+
+1. CONCEPT / MENTAL MODEL
+   Open with a clear, technical explanation of what the concept is. Define it precisely using domain-appropriate terminology.
+
+2. WHY IT MATTERS
+   Explain why the learner needs to understand this concept and where it is used in practice.
+
+3. HOW IT WORKS
+   Explain the underlying mechanism, reasoning, or process. Do not stop at a dictionary definition — show the internal logic.
+
+4. CONCRETE EXAMPLE
+   Include a realistic, domain-appropriate example that illustrates the concept in action.
+
+5. TECHNICAL / PRACTICAL EXAMPLE
+   Where the subject permits, demonstrate the concept using a technical, engineering, mathematical, code, system-design, or domain-specific example. If a technical example is not appropriate for the subject, use a rigorous domain-appropriate concrete example instead.
+
+6. COMMON MISCONCEPTION
+   Identify at least one likely misunderstanding and explicitly correct it. Contrast with closely related concepts if confusion is likely.
+
+7. PRACTICAL APPLICATION
+   Explain when and where the learner would actually apply this concept in real work or study.
+
+8. SUMMARY
+   End with a concise synthesis that ties the concept together.
+
+CONTENT QUALITY RULES:
+- Prioritize correctness and instructional clarity over brevity.
+- Do not pad with repetitive prose or generic filler (e.g., "in today's world", "it is important to note").
+- Do not repeat the lesson title as explanation.
+- Do not restate the same idea in multiple paragraphs.
+- Use examples directly relevant to this specific lesson.
+- Preserve curriculum scope: do not teach unrelated concepts merely to lengthen content.
+- Respect the stated learning objectives.
+- Use prerequisite knowledge explicitly when explaining the concept.
+- If code/example is appropriate, make it technically meaningful, not decorative.
+
+REPETITION CONTROL (Sibling Lesson Awareness):
+You are generating content ONLY for "${context.lessonTitle}". Neighboring lessons in this chapter cover different topics. Do not duplicate material that belongs to sibling lessons. Focus exclusively on this lesson's own learning objectives.
+
 STRICT GENERATION RULES FOR HIGH DENSITY CONTENT:
-1. "markdownContent": Must be a deep, detailed educational guide (300-500 words) specifically for the lesson "${context.lessonTitle}". Use standard Markdown formatting with headers (##, ###), bold text (**concept**), code blocks, and bullet points. Do NOT generate content for an entire chapter or sibling lessons.
+- Any mathematical expression must use standard Markdown math delimiters: Inline: $...$ | Block: $$...$$. Do not use raw LaTeX commands as ordinary prose.
+1. "markdownContent": Must be a deep, detailed educational guide (400-700 words) following the instructional structure above. Use standard Markdown formatting with headers (##, ###), bold text (**concept**), code blocks, and bullet points. Do NOT generate content for an entire chapter or sibling lessons.
 2. "flashcards": Create 4 to 6 active-recall questions focusing on "why" and "how" specifically for "${context.lessonTitle}". NO trivial definitions.
 3. "quiz": Create 3 challenging diagnostic questions with 4 options and an accurate answerIndex for "${context.lessonTitle}".
 
 Return JSON matching this exact structure:
 {
-  "markdownContent": "## Overview\\n\\nDetailed content...",
+  "markdownContent": "## Concept\\n\\n...\\n\\n## Why It Matters\\n\\n...\\n\\n## How It Works\\n\\n...\\n\\n## Concrete Example\\n\\n...\\n\\n## Technical Example\\n\\n...\\n\\n## Common Misconception\\n\\n...\\n\\n## Practical Application\\n\\n...\\n\\n## Summary\\n\\n...",
   "flashcards": [
     {
       "front": "Question prompt?",
