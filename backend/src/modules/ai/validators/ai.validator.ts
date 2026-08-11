@@ -79,6 +79,8 @@ export const teacherStreamSchema = z.object({
 export const evaluatorSchema = z.object({
   body: z.object({
     conceptId: shortId,
+    chapterId: shortId,
+    lessonId: shortId,
     conceptTitle: titleText,
     questions: z
       .array(z.any())

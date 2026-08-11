@@ -3,6 +3,7 @@ import LearningProgressModel, {
   ILearningProgress,
   ConceptStatus,
 } from "../models/learning-progress.model";
+import LessonProgressModel from "../models/lesson-progress.model";
 import ConceptModel from "../../concept/models/concept.model";
 import RelationshipModel, {
   RelationshipType,
@@ -13,10 +14,6 @@ import { NotFoundError } from "../../../shared/errors/NotFoundError";
 import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
 
 class LearningService {
-  /**
-   * Helper to execute database operations inside a Mongo transaction when supported (Replica Sets / Atlas),
-   * falling back cleanly to non-transactional execution for standalone MongoDB setups (local dev).
-   */
   private async executeWithTransactionFallback<T>(
     operation: (session: ClientSession | null) => Promise<T>,
   ): Promise<T> {
@@ -60,7 +57,64 @@ class LearningService {
     return workspace;
   }
 
-  // Bootstrap initial learning state when entering a workspace
+  private async ensureFirstLessonProgressUnlocked(
+    userObjectId: Types.ObjectId,
+    concept: {
+      workspace: Types.ObjectId;
+      _id: Types.ObjectId;
+      topics?: Array<{
+        id: string;
+        order: number;
+        lessons?: Array<{ id: string; order: number }>;
+      }>;
+    },
+    session: ClientSession | null,
+  ): Promise<void> {
+    const sortedChapters = [...(concept.topics ?? [])].sort(
+      (a, b) => a.order - b.order,
+    );
+    const firstChapter = sortedChapters[0];
+    if (!firstChapter) return;
+
+    const firstLesson = [...(firstChapter.lessons ?? [])].sort(
+      (a, b) => a.order - b.order,
+    )[0];
+    if (!firstLesson) return;
+
+    let query = LessonProgressModel.findOne({
+      user: userObjectId,
+      workspace: concept.workspace,
+      concept: concept._id,
+      chapterId: firstChapter.id,
+      lessonId: firstLesson.id,
+    });
+    if (session) query = query.session(session);
+
+    const existing = await query;
+
+    if (!existing) {
+      const created = new LessonProgressModel({
+        user: userObjectId,
+        workspace: concept.workspace,
+        concept: concept._id,
+        chapterId: firstChapter.id,
+        lessonId: firstLesson.id,
+        status: ConceptStatus.UNLOCKED,
+        masteryScore: 0,
+        attemptsCount: 0,
+      });
+      if (session) await created.save({ session });
+      else await created.save();
+      return;
+    }
+
+    if (existing.status === ConceptStatus.LOCKED) {
+      existing.status = ConceptStatus.UNLOCKED;
+      if (session) await existing.save({ session });
+      else await existing.save();
+    }
+  }
+
   async initializeWorkspaceProgress(
     workspaceId: string,
     userObjectId: Types.ObjectId,
@@ -73,14 +127,12 @@ class LearningService {
     const progressRecords: ILearningProgress[] = [];
 
     for (const concept of concepts) {
-      // Check if node has incoming DEPENDS_ON prerequisites within this workspace
       const hasPrerequisites = await RelationshipModel.exists({
         workspace: workspace._id,
         targetConcept: concept._id,
         type: RelationshipType.DEPENDS_ON,
       });
 
-      // Root concepts (zero prerequisites) default to UNLOCKED
       const initialStatus = hasPrerequisites
         ? ConceptStatus.LOCKED
         : ConceptStatus.UNLOCKED;
@@ -107,13 +159,20 @@ class LearningService {
         });
       }
 
+      if (progress.status === ConceptStatus.UNLOCKED) {
+        await this.ensureFirstLessonProgressUnlocked(
+          userObjectId,
+          concept,
+          null,
+        );
+      }
+
       progressRecords.push(progress);
     }
 
     return progressRecords;
   }
 
-  // Retrieve complete progression state for a workspace
   async getWorkspaceProgress(
     workspaceId: string,
     userObjectId: Types.ObjectId,
@@ -129,7 +188,6 @@ class LearningService {
     }).populate("concept", "conceptId title level");
   }
 
-  // RC-005 Patch 3: Atomic Evaluation & Unlock Cascade Transaction with Standalone Fallback
   async recordEvaluationResult(
     conceptId: string,
     userObjectId: Types.ObjectId,
@@ -138,7 +196,6 @@ class LearningService {
     const concept = await ConceptModel.findOne({ conceptId });
     if (!concept) throw new NotFoundError("Target concept not found.");
 
-    // RC-004 / Audit Fix: Ensure user owns parent workspace using ObjectId
     const workspace = await Workspace.findById(concept.workspace);
     if (!workspace) throw new NotFoundError("Parent workspace not found.");
     if (!workspace.owner.equals(userObjectId)) {
@@ -180,7 +237,6 @@ class LearningService {
       progress.attemptsCount += 1;
       progress.lastEvaluatedAt = new Date();
 
-      // Deterministic Progression Rule
       const PASSING_THRESHOLD = 80;
       if (masteryScore >= PASSING_THRESHOLD) {
         progress.status = ConceptStatus.MASTERED;
@@ -199,7 +255,6 @@ class LearningService {
 
       let unlockedDownstreamIds: string[] = [];
 
-      // Trigger graph cascade traversal if this node reached MASTERED
       if (progress.status === ConceptStatus.MASTERED) {
         unlockedDownstreamIds = await this.evaluateAndUnlockDownstreamNodes(
           concept.workspace,
@@ -216,14 +271,339 @@ class LearningService {
     });
   }
 
-  // Graph Traversal: Unlocks downstream nodes ONLY when all required prerequisites are MASTERED (Session-Aware)
+  async recordLessonEvaluationResult(
+    conceptId: string,
+    chapterId: string,
+    lessonId: string,
+    userObjectId: Types.ObjectId,
+    masteryScore: number,
+  ) {
+    const concept = await ConceptModel.findOne({ conceptId });
+    if (!concept) throw new NotFoundError("Target concept not found.");
+
+    const workspace = await Workspace.findById(concept.workspace);
+    if (!workspace) throw new NotFoundError("Parent workspace not found.");
+    if (!workspace.owner.equals(userObjectId)) {
+      throw new ForbiddenError(
+        "You do not have access to record evaluations in this workspace.",
+      );
+    }
+
+    const chapter = concept.topics?.find((topic) => topic.id === chapterId);
+    if (!chapter) {
+      throw new NotFoundError("Target chapter not found in this concept.");
+    }
+
+    const lessons = chapter.lessons ?? [];
+    const lessonIndex = lessons.findIndex((lesson) => lesson.id === lessonId);
+    if (lessonIndex === -1) {
+      throw new NotFoundError("Target lesson not found in this chapter.");
+    }
+
+    return await this.executeWithTransactionFallback(async (session) => {
+      let progressQuery = LessonProgressModel.findOne({
+        user: userObjectId,
+        workspace: concept.workspace,
+        concept: concept._id,
+        chapterId,
+        lessonId,
+      });
+      if (session) progressQuery = progressQuery.session(session);
+      let progress = await progressQuery;
+
+      if (!progress) {
+        let conceptProgressQuery = LearningProgressModel.findOne({
+          user: userObjectId,
+          workspace: concept.workspace,
+          concept: concept._id,
+        });
+        if (session) conceptProgressQuery = conceptProgressQuery.session(session);
+
+        const conceptProgress = await conceptProgressQuery;
+
+        const sortedChapters = [...(concept.topics ?? [])].sort(
+          (a, b) => a.order - b.order,
+        );
+        const firstChapter = sortedChapters[0];
+        const firstLesson = firstChapter
+          ? [...(firstChapter.lessons ?? [])].sort(
+              (a, b) => a.order - b.order,
+            )[0]
+          : undefined;
+
+        const isInitialLesson =
+          conceptProgress?.status === ConceptStatus.UNLOCKED &&
+          firstChapter?.id === chapterId &&
+          firstLesson?.id === lessonId;
+
+        if (!isInitialLesson) {
+          throw new ForbiddenError("This lesson has not been unlocked yet.");
+        }
+
+        progress = new LessonProgressModel({
+          user: userObjectId,
+          workspace: concept.workspace,
+          concept: concept._id,
+          chapterId,
+          lessonId,
+          status: ConceptStatus.UNLOCKED,
+          masteryScore: 0,
+          attemptsCount: 0,
+        });
+      } else if (progress.status === ConceptStatus.LOCKED) {
+        throw new ForbiddenError("This lesson has not been unlocked yet.");
+      }
+
+      progress.masteryScore = masteryScore;
+      progress.attemptsCount += 1;
+      progress.lastEvaluatedAt = new Date();
+
+      const PASSING_THRESHOLD = 80;
+      if (masteryScore >= PASSING_THRESHOLD) {
+        progress.status = ConceptStatus.MASTERED;
+      } else if (progress.status !== ConceptStatus.MASTERED) {
+        progress.status = ConceptStatus.IN_PROGRESS;
+      }
+
+      if (session) {
+        await progress.save({ session });
+      } else {
+        await progress.save();
+      }
+
+      let unlockedDownstreamIds: string[] = [];
+      let chapterMastered = false;
+
+      if (progress.status === ConceptStatus.MASTERED) {
+        const nextLesson = lessons[lessonIndex + 1];
+
+        if (nextLesson) {
+          await this.unlockLessonProgress(
+            userObjectId,
+            concept,
+            chapterId,
+            nextLesson.id,
+            session,
+          );
+        } else {
+          chapterMastered = await this.isChapterFullyMastered(
+            userObjectId,
+            concept,
+            chapterId,
+            lessons,
+            session,
+          );
+
+          if (chapterMastered) {
+            const sortedChapters = [...(concept.topics ?? [])].sort(
+              (a, b) => a.order - b.order,
+            );
+            const chapterPos = sortedChapters.findIndex(
+              (topic) => topic.id === chapterId,
+            );
+            const nextChapter = sortedChapters[chapterPos + 1];
+
+            if (nextChapter) {
+              const nextChapterLessons = [...(nextChapter.lessons ?? [])].sort(
+                (a, b) => a.order - b.order,
+              );
+              const firstLesson = nextChapterLessons[0];
+
+              if (firstLesson) {
+                await this.unlockLessonProgress(
+                  userObjectId,
+                  concept,
+                  nextChapter.id,
+                  firstLesson.id,
+                  session,
+                );
+              }
+            } else {
+              const conceptFullyMastered = await this.isConceptFullyMastered(
+                userObjectId,
+                concept,
+                session,
+              );
+
+              if (conceptFullyMastered) {
+                unlockedDownstreamIds =
+                  await this.markConceptMasteredFromLessons(
+                    concept,
+                    userObjectId,
+                    session,
+                  );
+              }
+            }
+          }
+        }
+      }
+
+      return {
+        progress,
+        unlockedDownstreamIds,
+        chapterMastered,
+      };
+    });
+  }
+
+  private async unlockLessonProgress(
+    userObjectId: Types.ObjectId,
+    concept: { workspace: Types.ObjectId; _id: Types.ObjectId },
+    chapterId: string,
+    lessonId: string,
+    session: ClientSession | null,
+  ): Promise<void> {
+    let query = LessonProgressModel.findOne({
+      user: userObjectId,
+      workspace: concept.workspace,
+      concept: concept._id,
+      chapterId,
+      lessonId,
+    });
+    if (session) query = query.session(session);
+    const existing = await query;
+
+    if (!existing) {
+      const created = new LessonProgressModel({
+        user: userObjectId,
+        workspace: concept.workspace,
+        concept: concept._id,
+        chapterId,
+        lessonId,
+        status: ConceptStatus.UNLOCKED,
+        masteryScore: 0,
+        attemptsCount: 0,
+      });
+      if (session) await created.save({ session });
+      else await created.save();
+      return;
+    }
+
+    if (existing.status === ConceptStatus.LOCKED) {
+      existing.status = ConceptStatus.UNLOCKED;
+      if (session) await existing.save({ session });
+      else await existing.save();
+    }
+  }
+
+  private async isChapterFullyMastered(
+    userObjectId: Types.ObjectId,
+    concept: { workspace: Types.ObjectId; _id: Types.ObjectId },
+    chapterId: string,
+    lessons: Array<{ id: string }>,
+    session: ClientSession | null,
+  ): Promise<boolean> {
+    if (lessons.length === 0) return false;
+
+    let query = LessonProgressModel.find({
+      user: userObjectId,
+      workspace: concept.workspace,
+      concept: concept._id,
+      chapterId,
+      status: ConceptStatus.MASTERED,
+    });
+    if (session) query = query.session(session);
+    const masteredRecords = await query;
+    const masteredIds = new Set(masteredRecords.map((r) => r.lessonId));
+
+    return lessons.every((lesson) => masteredIds.has(lesson.id));
+  }
+
+  private async isConceptFullyMastered(
+    userObjectId: Types.ObjectId,
+    concept: {
+      workspace: Types.ObjectId;
+      _id: Types.ObjectId;
+      topics?: Array<{ id: string; lessons?: Array<{ id: string }> }>;
+    },
+    session: ClientSession | null,
+  ): Promise<boolean> {
+    const allLessons: Array<{ chapterId: string; lessonId: string }> = [];
+    for (const topic of concept.topics ?? []) {
+      for (const lesson of topic.lessons ?? []) {
+        allLessons.push({ chapterId: topic.id, lessonId: lesson.id });
+      }
+    }
+    if (allLessons.length === 0) return false;
+
+    let query = LessonProgressModel.find({
+      user: userObjectId,
+      workspace: concept.workspace,
+      concept: concept._id,
+      status: ConceptStatus.MASTERED,
+    });
+    if (session) query = query.session(session);
+    const masteredRecords = await query;
+    const masteredKeys = new Set(
+      masteredRecords.map((r) => `${r.chapterId}::${r.lessonId}`),
+    );
+
+    return allLessons.every((l) =>
+      masteredKeys.has(`${l.chapterId}::${l.lessonId}`),
+    );
+  }
+
+  private async markConceptMasteredFromLessons(
+    concept: { workspace: Types.ObjectId; _id: Types.ObjectId },
+    userObjectId: Types.ObjectId,
+    session: ClientSession | null,
+  ): Promise<string[]> {
+    let progressQuery = LearningProgressModel.findOne({
+      user: userObjectId,
+      workspace: concept.workspace,
+      concept: concept._id,
+    });
+    if (session) progressQuery = progressQuery.session(session);
+    let progress = await progressQuery;
+
+    if (!progress) {
+      let progressId: string;
+      do {
+        progressId = `prog_${generateUserId()}`;
+        let existsQuery = LearningProgressModel.exists({ progressId });
+        if (session) existsQuery = existsQuery.session(session);
+        var existsResult = await existsQuery;
+      } while (existsResult);
+
+      progress = new LearningProgressModel({
+        progressId,
+        user: userObjectId,
+        workspace: concept.workspace,
+        concept: concept._id,
+        status: ConceptStatus.IN_PROGRESS,
+        masteryScore: 0,
+      });
+    }
+
+    if (progress.status === ConceptStatus.MASTERED) {
+      return [];
+    }
+
+    progress.status = ConceptStatus.MASTERED;
+    progress.masteryScore = 100;
+    progress.attemptsCount += 1;
+    progress.lastEvaluatedAt = new Date();
+
+    if (session) {
+      await progress.save({ session });
+    } else {
+      await progress.save();
+    }
+
+    return this.evaluateAndUnlockDownstreamNodes(
+      concept.workspace,
+      concept._id,
+      userObjectId,
+      session,
+    );
+  }
+
   private async evaluateAndUnlockDownstreamNodes(
     workspaceObjectId: Types.ObjectId,
     sourceConceptObjectId: Types.ObjectId,
     userObjectId: Types.ObjectId,
     session: ClientSession | null,
   ): Promise<string[]> {
-    // 1. Find all relationships where current concept is DEPENDS_ON prerequisite
     let outgoingQuery = RelationshipModel.find({
       workspace: workspaceObjectId,
       sourceConcept: sourceConceptObjectId,
@@ -237,7 +617,6 @@ class LearningService {
     for (const edge of outgoingEdges) {
       const targetConceptObjectId = edge.targetConcept;
 
-      // 2. Find ALL prerequisite edges targeting downstream node
       let prereqQuery = RelationshipModel.find({
         workspace: workspaceObjectId,
         targetConcept: targetConceptObjectId,
@@ -250,7 +629,6 @@ class LearningService {
         (e) => e.sourceConcept,
       );
 
-      // 3. Check if learner has MASTERED every single required prerequisite
       let masteredCountQuery = LearningProgressModel.countDocuments({
         user: userObjectId,
         workspace: workspaceObjectId,
@@ -282,6 +660,11 @@ class LearningService {
           const targetConcept = await targetConceptQuery;
 
           if (targetConcept) {
+            await this.ensureFirstLessonProgressUnlocked(
+              userObjectId,
+              targetConcept,
+              session,
+            );
             newlyUnlockedConceptIds.push(targetConcept.conceptId);
           }
         }

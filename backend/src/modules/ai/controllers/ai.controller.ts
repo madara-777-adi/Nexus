@@ -109,7 +109,8 @@ export class AIController {
       } = req.body;
 
       const targetChapterId = chapterId || subtopicId;
-      const targetChapterTitle = chapterTitle || subtopicTitle || "Selected Chapter";
+      const targetChapterTitle =
+        chapterTitle || subtopicTitle || "Selected Chapter";
 
       const lessons = await teacherService.generateTier3Lessons({
         conceptId,
@@ -198,7 +199,7 @@ export class AIController {
       const userObjectId = new Types.ObjectId(
         (req as any).user._id || (req as any).user.id,
       );
-      const { conceptId } = req.body;
+      const { conceptId, chapterId, lessonId } = req.body;
 
       // 1. Get raw evaluation from Groq AI (Passes single req.body argument cleanly)
       const evaluation = (await evaluatorService.evaluateSubmission(
@@ -214,8 +215,10 @@ export class AIController {
         0;
 
       // 3. Single internal call to persist score and trigger unlock cascades
-      const dbResult = await learningService.recordEvaluationResult(
+      const dbResult = await learningService.recordLessonEvaluationResult(
         conceptId,
+        chapterId,
+        lessonId,
         userObjectId,
         masteryScore,
       );
