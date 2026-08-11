@@ -4,6 +4,8 @@ import ConceptModel, { ITopic, ILessonNode } from "../../concept/models/concept.
 import LessonModel from "../../concept/models/lesson.model";
 import FlashcardModel from "../../learning/models/flashcard.model";
 import QuizModel from "../../learning/models/quiz.model";
+import LessonProgressModel from "../../learning/models/lesson-progress.model";
+import learningService from "../../learning/services/learning.service";
 import WorkspaceModel from "../../workspace/models/workspace.model";
 import { ProviderFactory } from "../providers/provider.factory";
 import generateUserId from "../../../shared/utils/generateUserId";
@@ -117,9 +119,12 @@ export class TeacherService {
     // Deterministic chapter replacement (FIX 2): every Tier 2 generation issues
     // fresh chapter ids, so any AI-generated descendant row (Lesson / Flashcard
     // / Quiz) keyed by a subtopicId that is NOT in the new chapter set belongs
-    // to an obsolete chapter and is removed. LearningProgress, evaluation
-    // history and manual Resources are never touched, and no workspace-wide
-    // deletion is used — everything is scoped by concept._id.
+    // to an obsolete chapter and is removed. Concept-level LearningProgress,
+    // evaluation history and manual Resources are never touched, and no
+    // workspace-wide deletion is used — everything is scoped by concept._id.
+    // Chapter-level LessonProgress for obsolete chapterIds IS cleaned up below
+    // (PATCH 4), scoped by user/workspace/concept/chapterId, mirroring the
+    // cleanup already done for obsolete lessons in Tier 3.
     const survivingSubtopicIds = new Set(
       populatedTopics.map((topic) => topic.id),
     );
@@ -138,6 +143,24 @@ export class TeacherService {
       await LessonModel.deleteMany(obsoleteSubtopicFilter, mongoOptions);
       await FlashcardModel.deleteMany(obsoleteSubtopicFilter, mongoOptions);
       await QuizModel.deleteMany(obsoleteSubtopicFilter, mongoOptions);
+
+      // Cleanup orphaned LessonProgress records for obsolete chapter IDs.
+      // Scoped by user/workspace/concept in addition to chapterId, so this
+      // can never touch another user's, workspace's, or concept's progress.
+      // Guarded on a non-empty surviving set, same as the Tier-3 cleanup,
+      // so an empty regeneration result cannot wipe all progress for this
+      // concept.
+      if (survivingSubtopicIds.size > 0) {
+        await LessonProgressModel.deleteMany(
+          {
+            user: ownerObjectId,
+            workspace: concept.workspace,
+            concept: concept._id,
+            chapterId: { $nin: [...survivingSubtopicIds] },
+          },
+          mongoOptions,
+        );
+      }
 
       // Field-scoped atomic write: only `topics` is replaced. A concurrent
       // Tier 3 positional update (topics.$.lessons) or another Tier 2 refresh
@@ -257,6 +280,20 @@ export class TeacherService {
       await FlashcardModel.deleteMany(obsoleteLessonRowsFilter, mongoOptions);
       await QuizModel.deleteMany(obsoleteLessonRowsFilter, mongoOptions);
 
+      // Cleanup orphaned LessonProgress records for obsolete lesson IDs
+      if (newLessonIds.size > 0) {
+        await LessonProgressModel.deleteMany(
+          {
+            user: new Types.ObjectId(context.ownerId),
+            workspace: concept.workspace,
+            concept: new Types.ObjectId(concept._id),
+            chapterId: context.chapterId,
+            lessonId: { $nin: [...newLessonIds] },
+          },
+          mongoOptions,
+        );
+      }
+
       // Stale-write guard (FIX 5): the lesson nodes are written with a
       // positional update that matches the CURRENT persisted topics array
       // (`topics.id: chapterId`). The old bug wrote the whole document back
@@ -274,6 +311,21 @@ export class TeacherService {
           `Chapter not found for ID: ${context.chapterId} inside Unit: ${context.conceptId}`,
         );
       }
+
+      // First-lesson unlock (Tier-3 completion): initializeWorkspaceProgress
+      // cannot unlock the first lesson at bootstrap because concept.topics is
+      // still empty at that point (chapters/lessons are JIT-generated later).
+      // Now that this chapter's lessons are committed, re-run the same
+      // unlock check against the fresh topics. It only creates/updates a
+      // LessonProgress row when this concept is UNLOCKED and the chapter
+      // that just received lessons is the concept's first chapter by order -
+      // otherwise it is a no-op, so later chapters and locked Units are
+      // never affected.
+      await learningService.ensureFirstLessonUnlockedIfConceptUnlocked(
+        ownerObjectId,
+        { workspace: concept.workspace, _id: concept._id, topics: updatedConcept.topics },
+        session,
+      );
     });
 
     return populatedLessons;

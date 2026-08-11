@@ -3,7 +3,9 @@ import LearningProgressModel, {
   ILearningProgress,
   ConceptStatus,
 } from "../models/learning-progress.model";
-import LessonProgressModel from "../models/lesson-progress.model";
+import LessonProgressModel, {
+  ILessonProgress,
+} from "../models/lesson-progress.model";
 import ConceptModel from "../../concept/models/concept.model";
 import RelationshipModel, {
   RelationshipType,
@@ -12,6 +14,19 @@ import Workspace from "../../workspace/models/workspace.model";
 import generateUserId from "../../../shared/utils/generateUserId";
 import { NotFoundError } from "../../../shared/errors/NotFoundError";
 import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
+
+// Shape of a LessonProgress record after
+// `.populate("concept", "conceptId")`: `concept` is the populated
+// { _id, conceptId } object, not the raw Types.ObjectId that
+// ILessonProgress (the Mongoose document interface) declares. Reuses
+// ILessonProgress for every other field via Omit so this can never drift
+// from the underlying schema.
+export type IPopulatedLessonProgress = Omit<ILessonProgress, "concept"> & {
+  concept: {
+    _id: Types.ObjectId;
+    conceptId: string;
+  };
+};
 
 class LearningService {
   private async executeWithTransactionFallback<T>(
@@ -115,6 +130,47 @@ class LearningService {
     }
   }
 
+  /**
+   * Entry point for callers outside LearningService (e.g. TeacherService,
+   * once Tier-3 JIT generation commits the first chapter's lessons for a
+   * concept) to trigger the same first-lesson unlock that
+   * initializeWorkspaceProgress performs at bootstrap. Only acts if this
+   * concept's LearningProgress is already UNLOCKED for this user — never
+   * creates LessonProgress for a still-LOCKED Unit. Delegates entirely to
+   * ensureFirstLessonProgressUnlocked, so the unlock rules (first chapter by
+   * order, first lesson by order, no-op if that chapter has no lessons yet)
+   * live in exactly one place.
+   */
+  async ensureFirstLessonUnlockedIfConceptUnlocked(
+    userObjectId: Types.ObjectId,
+    concept: {
+      workspace: Types.ObjectId;
+      _id: Types.ObjectId;
+      topics?: Array<{
+        id: string;
+        order: number;
+        lessons?: Array<{ id: string; order: number }>;
+      }>;
+    },
+    session: ClientSession | null,
+  ): Promise<void> {
+    let progressQuery = LearningProgressModel.findOne({
+      user: userObjectId,
+      workspace: concept.workspace,
+      concept: concept._id,
+    });
+    if (session) progressQuery = progressQuery.session(session);
+    const progress = await progressQuery;
+
+    if (progress?.status === ConceptStatus.UNLOCKED) {
+      await this.ensureFirstLessonProgressUnlocked(
+        userObjectId,
+        concept,
+        session,
+      );
+    }
+  }
+
   async initializeWorkspaceProgress(
     workspaceId: string,
     userObjectId: Types.ObjectId,
@@ -176,16 +232,30 @@ class LearningService {
   async getWorkspaceProgress(
     workspaceId: string,
     userObjectId: Types.ObjectId,
-  ): Promise<ILearningProgress[]> {
+  ): Promise<{
+    concepts: ILearningProgress[];
+    lessons: IPopulatedLessonProgress[];
+  }> {
     const workspace = await this.verifyWorkspaceOwnership(
       workspaceId,
       userObjectId,
     );
 
-    return LearningProgressModel.find({
-      user: userObjectId,
-      workspace: workspace._id,
-    }).populate("concept", "conceptId title level");
+    const [concepts, lessons] = await Promise.all([
+      LearningProgressModel.find({
+        user: userObjectId,
+        workspace: workspace._id,
+      }).populate("concept", "conceptId title level"),
+      LessonProgressModel.find({
+        user: userObjectId,
+        workspace: workspace._id,
+      }).populate<{ concept: { _id: Types.ObjectId; conceptId: string } }>(
+        "concept",
+        "conceptId",
+      ),
+    ]);
+
+    return { concepts, lessons };
   }
 
   async recordEvaluationResult(

@@ -23,6 +23,7 @@ import {
 import {
   ConceptStatus,
   type ILearningProgress,
+  type ILessonProgress,
 } from "../../types/learning.types";
 import type {
   IConcept,
@@ -35,6 +36,46 @@ interface Toast {
   id: string;
   type: "success" | "error" | "info" | "warning";
   message: string;
+}
+
+// Shared normalization for the { concepts, lessons } shape returned by
+// getWorkspaceProgress. Used by both the initial load (loadConcepts) and the
+// post-generation refresh (refetchCurriculum) so they can never diverge.
+function buildProgressMaps(
+  progressData:
+    | { concepts?: ILearningProgress[]; lessons?: ILessonProgress[] }
+    | null
+    | undefined,
+): {
+  pMap: Map<string, ILearningProgress>;
+  lMap: Map<string, ILessonProgress>;
+} {
+  const conceptProgress = Array.isArray(progressData?.concepts)
+    ? progressData!.concepts
+    : [];
+  const lessonProgress = Array.isArray(progressData?.lessons)
+    ? progressData!.lessons
+    : [];
+
+  // Concept progress map (unit-level), keyed by logical conceptId.
+  const pMap = new Map<string, ILearningProgress>();
+  conceptProgress.forEach((item) => {
+    if (item.concept?.conceptId) {
+      pMap.set(item.concept.conceptId, item);
+    }
+  });
+
+  // Lesson progress map keyed by `${conceptId}:${chapterId}:${lessonId}`,
+  // matching the canonical key ChapterList/LessonList look up. `concept` is
+  // now the populated { _id, conceptId } object, not a raw ObjectId string.
+  const lMap = new Map<string, ILessonProgress>();
+  lessonProgress.forEach((item) => {
+    if (!item.concept?.conceptId) return;
+    const key = `${item.concept.conceptId}:${item.chapterId}:${item.lessonId}`;
+    lMap.set(key, item);
+  });
+
+  return { pMap, lMap };
 }
 
 export function WorkspacePage() {
@@ -56,6 +97,10 @@ export function WorkspacePage() {
   const [concepts, setConcepts] = useState<IConcept[]>([]);
   const [progressMap, setProgressMap] = useState<
     Map<string, ILearningProgress>
+  >(new Map());
+  // Lesson progress map keyed by `${conceptId}:${chapterId}:${lessonId}`
+  const [lessonProgressMap, setLessonProgressMap] = useState<
+    Map<string, ILessonProgress>
   >(new Map());
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [errorMessage, setErrorMessage] = useState("");
@@ -158,9 +203,8 @@ export function WorkspacePage() {
       }
 
       try {
-        const workspaceResult = await workspaceApi.getWorkspaceById(
-          workspaceId,
-        );
+        const workspaceResult =
+          await workspaceApi.getWorkspaceById(workspaceId);
         if (workspaceResult?.data?.title) {
           setWorkspaceTitle(workspaceResult.data.title);
         }
@@ -187,22 +231,12 @@ export function WorkspacePage() {
       setLoadState("loading");
       setErrorMessage("");
       try {
-        const progressData: ILearningProgress[] = await getWorkspaceProgress(
-          workspaceId,
-        );
+        const progressData = await getWorkspaceProgress(workspaceId);
         if (signal.aborted) return;
-        // Defensive: the progress payload can come back as a 204-like empty
-        // response or otherwise non-array. Never let the refresh throw on
-        // .forEach — an empty array degrades to "no progress yet" instead of a
-        // stale, frozen progressMap.
-        const safeProgress = Array.isArray(progressData) ? progressData : [];
-        const pMap = new Map<string, ILearningProgress>();
-        safeProgress.forEach((item) => {
-          if (item.concept?.conceptId) {
-            pMap.set(item.concept.conceptId, item);
-          }
-        });
+        // Handle new response shape: { concepts, lessons }
+        const { pMap, lMap } = buildProgressMaps(progressData);
         setProgressMap(pMap);
+        setLessonProgressMap(lMap);
 
         const conceptsResponse = await conceptApi.getConceptsByWorkspace(
           workspaceId,
@@ -253,35 +287,28 @@ export function WorkspacePage() {
   }, [workspaceId, loadConcepts, refreshKey, retryToken, isInitializing]);
 
   // Silent refetch of curriculum + progress after JIT generation completes.
-  const refetchCurriculum = useCallback(
-    async (): Promise<IConcept[] | null> => {
-      if (!workspaceId) return null;
-      try {
-        const progressData: ILearningProgress[] = await getWorkspaceProgress(
-          workspaceId,
-        );
-        // Defensive: same guard as loadConcepts — an empty/204-like payload
-        // must not crash the post-submit / post-generation refresh path.
-        const safeProgress = Array.isArray(progressData) ? progressData : [];
-        const pMap = new Map<string, ILearningProgress>();
-        safeProgress.forEach((item) => {
-          if (item.concept?.conceptId) {
-            pMap.set(item.concept.conceptId, item);
-          }
-        });
-        setProgressMap(pMap);
+  const refetchCurriculum = useCallback(async (): Promise<
+    IConcept[] | null
+  > => {
+    if (!workspaceId) return null;
+    try {
+      const progressData = await getWorkspaceProgress(workspaceId);
+      // Same normalization as loadConcepts, so a Tier-2/Tier-3 completion
+      // rebuilds both maps correctly instead of wiping progressMap and
+      // silently leaving lessonProgressMap stale.
+      const { pMap, lMap } = buildProgressMaps(progressData);
+      setProgressMap(pMap);
+      setLessonProgressMap(lMap);
 
-        const response = await conceptApi.getConceptsByWorkspace(workspaceId);
-        const raw = response.data || [];
-        setLoadState(raw.length > 0 ? "ready" : "empty");
-        return raw;
-      } catch (err) {
-        console.error("Error refetching curriculum after generation:", err);
-        return null;
-      }
-    },
-    [workspaceId],
-  );
+      const response = await conceptApi.getConceptsByWorkspace(workspaceId);
+      const raw = response.data || [];
+      setLoadState(raw.length > 0 ? "ready" : "empty");
+      return raw;
+    } catch (err) {
+      console.error("Error refetching curriculum after generation:", err);
+      return null;
+    }
+  }, [workspaceId]);
 
   // --- JIT Tier 2: generate chapters for a Unit only when none are cached ---
   const generateChaptersForUnit = useCallback(
@@ -547,7 +574,8 @@ export function WorkspacePage() {
           onClick={() => navigate("/dashboard")}
           className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-800 bg-[#181B22] px-3 py-2.5 lg:py-1.5 text-xs font-medium text-gray-300 hover:border-gray-700 hover:text-white transition-all cursor-pointer min-h-[44px] lg:min-h-[36px]"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Dashboard</span>
+          <ArrowLeft className="h-3.5 w-3.5" />{" "}
+          <span className="hidden sm:inline">Dashboard</span>
         </button>
 
         <div className="h-4 w-px bg-gray-800 hidden sm:block" />
@@ -597,6 +625,7 @@ export function WorkspacePage() {
                     chapter={selectedChapter}
                     lessons={selectedChapter.lessons ?? []}
                     isGenerating={isGeneratingTier3}
+                    lessonProgressMap={lessonProgressMap}
                     onSelectLesson={handleSelectLesson}
                     onBackToChapters={handleBackToChapters}
                     onGenerateLessons={handleGenerateLessons}
@@ -606,6 +635,7 @@ export function WorkspacePage() {
                     unit={selectedUnit}
                     chapters={selectedUnit.topics ?? []}
                     isGenerating={isGeneratingTier2}
+                    lessonProgressMap={lessonProgressMap}
                     onSelectChapter={handleSelectChapter}
                     onBackToUnits={handleBackToUnits}
                     onGenerateChapters={handleGenerateChapters}

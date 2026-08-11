@@ -23,6 +23,23 @@ export interface ILearningProgress {
   lastEvaluatedAt?: string;
 }
 
+export interface ILessonProgress {
+  user: string;
+  workspace: string;
+  concept: {
+    _id: string;
+    conceptId: string;
+  };
+  chapterId: string;
+  lessonId: string;
+  status: ConceptStatus;
+  masteryScore: number;
+  attemptsCount: number;
+  lastEvaluatedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface EvaluationRecordResponse {
   progress: ILearningProgress;
   unlockedDownstreamIds: string[];

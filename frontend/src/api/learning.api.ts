@@ -1,5 +1,5 @@
 import API from "./axios";
-import type { ILearningProgress, EvaluationRecordResponse } from "../types/learning.types";
+import type { ILearningProgress, ILessonProgress, EvaluationRecordResponse } from "../types/learning.types";
 
 export const initializeWorkspaceProgress = async (workspaceId: string) => {
   const response = await API.post<{ success: boolean; data: ILearningProgress[] }>(
@@ -9,9 +9,13 @@ export const initializeWorkspaceProgress = async (workspaceId: string) => {
 };
 
 export const getWorkspaceProgress = async (workspaceId: string) => {
-  const response = await API.get<{ success: boolean; data: ILearningProgress[] }>(
-    `/workspaces/${workspaceId}/learning`
-  );
+  const response = await API.get<{
+    success: boolean;
+    data: {
+      concepts: ILearningProgress[];
+      lessons: ILessonProgress[];
+    };
+  }>(`/workspaces/${workspaceId}/learning`);
   return response.data.data;
 };
 

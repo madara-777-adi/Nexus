@@ -269,7 +269,7 @@ export class AIController {
       const completedNodes: string[] = [];
       const masteryMap: Record<string, number> = {};
 
-      progressRecords.forEach((record) => {
+      progressRecords.concepts.forEach((record) => {
         const conceptData = record.concept as any;
 
         if (conceptData) {

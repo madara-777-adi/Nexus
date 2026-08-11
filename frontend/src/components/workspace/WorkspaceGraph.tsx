@@ -68,7 +68,7 @@ export function WorkspaceGraph({
         if (signal.aborted) return;
 
         const progressMap = new Map<string, ILearningProgress>();
-        (progressData || []).forEach((item) => {
+        ((progressData && progressData.concepts) || []).forEach((item) => {
           if (item.concept?.conceptId) {
             progressMap.set(item.concept.conceptId, item);
           }

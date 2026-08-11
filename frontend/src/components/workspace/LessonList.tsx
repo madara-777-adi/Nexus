@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   ChevronRight,
   Clock,
+  Lock,
   Sparkles,
 } from "lucide-react";
 import type {
@@ -9,12 +10,14 @@ import type {
   IConceptTopic,
   ILessonNode,
 } from "../../types/workspace.types";
+import type { ILessonProgress } from "../../types/learning.types";
 
 interface LessonListProps {
   unit: IConcept;
   chapter: IConceptTopic;
   lessons: ILessonNode[];
   isGenerating: boolean;
+  lessonProgressMap: Map<string, ILessonProgress>;
   onSelectLesson: (lesson: ILessonNode) => void;
   onBackToChapters: () => void;
   onGenerateLessons: () => void;
@@ -29,10 +32,27 @@ export function LessonList({
   chapter,
   lessons,
   isGenerating,
+  lessonProgressMap,
   onSelectLesson,
   onBackToChapters,
   onGenerateLessons,
 }: LessonListProps) {
+  /**
+   * Derive lesson accessibility from LessonProgress.
+   * Missing progress record = LOCKED.
+   * UNLOCKED / IN_PROGRESS / MASTERED = accessible.
+   */
+  const isLessonAccessible = (lesson: ILessonNode): boolean => {
+    const key = `${unit.conceptId}:${chapter.id}:${lesson.id}`;
+    const progress = lessonProgressMap.get(key);
+    if (!progress) return false;
+    return (
+      progress.status === "UNLOCKED" ||
+      progress.status === "IN_PROGRESS" ||
+      progress.status === "MASTERED"
+    );
+  };
+
   return (
     <div className="h-full w-full overflow-y-auto bg-[#080A0F] p-4 sm:p-6 md:p-10">
       <div className="max-w-3xl mx-auto flex flex-col gap-4 sm:gap-6 pt-28 sm:pt-16">
@@ -67,19 +87,43 @@ export function LessonList({
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
-            {lessons.map((lesson) => (
-              <div
-                key={lesson.id}
-                onClick={() => onSelectLesson(lesson)}
-                className="group relative flex flex-col sm:flex-row sm:items-center justify-between rounded-xl border border-gray-800 bg-[#12141A] p-4 sm:p-5 text-gray-200 transition-all duration-200 hover:border-[#00E5FF]/60 cursor-pointer gap-4 sm:gap-0"
-              >
-                <div className="flex items-start sm:items-center gap-3 sm:gap-4">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#00E5FF]/10 font-mono text-xs font-semibold text-[#00E5FF]">
-                    {lesson.order}
-                  </div>
-                  <div className="flex flex-col gap-1 sm:gap-0.5">
-                    <h3 className="text-sm font-medium text-white transition-colors group-hover:text-[#00E5FF]">
+                    <div className="flex flex-col gap-3">
+            {lessons.map((lesson) => {
+              const accessible = isLessonAccessible(lesson);
+              return (
+                <div
+                  key={lesson.id}
+                  onClick={
+                    accessible ? () => onSelectLesson(lesson) : undefined
+                  }
+                  className={`group relative flex flex-col sm:flex-row sm:items-center justify-between rounded-xl border p-4 sm:p-5 transition-all duration-200 gap-4 sm:gap-0 ${
+                    accessible
+                      ? "border-gray-800 bg-[#12141A] text-gray-200 hover:border-[#00E5FF]/60 cursor-pointer"
+                      : "border-gray-800/60 bg-[#0D0F14] text-gray-500 cursor-not-allowed opacity-60"
+                  }`}
+                >
+                  <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+                    <div
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-semibold ${
+                        accessible
+                          ? "bg-[#00E5FF]/10 text-[#00E5FF]"
+                          : "bg-gray-800/60 text-gray-500"
+                      }`}
+                    >
+                      {accessible ? (
+                        lesson.order
+                      ) : (
+                        <Lock className="h-3.5 w-3.5" />
+                      )}
+                    </div>
+                                    <div className="flex flex-col gap-1 sm:gap-0.5">
+                    <h3
+                      className={`text-sm font-medium transition-colors ${
+                        accessible
+                          ? "text-white group-hover:text-[#00E5FF]"
+                          : "text-gray-500"
+                      }`}
+                    >
                       {lesson.title}
                     </h3>
                     {lesson.description && (
@@ -108,11 +152,16 @@ export function LessonList({
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-end w-full sm:w-auto text-gray-500 transition-colors group-hover:text-white pl-12 sm:pl-4">
-                  <ChevronRight className="h-4 w-4 text-[#00E5FF] transition-transform duration-200 group-hover:translate-x-0.5" />
+                                  <div className="flex justify-end w-full sm:w-auto text-gray-500 transition-colors group-hover:text-white pl-12 sm:pl-4">
+                    {accessible ? (
+                      <ChevronRight className="h-4 w-4 text-[#00E5FF] transition-transform duration-200 group-hover:translate-x-0.5" />
+                    ) : (
+                      <Lock className="h-4 w-4 text-gray-600" />
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
