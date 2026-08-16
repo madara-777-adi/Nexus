@@ -1,10 +1,11 @@
-import { Types } from "mongoose";
+import mongoose, { Types, ClientSession } from "mongoose";
 import crypto from "crypto";
 import ConceptModel, { IConcept, ITopic } from "../models/concept.model";
 import Workspace from "../../workspace/models/workspace.model";
 import RelationshipModel from "../../relationship/models/relationship.model";
 import ResourceModel from "../../resource/models/resource.model";
 import LearningProgressModel from "../../learning/models/learning-progress.model";
+import LessonProgressModel from "../../learning/models/lesson-progress.model";
 import LessonModel from "../models/lesson.model";
 import FlashcardModel from "../../learning/models/flashcard.model";
 import QuizModel from "../../learning/models/quiz.model";
@@ -17,9 +18,42 @@ import generateUserId from "../../../shared/utils/generateUserId";
 import { NotFoundError } from "../../../shared/errors/NotFoundError";
 import { ForbiddenError } from "../../../shared/errors/ForbiddenError";
 import { RawTopicAIOutput } from "../../ai/teacher/teacher.service";
-import {teacherService} from "../../ai/teacher/teacher.service";
+import { teacherService } from "../../ai/teacher/teacher.service";
 
 class ConceptService {
+  /**
+   * Helper to execute database operations inside a Mongo transaction when supported (Replica Sets / Atlas),
+   * falling back cleanly to non-transactional execution for standalone MongoDB setups (local dev).
+   */
+  private async executeWithTransactionFallback<T>(
+    operation: (session: ClientSession | null) => Promise<T>,
+  ): Promise<T> {
+    const session = await mongoose.startSession();
+    try {
+      let result: T | undefined;
+      await session.withTransaction(async () => {
+        result = await operation(session);
+      });
+      return result!;
+    } catch (err: any) {
+      const isTransactionUnsupported =
+        err?.code === 20 ||
+        err?.codeName === "TransactionNumbersAreOnlyAllowedOnReplicaSet" ||
+        (typeof err?.message === "string" &&
+          err.message.includes("Transaction numbers are only allowed"));
+
+      if (isTransactionUnsupported) {
+        console.warn(
+          "[ConceptService] MongoDB Transactions unsupported on standalone instance. Executing fallback without session.",
+        );
+        return await operation(null);
+      }
+      throw err;
+    } finally {
+      await session.endSession();
+    }
+  }
+
   private async verifyWorkspaceOwnership(
     workspaceId: string,
     userObjectId: Types.ObjectId,
@@ -164,18 +198,29 @@ class ConceptService {
       throw new ForbiddenError("You are not allowed to perform this action.");
     }
 
-    await Promise.all([
-      RelationshipModel.deleteMany({
-        $or: [{ sourceConcept: concept._id }, { targetConcept: concept._id }],
-      }),
-      ResourceModel.deleteMany({ concept: concept._id }),
-      LearningProgressModel.deleteMany({ concept: concept._id }),
-      LessonModel.deleteMany({ concept: concept._id }),
-      FlashcardModel.deleteMany({ concept: concept._id }),
-      QuizModel.deleteMany({ concept: concept._id }),
-    ]);
+    await this.executeWithTransactionFallback(async (session) => {
+      const options = session ? { session } : {};
 
-    await ConceptModel.deleteOne({ _id: concept._id });
+      await Promise.all([
+        RelationshipModel.deleteMany(
+          {
+            $or: [
+              { sourceConcept: concept._id },
+              { targetConcept: concept._id },
+            ],
+          },
+          options,
+        ),
+        ResourceModel.deleteMany({ concept: concept._id }, options),
+        LearningProgressModel.deleteMany({ concept: concept._id }, options),
+        LessonProgressModel.deleteMany({ concept: concept._id }, options),
+        LessonModel.deleteMany({ concept: concept._id }, options),
+        FlashcardModel.deleteMany({ concept: concept._id }, options),
+        QuizModel.deleteMany({ concept: concept._id }, options),
+      ]);
+
+      await ConceptModel.deleteOne({ _id: concept._id }, options);
+    });
   }
 }
 

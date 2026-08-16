@@ -25,21 +25,15 @@ export class GroqProvider implements IAIProvider {
   }
 
   static forTier1(): GroqProvider {
-    const apiKey = process.env.AI_TIER1_API_KEY;
-    if (!apiKey) throw new Error("Missing AI_TIER1_API_KEY in environment.");
-    return new GroqProvider(apiKey, "Tier1");
+    return new GroqProvider(env.AI_TIER1_API_KEY, "Tier1");
   }
 
   static forTier2(): GroqProvider {
-    const apiKey = process.env.AI_TIER2_API_KEY;
-    if (!apiKey) throw new Error("Missing AI_TIER2_API_KEY in environment.");
-    return new GroqProvider(apiKey, "Tier2");
+    return new GroqProvider(env.AI_TIER2_API_KEY, "Tier2");
   }
 
   static forTier3(): GroqProvider {
-    const apiKey = process.env.AI_TIER3_API_KEY;
-    if (!apiKey) throw new Error("Missing AI_TIER3_API_KEY in environment.");
-    return new GroqProvider(apiKey, "Tier3");
+    return new GroqProvider(env.AI_TIER3_API_KEY, "Tier3");
   }
 
   async generate<T>(
@@ -83,9 +77,7 @@ export const groqProvider = {
     options?: AIRequestOptions,
   ): Promise<T> {
     const provider =
-      role === "organizer"
-        ? GroqProvider.forTier1()
-        : GroqProvider.forTier2();
+      role === "organizer" ? GroqProvider.forTier1() : GroqProvider.forTier2();
 
     return provider.generate<T>(prompt, systemInstruction, options);
   },

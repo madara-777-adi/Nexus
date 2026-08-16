@@ -3,6 +3,12 @@ import { IAIProvider, AIRequestOptions } from "./provider.interface";
 
 const CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions";
 
+function extractJsonFromMarkdown(content: string): string {
+  const trimmed = content.trim();
+  const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  return fenceMatch ? fenceMatch[1].trim() : trimmed;
+}
+
 /**
  * CerebrasProvider — implements IAIProvider for the Cerebras inference backend.
  *
@@ -35,15 +41,10 @@ export class CerebrasProvider implements IAIProvider {
   }
 
   private static buildForTier(tierLabel: string): CerebrasProvider {
-    const apiKey =
-      tierLabel === "Tier1"
-        ? process.env.AI_TIER1_API_KEY
-        : tierLabel === "Tier2"
-          ? process.env.AI_TIER2_API_KEY
-          : process.env.AI_TIER3_API_KEY;
+    const apiKey = env.CEREBRAS_API_KEY;
     if (!apiKey)
       throw new Error(
-        `Missing AI_TIER${tierLabel.slice(-1)}_API_KEY in environment.`,
+        'Missing CEREBRAS_API_KEY in environment (required because a tier\'s provider is set to "cerebras").',
       );
     return new CerebrasProvider(apiKey, tierLabel);
   }
@@ -97,7 +98,13 @@ export class CerebrasProvider implements IAIProvider {
           `Empty response received from Cerebras (${this.tierLabel}).`,
         );
 
-      return JSON.parse(content) as T;
+      try {
+        return JSON.parse(extractJsonFromMarkdown(content)) as T;
+      } catch (parseError) {
+        throw new Error(
+          `Failed to parse AI provider response as JSON from Cerebras (${this.tierLabel}): ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+        );
+      }
     } catch (error) {
       console.error(`[CerebrasProvider ${this.tierLabel} Error]:`, error);
       throw error;

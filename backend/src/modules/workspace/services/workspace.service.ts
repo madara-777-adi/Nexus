@@ -9,6 +9,7 @@ import Relationship, {
 } from "../../relationship/models/relationship.model";
 import ResourceModel from "../../resource/models/resource.model";
 import LearningProgressModel from "../../learning/models/learning-progress.model";
+import LessonProgressModel from "../../learning/models/lesson-progress.model";
 import LessonModel from "../../concept/models/lesson.model";
 import FlashcardModel from "../../learning/models/flashcard.model";
 import QuizModel from "../../learning/models/quiz.model";
@@ -335,6 +336,10 @@ class WorkspaceService {
       await Relationship.deleteMany({ workspace: workspace._id }, options);
       await ResourceModel.deleteMany({ workspace: workspace._id }, options);
       await LearningProgressModel.deleteMany(
+        { workspace: workspace._id },
+        options,
+      );
+      await LessonProgressModel.deleteMany(
         { workspace: workspace._id },
         options,
       );
