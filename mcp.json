@@ -1,0 +1,74 @@
+{
+  "mcpServers": {
+    "CodeGraphContext": {
+      "command": "/home/aditya/.local/bin/cgc",
+      "args": [
+        "mcp",
+        "start"
+      ],
+      "env": {
+        "DEFAULT_DATABASE": "falkordb",
+        "FALKORDB_PATH": "/home/aditya/.codegraphcontext/global/db/falkordb",
+        "FALKORDB_SOCKET_PATH": "/home/aditya/.codegraphcontext/global/db/falkordb.sock",
+        "FALKORDB_PORT": "",
+        "LADYBUGDB_PATH": "/home/aditya/.codegraphcontext/global/db/ladybugdb",
+        "KUZUDB_PATH": "/home/aditya/.codegraphcontext/global/db/kuzudb",
+        "INDEX_VARIABLES": "true",
+        "ALLOW_DB_DELETION": "false",
+        "DEBUG_LOGS": "false",
+        "DEBUG_LOG_PATH": "/home/aditya/mcp_debug.log",
+        "ENABLE_APP_LOGS": "CRITICAL",
+        "LIBRARY_LOG_LEVEL": "WARNING",
+        "LOG_FILE_PATH": "/home/aditya/.codegraphcontext/logs/cgc.log",
+        "MAX_FILE_SIZE_MB": "10",
+        "IGNORE_TEST_FILES": "false",
+        "IGNORE_HIDDEN_FILES": "true",
+        "ENABLE_AUTO_WATCH": "false",
+        "COMPLEXITY_THRESHOLD": "10",
+        "MAX_DEPTH": "unlimited",
+        "PARALLEL_WORKERS": "4",
+        "CACHE_ENABLED": "true",
+        "IGNORE_DIRS": "node_modules,venv,.venv,env,.env,dist,build,target,out,.git,.idea,.vscode,__pycache__",
+        "INDEX_SOURCE": "true",
+        "SCIP_INDEXER": "false",
+        "SCIP_LANGUAGES": "python,typescript,javascript,go,rust,java,dart,cpp,c,csharp",
+        "SCIP_LOCAL_INDEXER_TIMEOUT_SECONDS": "300",
+        "SKIP_EXTERNAL_RESOLUTION": "false",
+        "MAX_TOOL_RESPONSE_TOKENS": "0",
+        "MAX_PROMPT_CHARS": "0",
+        "TOOL_RESULT_LIMITS": "{}",
+        "ENABLE_INHERIT_RESOLVE": "false",
+        "ENABLE_VECTOR_RESOLVE": "false",
+        "CGC_EMBEDDING_MODEL": "local",
+        "CGC_EMBEDDING_BATCH_SIZE": "256",
+        "FUZZY_SEARCH": "true",
+        "OPENAI_MODEL": "gpt-4o",
+        "ANTHROPIC_MODEL": "claude-3-5-sonnet-20241022",
+        "CGC_API_KEY": ""
+      },
+      "tools": {
+        "alwaysAllow": [
+          "add_code_to_graph",
+          "add_package_to_graph",
+          "check_job_status",
+          "list_jobs",
+          "find_code",
+          "analyze_code_relationships",
+          "watch_directory",
+          "find_dead_code",
+          "execute_cypher_query",
+          "calculate_cyclomatic_complexity",
+          "find_most_complex_functions",
+          "list_indexed_repositories",
+          "list_watched_paths",
+          "unwatch_directory",
+          "visualize_graph_query"
+        ],
+        "disabledTools": [],
+        "disabled": false
+      },
+      "disabled": false,
+      "alwaysAllow": []
+    }
+  }
+}
