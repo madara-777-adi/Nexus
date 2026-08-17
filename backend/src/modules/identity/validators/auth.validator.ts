@@ -30,6 +30,9 @@ export const registerSchema = z.object({
   lastName: nameSchema,
   email: emailSchema,
   password: passwordSchema,
+  termsAccepted: z.literal(true, {
+    error: "You must accept the Terms of Use and Privacy Policy.",
+  }),
 });
 
 export const forgotPasswordSchema = z.object({
@@ -43,4 +46,14 @@ export const resetPasswordSchema = z.object({
 
 export const resendVerificationSchema = z.object({
   email: emailSchema,
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required."),
+  newPassword: passwordSchema,
+});
+
+export const deleteAccountSchema = z.object({
+  // Required for LOCAL accounts; omitted/undefined for OAuth-only accounts
+  password: z.string().min(1, "Password is required.").optional(),
 });

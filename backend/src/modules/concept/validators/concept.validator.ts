@@ -3,9 +3,9 @@ import { z } from "zod";
 export const createConceptSchema = z.object({
   title: z
     .string()
+    .trim()
     .min(1, "Concept title is required")
-    .max(150, "Title cannot exceed 150 characters")
-    .trim(),
+    .max(150, "Title cannot exceed 150 characters"),
   description: z
     .string()
     .max(1000, "Description cannot exceed 1000 characters")

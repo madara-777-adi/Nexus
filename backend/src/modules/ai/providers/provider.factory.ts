@@ -1,3 +1,4 @@
+import logger from "../../../shared/logger/logger";
 import { IAIProvider } from "./provider.interface";
 import { GroqProvider } from "./groq.provider";
 import { CerebrasProvider } from "./cerebras.provider";
@@ -26,8 +27,14 @@ export class ProviderFactory {
       "forTier3",
     );
 
-    console.log(
-      `[ProviderFactory] AI providers initialized — Tier1: ${env.AI_TIER1_PROVIDER}, Tier2: ${env.AI_TIER2_PROVIDER}, Tier3: ${env.AI_TIER3_PROVIDER}.`,
+    logger.info(
+      {
+        service: "ProviderFactory",
+        tier1: env.AI_TIER1_PROVIDER,
+        tier2: env.AI_TIER2_PROVIDER,
+        tier3: env.AI_TIER3_PROVIDER,
+      },
+      "AI providers initialized",
     );
   }
 

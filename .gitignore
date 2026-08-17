@@ -43,3 +43,6 @@ Thumbs.db
 experiments/
 mcp.json
 .cgcignore
+
+# Antigravity/CGC Workspace
+.agents/

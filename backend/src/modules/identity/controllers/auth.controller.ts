@@ -3,6 +3,8 @@ import { Request, Response } from "express";
 import authService from "../services/auth.service";
 import env from "../../../config/env";
 import type {
+  ChangePasswordDTO,
+  DeleteAccountDTO,
   ForgotPasswordDTO,
   LoginDTO,
   LogoutDTO,
@@ -83,6 +85,14 @@ class AuthController {
       return res.status(401).json({
         success: false,
         message: "No refresh token provided",
+        data: null,
+      });
+    }
+
+    if (typeof token !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid refresh token format",
         data: null,
       });
     }
@@ -173,7 +183,7 @@ class AuthController {
       req.cookies?.refreshToken ||
       req.body?.refreshToken;
 
-    if (token) {
+    if (token && typeof token === "string") {
       try {
         await authService.logout({ refreshToken: token });
       } catch (_err) {
@@ -186,6 +196,40 @@ class AuthController {
     return res.status(200).json({
       success: true,
       message: "Logged out successfully",
+      data: null,
+    });
+  }
+
+  async changePassword(req: Request<{}, {}, ChangePasswordDTO>, res: Response) {
+    const userId = (req as any).user?._id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const result = await authService.changePassword(userId, req.body);
+
+    res.clearCookie(REFRESH_COOKIE_NAME, clearCookieOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      data: null,
+    });
+  }
+
+  async deleteAccount(req: Request<{}, {}, DeleteAccountDTO>, res: Response) {
+    const userId = (req as any).user?._id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const result = await authService.deleteAccount(userId, req.body);
+
+    res.clearCookie(REFRESH_COOKIE_NAME, clearCookieOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
       data: null,
     });
   }

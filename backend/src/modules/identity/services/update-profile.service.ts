@@ -1,6 +1,7 @@
 import User from "../models/user.model";
 import { NotFoundError } from "../../../shared/errors/NotFoundError";
 import type { UpdateProfileDTO } from "../types/identity.dto.js";
+import { toSafeUserDTO } from "../../../shared/utils/toSafeUserDTO";
 
 export const updateProfile = async (userId: string, data: UpdateProfileDTO) => {
   const user = await User.findById(userId);
@@ -23,5 +24,5 @@ export const updateProfile = async (userId: string, data: UpdateProfileDTO) => {
 
   await user.save();
 
-  return user;
+  return toSafeUserDTO(user);
 };

@@ -59,6 +59,16 @@ export function SocialAuthButtons() {
           GitHub
         </button>
       </div>
+      <p className="text-[11px] text-gray-500 text-center mt-2 leading-relaxed">
+        By continuing with Google or GitHub, you agree to our{" "}
+        <a href="/terms" target="_blank" className="text-gray-400 hover:underline">
+          Terms of Use
+        </a>{" "}
+        and{" "}
+        <a href="/privacy" target="_blank" className="text-gray-400 hover:underline">
+          Privacy Policy
+        </a>.
+      </p>
     </div>
   );
 }

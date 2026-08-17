@@ -138,11 +138,12 @@ export const validateAIRequest =
   (schema: z.ZodTypeAny) =>
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      await schema.parseAsync({
+      const result = await schema.parseAsync({
         body: req.body,
         query: req.query,
         params: req.params,
       });
+      if ((result as any).body) req.body = (result as any).body;
       next();
     } catch (error: unknown) {
       if (error instanceof z.ZodError) {

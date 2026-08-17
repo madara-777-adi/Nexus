@@ -84,6 +84,8 @@ passport.use(
           avatar: profile.photos?.[0]?.value || null,
           isEmailVerified,
           accountStatus: isEmailVerified ? "ACTIVE" : "PENDING_VERIFICATION",
+          termsAcceptedAt: new Date(),
+          privacyPolicyAcceptedAt: new Date(),
         });
 
         return done(null, user);
@@ -173,6 +175,8 @@ passport.use(
           avatar: profile.photos?.[0]?.value || null,
           isEmailVerified,
           accountStatus: isEmailVerified ? "ACTIVE" : "PENDING_VERIFICATION",
+          termsAcceptedAt: new Date(),
+          privacyPolicyAcceptedAt: new Date(),
         });
 
         return done(null, user);

@@ -4,6 +4,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import env from "../config/env";
 import User from "../modules/identity/models/user.model";
 import { UnauthorizedError } from "../shared/errors/UnauthorizedError";
+import { ForbiddenError } from "../shared/errors/ForbiddenError";
 
 const authMiddleware = async (
   req: Request,
@@ -35,6 +36,25 @@ const authMiddleware = async (
     const user = await User.findOne({ userId: payload.sub });
     if (!user) {
       throw new UnauthorizedError("User not found.");
+    }
+
+    // A suspended account must lose access immediately, not just at its next
+    // login/refresh — otherwise a still-valid access token keeps working on
+    // every protected route until it naturally expires. login/refreshToken/
+    // forgotPassword already check this; this is the one path that guards
+    // every other authenticated request.
+    if (user.accountStatus === "SUSPENDED") {
+      throw new ForbiddenError(
+        "Your account has been suspended. Please contact support.",
+      );
+    }
+
+    if (
+      typeof payload.tokenVersion === "number" &&
+      typeof user.tokenVersion === "number" &&
+      payload.tokenVersion !== user.tokenVersion
+    ) {
+      throw new UnauthorizedError("Session expired. Please log in again.");
     }
 
     // Attach full Mongoose user document containing _id

@@ -19,6 +19,9 @@ export interface IUser {
   bio?: string;
   isEmailVerified: boolean;
   accountStatus: AccountStatus;
+  tokenVersion?: number;
+  termsAcceptedAt?: Date | null;
+  privacyPolicyAcceptedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

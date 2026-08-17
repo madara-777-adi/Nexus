@@ -1,3 +1,4 @@
+import logger from "../../../shared/logger/logger";
 import env from "../../../config/env";
 import resend from "../../../config/resend";
 import verificationEmailTemplate from "../../../shared/templates/verificationEmail";
@@ -48,7 +49,10 @@ class EmailService {
       });
     } catch (error) {
       // Non-blocking catch so email provider hiccups don't break authentication
-      console.error("Failed to send welcome email:", error);
+      logger.error(
+        { service: "EmailService", err: error },
+        "Failed to send welcome email",
+      );
     }
   }
 }

@@ -16,8 +16,7 @@ import { errorMiddleware } from "./middleware/error.middleware";
 import aiRoutes from "./modules/ai/routes/ai.routes";
 import learningRoutes from "./modules/learning/routes/learning.routes";
 
-// Import rate limiter middleware
-import { authLimiter } from "./middleware/rateLimiter.middleware";
+// Rate limiter middleware is now applied per-route inside individual route files.
 
 const app = express();
 
@@ -42,11 +41,14 @@ const defaultProductionOrigins = [
   "https://www.nexusspace.tech",
 ];
 
-const defaultDevOrigins = [
-  "http://localhost:5173",
-  "http://localhost:5000",
-  "http://localhost:3000",
-];
+const defaultDevOrigins =
+  env.NODE_ENV === "production"
+    ? []
+    : [
+        "http://localhost:5173",
+        "http://localhost:5000",
+        "http://localhost:3000",
+      ];
 
 // Combine config origins with production and development fallbacks, normalizing trailing slashes
 const allowedOrigins = Array.from(
@@ -108,14 +110,13 @@ app.get("/health", (_req, res) => {
 app.use(passport.initialize());
 
 // Mount identity authentication routes WITH the rate limiter applied
-app.use("/api/v1/auth", authLimiter, authRoutes);
+app.use("/api/v1/auth", authRoutes);
 
 app.use("/api/v1/workspaces", workspaceRoutes);
 app.use("/api/v1/ai", aiRoutes);
 app.use("/api/v1", conceptRoutes);
 app.use("/api/v1", relationshipRoutes);
 app.use("/api/v1", resourceRoutes);
-// app.use("/api/v1/ai", aiRoutes);
 app.use("/api/v1", learningRoutes);
 
 app.use(notFoundMiddleware);

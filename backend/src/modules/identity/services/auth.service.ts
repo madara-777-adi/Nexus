@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import jwt, { JwtPayload } from "jsonwebtoken";
 
+import logger from "../../../shared/logger/logger";
 import env from "../../../config/env";
 
 // Models
@@ -20,6 +21,16 @@ import { UnauthorizedError } from "../../../shared/errors/UnauthorizedError";
 
 // Services
 import emailService from "./email.service";
+import { Types } from "mongoose";
+import Workspace from "../../workspace/models/workspace.model";
+import Concept from "../../concept/models/concept.model";
+import Relationship from "../../relationship/models/relationship.model";
+import ResourceModel from "../../resource/models/resource.model";
+import LearningProgressModel from "../../learning/models/learning-progress.model";
+import LessonProgressModel from "../../learning/models/lesson-progress.model";
+import LessonModel from "../../concept/models/lesson.model";
+import FlashcardModel from "../../learning/models/flashcard.model";
+import QuizModel from "../../learning/models/quiz.model";
 
 // Utils
 import generateTokens from "../../../shared/utils/generateTokens";
@@ -28,6 +39,8 @@ import generateVerificationToken from "../../../shared/utils/generateVerificatio
 
 // Types
 import type {
+  ChangePasswordDTO,
+  DeleteAccountDTO,
   ForgotPasswordDTO,
   LoginDTO,
   LogoutDTO,
@@ -96,8 +109,9 @@ class AuthService {
             err.message.includes("does not support retryable writes")));
 
       if (isTransactionUnsupported) {
-        console.warn(
-          "[AuthService] MongoDB Transactions unsupported on standalone instance. Executing fallback without session.",
+        logger.warn(
+          { service: "AuthService" },
+          "MongoDB transactions unsupported on standalone instance. Executing fallback without session.",
         );
         return await operation(null);
       }
@@ -132,6 +146,8 @@ class AuthService {
       lastName: data.lastName,
       email: data.email.toLowerCase().trim(),
       password: hashedPassword,
+      termsAcceptedAt: new Date(),
+      privacyPolicyAcceptedAt: new Date(),
     });
 
     const { token, tokenHash } = generateVerificationToken();
@@ -150,9 +166,9 @@ class AuthService {
         token,
       );
     } catch (emailError) {
-      console.error(
-        "[AuthService] Registration verification email dispatch failed. Rolling back user creation:",
-        emailError,
+      logger.error(
+        { service: "AuthService", err: emailError, userId: user.userId },
+        "Registration verification email dispatch failed. Rolling back user creation.",
       );
       await VerificationToken.deleteOne({ _id: verificationRecord._id });
       await User.deleteOne({ _id: user._id });
@@ -213,7 +229,10 @@ class AuthService {
     try {
       await emailService.sendWelcomeEmail(user.email, user.firstName);
     } catch (emailErr) {
-      console.error("[AuthService] Failed to send welcome email:", emailErr);
+      logger.error(
+        { service: "AuthService", err: emailErr, userId: user.userId },
+        "Failed to send welcome email",
+      );
     }
 
     return {
@@ -255,6 +274,7 @@ class AuthService {
 
     const tokens = generateTokens({
       sub: user.userId,
+      tokenVersion: user.tokenVersion ?? 0,
     });
 
     const refreshTokenHash = crypto
@@ -287,6 +307,7 @@ class AuthService {
 
     const tokens = generateTokens({
       sub: user.userId,
+      tokenVersion: user.tokenVersion ?? 0,
     });
 
     const refreshTokenHash = crypto
@@ -406,7 +427,10 @@ class AuthService {
       throw new UnauthorizedError("Invalid refresh token.");
     }
 
-    const tokens = generateTokens({ sub: user.userId });
+    const tokens = generateTokens({
+      sub: user.userId,
+      tokenVersion: user.tokenVersion ?? 0,
+    });
 
     await RefreshToken.deleteOne({ _id: storedRefreshToken._id });
 
@@ -488,6 +512,7 @@ class AuthService {
       }
     }
     user.password = hashedPassword;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
 
     await this.executeWithTransactionFallback(async (session) => {
       const options = session ? { session } : {};
@@ -595,6 +620,167 @@ class AuthService {
 
     return {
       message: "Logged out successfully.",
+    };
+  }
+
+  async changePassword(
+    userId: string | Types.ObjectId,
+    data: ChangePasswordDTO,
+  ) {
+    const user = await User.findById(userId).select(
+      "+password +passwordHistory",
+    );
+    if (!user) {
+      throw new NotFoundError("User not found.");
+    }
+
+    if (!user.password) {
+      throw new BadRequestError(
+        "Your account uses a social login. Please set a password through recovery first.",
+      );
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+      data.currentPassword,
+      user.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedError("Incorrect current password.");
+    }
+
+    const isSameAsCurrent = await bcrypt.compare(
+      data.newPassword,
+      user.password,
+    );
+
+    if (isSameAsCurrent) {
+      throw new ConflictError(
+        "Your new password must be different from your current password.",
+      );
+    }
+
+    for (const oldPasswordHash of user.passwordHistory || []) {
+      const isReusedPassword = await bcrypt.compare(
+        data.newPassword,
+        oldPasswordHash,
+      );
+
+      if (isReusedPassword) {
+        throw new ConflictError(
+          "You cannot reuse any of your last five passwords.",
+        );
+      }
+    }
+
+    const hashedNewPassword = await bcrypt.hash(data.newPassword, 12);
+
+    if (!user.passwordHistory) user.passwordHistory = [];
+    user.passwordHistory.push(user.password);
+    if (user.passwordHistory.length > 5) {
+      user.passwordHistory.shift();
+    }
+    user.password = hashedNewPassword;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+
+    await this.executeWithTransactionFallback(async (session) => {
+      const options = session ? { session } : {};
+
+      if (session) {
+        await user.save({ session });
+      } else {
+        await user.save();
+      }
+
+      await RefreshToken.deleteMany({ user: user._id }, options);
+    });
+
+    return {
+      message:
+        "Password changed successfully. All active sessions have been invalidated.",
+    };
+  }
+
+  async deleteAccount(userId: string | Types.ObjectId, data: DeleteAccountDTO) {
+    const user = await User.findById(userId).select("+password");
+    if (!user) {
+      throw new NotFoundError("User not found.");
+    }
+
+    if (user.provider === "LOCAL") {
+      if (!data.password) {
+        throw new BadRequestError("Password is required to delete account.");
+      }
+
+      if (!user.password) {
+        throw new UnauthorizedError("Password verification failed.");
+      }
+
+      const isPasswordValid = await bcrypt.compare(
+        data.password,
+        user.password,
+      );
+      if (!isPasswordValid) {
+        throw new UnauthorizedError("Incorrect password.");
+      }
+    }
+
+    // Retrieve all workspace IDs owned by this user
+    const workspaces = await Workspace.find({ owner: user._id }).select("_id");
+    const workspaceDocIds = workspaces.map((w) => w._id);
+
+    // Atomic cascade deletion across all 13 user-owned and workspace-owned models
+    await this.executeWithTransactionFallback(async (session) => {
+      const options = session ? { session } : {};
+
+      // 1. Concept & Learning sub-resources
+      await Concept.deleteMany(
+        { $or: [{ owner: user._id }, { workspace: { $in: workspaceDocIds } }] },
+        options,
+      );
+      await Relationship.deleteMany(
+        { workspace: { $in: workspaceDocIds } },
+        options,
+      );
+      await ResourceModel.deleteMany(
+        { workspace: { $in: workspaceDocIds } },
+        options,
+      );
+      await LearningProgressModel.deleteMany(
+        { $or: [{ user: user._id }, { workspace: { $in: workspaceDocIds } }] },
+        options,
+      );
+      await LessonProgressModel.deleteMany(
+        { $or: [{ user: user._id }, { workspace: { $in: workspaceDocIds } }] },
+        options,
+      );
+      await LessonModel.deleteMany(
+        { workspace: { $in: workspaceDocIds } },
+        options,
+      );
+      await FlashcardModel.deleteMany(
+        { workspace: { $in: workspaceDocIds } },
+        options,
+      );
+      await QuizModel.deleteMany(
+        { workspace: { $in: workspaceDocIds } },
+        options,
+      );
+
+      // 2. Workspaces
+      await Workspace.deleteMany({ owner: user._id }, options);
+
+      // 3. Identity and security tokens
+      await RefreshToken.deleteMany({ user: user._id }, options);
+      await VerificationToken.deleteMany({ user: user._id }, options);
+      await PasswordResetToken.deleteMany({ user: user._id }, options);
+
+      // 4. User profile
+      await User.deleteOne({ _id: user._id }, options);
+    });
+
+    return {
+      message: "Account and all associated data deleted successfully.",
     };
   }
 }

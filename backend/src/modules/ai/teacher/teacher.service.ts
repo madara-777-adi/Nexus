@@ -1,4 +1,5 @@
 import mongoose, { Types, ClientSession } from "mongoose";
+import logger from "../../../shared/logger/logger";
 import crypto from "crypto";
 import ConceptModel, {
   ITopic,
@@ -57,8 +58,9 @@ export class TeacherService {
             err.message.includes("does not support retryable writes")));
 
       if (isTransactionUnsupported) {
-        console.warn(
-          "[TeacherService] MongoDB Transactions unsupported on standalone instance. Executing fallback without session.",
+        logger.warn(
+          { service: "TeacherService" },
+          "MongoDB transactions unsupported on standalone instance. Executing fallback without session.",
         );
         return await operation(null);
       }
@@ -94,14 +96,16 @@ export class TeacherService {
     }
 
     if (!context.forceRefresh && concept.topics && concept.topics.length > 0) {
-      console.log(
-        `[TeacherService] Tier 2: Returning cached chapters for concept: ${context.conceptId}`,
+      logger.info(
+        { service: "TeacherService", tier: 2, conceptId: context.conceptId },
+        "Returning cached chapters",
       );
       return concept.topics;
     }
 
-    console.log(
-      `[TeacherService] Tier 2: Generating fresh chapters for Unit: ${context.moduleTitle}`,
+    logger.info(
+      { service: "TeacherService", tier: 2, moduleTitle: context.moduleTitle },
+      "Generating fresh chapters",
     );
 
     const generated = await this.generateTopics({
@@ -229,14 +233,16 @@ export class TeacherService {
       targetTopic.lessons &&
       targetTopic.lessons.length > 0
     ) {
-      console.log(
-        `[TeacherService] Tier 3: Returning cached lesson nodes for Chapter: ${context.chapterId}`,
+      logger.info(
+        { service: "TeacherService", tier: 3, chapterId: context.chapterId },
+        "Returning cached lesson nodes",
       );
       return targetTopic.lessons;
     }
 
-    console.log(
-      `[TeacherService] Tier 3: Generating fresh lesson nodes for Chapter: ${context.chapterTitle}`,
+    logger.info(
+      { service: "TeacherService", tier: 3, chapterTitle: context.chapterTitle },
+      "Generating fresh lesson nodes",
     );
 
     const prompt = buildTier3LessonsPrompt({
@@ -439,8 +445,9 @@ export class TeacherService {
       ]);
 
       if (existingLesson && existingCards.length > 0 && existingQuiz) {
-        console.log(
-          `[TeacherService] Learning Experience: Returning cached payload for lessonId: ${context.lessonId}`,
+        logger.info(
+          { service: "TeacherService", lessonId: context.lessonId },
+          "Returning cached learning experience payload",
         );
         return {
           markdownContent: existingLesson.markdownContent,
@@ -450,8 +457,13 @@ export class TeacherService {
       }
     }
 
-    console.log(
-      `[TeacherService] Learning Experience: Generating fresh content for Lesson: ${context.lessonTitle} (${context.lessonId})`,
+    logger.info(
+      {
+        service: "TeacherService",
+        lessonId: context.lessonId,
+        lessonTitle: context.lessonTitle,
+      },
+      "Generating fresh learning experience content",
     );
 
     const prompt = buildLearningExperiencePrompt({
@@ -622,9 +634,35 @@ export class TeacherService {
     workspaceTitle: string;
     workspaceDescription?: string;
   }): Promise<any[]> {
-    console.log(
-      `[TeacherService] Tier 1: Generating modules for workspace: ${context.workspaceTitle}`,
+    logger.info(
+      { service: "TeacherService", tier: 1, workspaceTitle: context.workspaceTitle },
+      "Generating workspace modules",
     );
+
+    // Resolve and authorize the workspace BEFORE calling the AI provider,
+    // so an unowned/invalid workspaceId is rejected without burning AI quota/cost.
+    const isObjectId = Types.ObjectId.isValid(context.workspaceId);
+    const workspaceDoc = await WorkspaceModel.findOne(
+      isObjectId
+        ? {
+            $or: [
+              { workspaceId: context.workspaceId },
+              { _id: context.workspaceId },
+            ],
+          }
+        : { workspaceId: context.workspaceId },
+    );
+
+    if (!workspaceDoc) {
+      throw new NotFoundError(`Workspace not found: ${context.workspaceId}`);
+    }
+
+    const ownerObjectId = new Types.ObjectId(context.ownerId);
+    if (!workspaceDoc.owner.equals(ownerObjectId)) {
+      throw new ForbiddenError("You do not have access to this workspace.");
+    }
+
+    const mongoWorkspaceId = workspaceDoc._id;
 
     const prompt = buildTier1ModulesPrompt(context);
     let rawData: any = null;
@@ -634,14 +672,18 @@ export class TeacherService {
         .getTier1Provider()
         .generate<any>(prompt, TEACHER_SYSTEM_PROMPT, { temperature: 0.2 });
     } catch (err) {
-      console.error("[TeacherService] Tier 1 AI generation error:", err);
+      logger.error(
+        { service: "TeacherService", tier: 1, err },
+        "Tier 1 AI generation error",
+      );
     }
 
     let modules = Array.isArray(rawData?.modules) ? rawData.modules : [];
 
     if (modules.length === 0) {
-      console.warn(
-        `[TeacherService] Tier 1 returned empty modules array. Applying multi-module fallback roadmap.`,
+      logger.warn(
+        { service: "TeacherService", tier: 1 },
+        "Tier 1 returned empty modules array. Applying multi-module fallback roadmap.",
       );
 
       modules = [
@@ -666,29 +708,6 @@ export class TeacherService {
         },
       ];
     }
-
-    const isObjectId = Types.ObjectId.isValid(context.workspaceId);
-    const workspaceDoc = await WorkspaceModel.findOne(
-      isObjectId
-        ? {
-            $or: [
-              { workspaceId: context.workspaceId },
-              { _id: context.workspaceId },
-            ],
-          }
-        : { workspaceId: context.workspaceId },
-    );
-
-    if (!workspaceDoc) {
-      throw new NotFoundError(`Workspace not found: ${context.workspaceId}`);
-    }
-
-    const ownerObjectId = new Types.ObjectId(context.ownerId);
-    if (!workspaceDoc.owner.equals(ownerObjectId)) {
-      throw new ForbiddenError("You do not have access to this workspace.");
-    }
-
-    const mongoWorkspaceId = workspaceDoc._id;
 
     const createdConcepts: any[] = [];
 

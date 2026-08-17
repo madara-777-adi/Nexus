@@ -3,6 +3,7 @@ export type RegisterDTO = {
   lastName: string;
   email: string;
   password: string;
+  termsAccepted: true;
 };
 
 export type ForgotPasswordDTO = {
@@ -39,4 +40,13 @@ export type UpdateProfileDTO = {
 
 export type VerifyEmailParamsDTO = {
   token: string;
+};
+
+export type ChangePasswordDTO = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+export type DeleteAccountDTO = {
+  password?: string;
 };

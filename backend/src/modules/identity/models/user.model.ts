@@ -91,10 +91,25 @@ const userSchema = new Schema<IUser>(
       default: false,
     },
 
+    tokenVersion: {
+      type: Number,
+      default: 0,
+    },
+
     accountStatus: {
       type: String,
       enum: ["PENDING_VERIFICATION", "ACTIVE", "SUSPENDED"],
       default: "PENDING_VERIFICATION",
+    },
+
+    termsAcceptedAt: {
+      type: Date,
+      default: null,
+    },
+
+    privacyPolicyAcceptedAt: {
+      type: Date,
+      default: null,
     },
   },
   {

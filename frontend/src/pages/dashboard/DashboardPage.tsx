@@ -163,16 +163,6 @@ export function Dashboard() {
                     </h3>
 
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider border ${
-                          ws.visibility === "PUBLIC"
-                            ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
-                            : "bg-surface-border/50 text-gray-400 border-surface-border"
-                        }`}
-                      >
-                        {ws.visibility}
-                      </span>
-
                       {/* Delete Button */}
                       <button
                         onClick={(e) =>

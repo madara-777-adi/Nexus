@@ -30,7 +30,7 @@ export function RegisterForm() {
     setError(null);
     setSuccessMsg(null);
     try {
-      const message = await registerUser(data);
+      const message = await registerUser(data as unknown as import("../../api/auth.api").RegisterPayload);
       setSuccessMsg(
         message ||
           "Registration successful! Please check your email to verify your account.",
@@ -181,6 +181,31 @@ export function RegisterForm() {
             </span>
           )}
         </div>
+
+
+        <div className="flex items-start gap-2 mt-2">
+          <input
+            id="register-terms"
+            type="checkbox"
+            {...register("termsAccepted")}
+            className="mt-1 h-4 w-4 rounded border-surface-border bg-midnight text-neon-lime focus:ring-neon-lime focus:ring-offset-midnight"
+          />
+          <label htmlFor="register-terms" className="text-xs text-gray-400 leading-relaxed">
+            I agree to the{" "}
+            <Link to="/terms" className="text-neon-lime hover:underline" target="_blank">
+              Terms of Use
+            </Link>{" "}
+            and acknowledge the{" "}
+            <Link to="/privacy" className="text-neon-lime hover:underline" target="_blank">
+              Privacy Policy
+            </Link>.
+          </label>
+        </div>
+        {errors.termsAccepted && (
+          <span className="text-xs text-red-400 mt-0">
+            {errors.termsAccepted.message}
+          </span>
+        )}
 
         <button
           type="submit"

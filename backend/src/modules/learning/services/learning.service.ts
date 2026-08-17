@@ -1,3 +1,4 @@
+import logger from "../../../shared/logger/logger";
 import mongoose, { Types, ClientSession } from "mongoose";
 import LearningProgressModel, {
   ILearningProgress,
@@ -47,8 +48,9 @@ class LearningService {
           err.message.includes("Transaction numbers are only allowed"));
 
       if (isTransactionUnsupported) {
-        console.warn(
-          "[LearningService] MongoDB Transactions unsupported on standalone instance. Executing fallback without session.",
+        logger.warn(
+          { service: "LearningService" },
+          "MongoDB transactions unsupported on standalone instance. Executing fallback without session.",
         );
         return await operation(null);
       }

@@ -4,6 +4,7 @@ import env from "../../config/env";
 
 type TokenPayload = {
   sub: string;
+  tokenVersion?: number;
 };
 
 const generateTokens = (payload: TokenPayload) => {

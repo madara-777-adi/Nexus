@@ -1,9 +1,6 @@
 import { useState } from "react";
 import { workspaceApi } from "../../api/workspace.api";
-import type {
-  IWorkspace,
-  WorkspaceVisibility,
-} from "../../types/workspace.types";
+import type { IWorkspace } from "../../types/workspace.types";
 import { X, Sparkles } from "lucide-react";
 
 interface CreateWorkspaceModalProps {
@@ -19,7 +16,6 @@ export function CreateWorkspaceModal({
 }: CreateWorkspaceModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [visibility, setVisibility] = useState<WorkspaceVisibility>("PRIVATE");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -34,13 +30,11 @@ export function CreateWorkspaceModal({
       const response = await workspaceApi.createWorkspace({
         title,
         description,
-        visibility,
       });
 
       onWorkspaceCreated(response.data);
       setTitle("");
       setDescription("");
-      setVisibility("PRIVATE");
       onClose();
     } catch (err: any) {
       setErrorMessage(
@@ -111,23 +105,6 @@ export function CreateWorkspaceModal({
               rows={3}
               className="w-full min-h-[44px] rounded-xl border border-gray-800 bg-[#181B22] p-3 text-sm text-white placeholder-gray-600 focus:border-[#00E5FF] focus:outline-none transition-colors resize-none"
             />
-          </div>
-
-          {/* Visibility */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-              Visibility
-            </label>
-            <select
-              value={visibility}
-              onChange={(e) =>
-                setVisibility(e.target.value as WorkspaceVisibility)
-              }
-              className="w-full min-h-[44px] rounded-xl border border-gray-800 bg-[#181B22] p-3 text-sm text-white focus:border-[#00E5FF] focus:outline-none transition-colors"
-            >
-              <option value="PRIVATE">Private (Only you)</option>
-              <option value="PUBLIC">Public (Accessible via link)</option>
-            </select>
           </div>
 
           {/* Buttons */}

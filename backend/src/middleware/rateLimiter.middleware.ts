@@ -50,6 +50,22 @@ export const authLimiter = rateLimit({
 });
 
 /**
+ * Session-check endpoints (GET/PATCH /me, refresh-token)
+ * These are called automatically and frequently by the frontend
+ * (session check on app load, token refresh on any 401) — needs a much
+ * looser budget than credential-guessing endpoints to avoid locking out
+ * legitimate users sharing an IP (NAT, campus/office networks).
+ * 60 requests per 5 minutes window
+ */
+export const sessionCheckLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: createLimitHandler("Session"),
+});
+
+/**
  * Standard REST API routes (workspaces, concepts, resources)
  * 100 requests per 15 minutes window
  */

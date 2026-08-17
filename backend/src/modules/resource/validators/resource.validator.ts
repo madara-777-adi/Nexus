@@ -16,9 +16,9 @@ const structuredContentZodSchema = z.object({
 export const createResourceSchema = z.object({
   title: z
     .string()
+    .trim()
     .min(1, "Resource title is required")
-    .max(200, "Title cannot exceed 200 characters")
-    .trim(),
+    .max(200, "Title cannot exceed 200 characters"),
   source: z.nativeEnum(ResourceSource).optional(),
   content: structuredContentZodSchema,
 });

@@ -1,3 +1,4 @@
+import logger from "../../../shared/logger/logger";
 import env from "../../../config/env";
 import { IAIProvider, AIRequestOptions } from "./provider.interface";
 
@@ -106,7 +107,10 @@ export class CerebrasProvider implements IAIProvider {
         );
       }
     } catch (error) {
-      console.error(`[CerebrasProvider ${this.tierLabel} Error]:`, error);
+      logger.error(
+        { service: "CerebrasProvider", tier: this.tierLabel, err: error },
+        "Cerebras provider request failed",
+      );
       throw error;
     }
   }

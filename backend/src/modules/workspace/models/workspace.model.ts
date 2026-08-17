@@ -1,15 +1,9 @@
 import { Schema, model, Document, Types } from "mongoose";
 
-export enum WorkspaceVisibility {
-  PUBLIC = "PUBLIC",
-  PRIVATE = "PRIVATE",
-}
-
 export interface IWorkspace extends Document {
   workspaceId: string;
   title: string;
   description?: string;
-  visibility: WorkspaceVisibility;
   owner: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -34,11 +28,6 @@ const workspaceSchema = new Schema<IWorkspace>(
       trim: true,
       maxlength: [500, "Description cannot exceed 500 characters"],
       default: "",
-    },
-    visibility: {
-      type: String,
-      enum: Object.values(WorkspaceVisibility),
-      default: WorkspaceVisibility.PRIVATE,
     },
     owner: {
       type: Schema.Types.ObjectId,

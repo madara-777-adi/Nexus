@@ -4,12 +4,19 @@ import app from "./app";
 import env from "./config/env";
 import connectDB from "./config/database";
 import logger from "./shared/logger/logger";
+import { ProviderFactory } from "./modules/ai/providers/provider.factory";
 
 let server: ReturnType<typeof app.listen>;
 
 const startServer = async (): Promise<void> => {
   try {
     await connectDB();
+
+    // Fail fast on misconfigured AI provider keys (e.g. a tier set to
+    // "cerebras" without CEREBRAS_API_KEY) instead of only discovering it
+    // on a real user's first AI request in production.
+    ProviderFactory.getInstance();
+
     server = app.listen(env.PORT, () => {
       logger.info({ port: env.PORT }, "Server started");
     });

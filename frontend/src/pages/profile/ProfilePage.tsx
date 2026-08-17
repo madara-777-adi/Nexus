@@ -1,12 +1,13 @@
+import { isAxiosError } from "axios";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { authApi } from "../../api/auth.api";
-import { ArrowLeft, User, Mail, Shield, Check, Save } from "lucide-react";
+import { ArrowLeft, User, Mail, Shield, Check, Save, Lock, Trash2, AlertTriangle } from "lucide-react";
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const { user, checkAuth } = useAuth();
+  const { user, checkAuth, logout } = useAuth();
 
   const [firstName, setFirstName] = useState(user?.firstName || "");
   const [lastName, setLastName] = useState(user?.lastName || "");
@@ -16,6 +17,72 @@ export function ProfilePage() {
 
   const fullName =
     `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "User Profile";
+
+  // Password State
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+
+  // Delete Account State
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsChangingPassword(true);
+    setPasswordSuccess(false);
+    setPasswordError("");
+
+    try {
+      await authApi.changePassword({ currentPassword, newPassword });
+      setPasswordSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setTimeout(async () => {
+        await logout();
+        navigate("/login");
+      }, 1500);
+    } catch (error: unknown) {
+      if (isAxiosError(error)) {
+        setPasswordError(
+          error.response?.data?.message || "Failed to change password."
+        );
+      } else if (error instanceof Error) {
+        setPasswordError(error.message);
+      } else {
+        setPasswordError("Failed to change password.");
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsDeleting(true);
+    setDeleteError("");
+
+    try {
+      await authApi.deleteAccount({ password: deletePassword });
+      await logout();
+      window.location.href = "/";
+    } catch (error: unknown) {
+      if (isAxiosError(error)) {
+        setDeleteError(
+          error.response?.data?.message || "Failed to delete account."
+        );
+      } else if (error instanceof Error) {
+        setDeleteError(error.message);
+      } else {
+        setDeleteError("Failed to delete account.");
+      }
+      setIsDeleting(false);
+    }
+  };
 
   const getUserInitials = () => {
     const f = user?.firstName?.[0] || "U";
@@ -30,22 +97,24 @@ export function ProfilePage() {
     setErrorMessage("");
 
     try {
-      // Audit 1.2 Fix: Issue actual backend API call to update profile
       await authApi.updateUserProfile({ firstName, lastName });
 
-      // Refresh AuthContext user state so updated name reflects globally
       if (typeof checkAuth === "function") {
         await checkAuth();
       }
 
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (error: any) {
-      setErrorMessage(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to update profile. Please try again.",
-      );
+    } catch (error: unknown) {
+      if (isAxiosError(error)) {
+        setErrorMessage(
+          error.response?.data?.message || "Failed to update profile. Please try again."
+        );
+      } else if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Failed to update profile. Please try again.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -162,6 +231,167 @@ export function ProfilePage() {
               </button>
             </div>
           </form>
+        </div>
+
+
+        {/* Security / Password Card */}
+        {user?.provider === "LOCAL" && (
+          <div className="space-y-6 rounded-2xl border border-gray-800 bg-[#12141A] p-6 md:p-8">
+            <div className="flex items-center gap-4 border-b border-gray-800/80 pb-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-gray-800 bg-[#181B22] text-gray-400">
+                <Lock className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-medium tracking-tight text-white">
+                  Change Password
+                </h2>
+                <p className="mt-0.5 text-xs text-gray-400">
+                  Update your account password
+                </p>
+              </div>
+            </div>
+
+            {passwordError && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/20 p-3 text-xs font-semibold text-red-400">
+                {passwordError}
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-5">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                    className="w-full rounded-xl border border-gray-800 bg-[#181B22] px-4 py-3 text-sm text-white placeholder-gray-600 transition-colors focus:border-[#00E5FF] focus:outline-none"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full rounded-xl border border-gray-800 bg-[#181B22] px-4 py-3 text-sm text-white placeholder-gray-600 transition-colors focus:border-[#00E5FF] focus:outline-none"
+                    required
+                    minLength={8}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-gray-800/80 pt-4">
+                {passwordSuccess ? (
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-[#BCFF3C]">
+                    <Check className="h-4 w-4" /> Password changed!
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-500">
+                    Will sign out other devices.
+                  </span>
+                )}
+                <button
+                  type="submit"
+                  disabled={isChangingPassword || !currentPassword || !newPassword}
+                  className="flex cursor-pointer items-center gap-2 rounded-xl bg-gray-800 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-white transition-all hover:bg-gray-700 disabled:opacity-50"
+                >
+                  {isChangingPassword ? "Updating..." : "Update Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Danger Zone: Delete Account */}
+        <div className="space-y-6 rounded-2xl border border-red-900/30 bg-[#12141A] p-6 md:p-8">
+          <div className="flex items-center gap-4 border-b border-gray-800/80 pb-6">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-red-900/50 bg-red-900/20 text-red-500">
+              <Trash2 className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-medium tracking-tight text-white">
+                Delete Account
+              </h2>
+              <p className="mt-0.5 text-xs text-red-400">
+                Permanently delete your account and all data
+              </p>
+            </div>
+          </div>
+
+          {!showDeleteConfirm ? (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-400 max-w-sm">
+                Once you delete your account, there is no going back. All your workspaces, concepts, and progress will be permanently erased.
+              </p>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex cursor-pointer items-center gap-2 rounded-xl border border-red-900/50 bg-red-900/20 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-red-500 transition-all hover:bg-red-900/40"
+              >
+                Delete Account
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleDeleteAccount} className="space-y-4 rounded-xl border border-red-900/50 bg-red-900/10 p-5">
+              <div className="flex gap-3 text-red-400">
+                <AlertTriangle className="h-5 w-5 shrink-0" />
+                <div className="text-xs leading-relaxed">
+                  <strong className="block font-semibold mb-1">Are you absolutely sure?</strong>
+                  This action cannot be undone. This will permanently delete your account, workspaces, concepts, and remove your data from our servers.
+                </div>
+              </div>
+
+              {deleteError && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/20 p-3 text-xs font-semibold text-red-400">
+                  {deleteError}
+                </div>
+              )}
+
+              {user?.provider === "LOCAL" && (
+                <div className="space-y-2 mt-4">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder="Enter password to confirm"
+                    className="w-full rounded-xl border border-red-900/50 bg-[#181B22] px-4 py-3 text-sm text-white placeholder-gray-600 transition-colors focus:border-red-500 focus:outline-none"
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeletePassword("");
+                    setDeleteError("");
+                  }}
+                  className="flex-1 cursor-pointer rounded-xl border border-gray-700 bg-transparent px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-300 transition-all hover:bg-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDeleting || (user?.provider === "LOCAL" && !deletePassword)}
+                  className="flex-1 cursor-pointer rounded-xl bg-red-600 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-white transition-all hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeleting ? "Deleting..." : "Yes, Delete My Account"}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {/* Security Info Card */}

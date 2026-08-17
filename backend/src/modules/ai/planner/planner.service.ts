@@ -1,4 +1,4 @@
-import { groqProvider } from "../providers/groq.provider";
+import { ProviderFactory } from "../providers/provider.factory";
 import WorkspaceModel from "../../workspace/models/workspace.model";
 import ConceptModel from "../../concept/models/concept.model";
 import RelationshipModel from "../../relationship/models/relationship.model";
@@ -21,22 +21,18 @@ export class PlannerService {
       context.workspaceId = workspace._id;
     }
     const prompt = buildPlannerPrompt(context);
-    return groqProvider.generateJSON(
-      prompt,
-      PLANNER_SYSTEM_PROMPT,
-      "organizer",
-      { temperature: 0.2 },
-    );
+    // Uses Tier1 provider (matches this call's previous "organizer" role mapping).
+    return ProviderFactory.getInstance()
+      .getTier1Provider()
+      .generate<any>(prompt, PLANNER_SYSTEM_PROMPT, { temperature: 0.2 });
   }
 
   async generateBlueprint(context: { title: string; description?: string }) {
     const prompt = buildBlueprintPrompt(context);
-    return groqProvider.generateJSON(
-      prompt,
-      BLUEPRINT_SYSTEM_PROMPT,
-      "organizer",
-      { temperature: 0.2 },
-    );
+    // Uses Tier1 provider (matches this call's previous "organizer" role mapping).
+    return ProviderFactory.getInstance()
+      .getTier1Provider()
+      .generate<any>(prompt, BLUEPRINT_SYSTEM_PROMPT, { temperature: 0.2 });
   }
 }
 

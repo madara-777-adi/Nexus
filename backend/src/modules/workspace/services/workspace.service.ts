@@ -1,8 +1,5 @@
 import mongoose, { Types, ClientSession } from "mongoose";
-import Workspace, {
-  IWorkspace,
-  WorkspaceVisibility,
-} from "../models/workspace.model";
+import Workspace, { IWorkspace } from "../models/workspace.model";
 import Concept from "../../concept/models/concept.model";
 import Relationship, {
   RelationshipType,
@@ -188,7 +185,6 @@ class WorkspaceService {
             owner: ownerObjectId,
             title: dto.title,
             description: dto.description || "",
-            visibility: dto.visibility || WorkspaceVisibility.PRIVATE,
           },
         ],
         options,
@@ -284,9 +280,8 @@ class WorkspaceService {
       throw new NotFoundError("Workspace not found.");
     }
 
-    const isOwner = workspace.owner.equals(userObjectId);
-    if (!isOwner && workspace.visibility === WorkspaceVisibility.PRIVATE) {
-      throw new ForbiddenError("Access denied to this private workspace.");
+    if (!workspace.owner.equals(userObjectId)) {
+      throw new ForbiddenError("You are not allowed to perform this action.");
     }
 
     return workspace;
@@ -309,7 +304,6 @@ class WorkspaceService {
 
     if (dto.title !== undefined) workspace.title = dto.title;
     if (dto.description !== undefined) workspace.description = dto.description;
-    if (dto.visibility !== undefined) workspace.visibility = dto.visibility;
 
     await workspace.save();
     return workspace;

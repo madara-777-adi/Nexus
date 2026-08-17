@@ -5,6 +5,7 @@ export interface RegisterPayload {
   lastName: string;
   email: string;
   password: string;
+  termsAccepted: true;
 }
 
 export interface LoginPayload {
@@ -19,6 +20,15 @@ export interface ForgotPasswordPayload {
 export interface ResetPasswordPayload {
   token: string;
   password: string;
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface DeleteAccountPayload {
+  password?: string;
 }
 
 export interface UpdateUserProfilePayload {
@@ -65,6 +75,18 @@ export const authApi = {
 
   resetPassword: async (payload: ResetPasswordPayload) => {
     const response = await api.post("/auth/reset-password", payload);
+    return response.data;
+  },
+
+
+  changePassword: async (payload: ChangePasswordPayload) => {
+    const response = await api.post("/auth/change-password", payload);
+    return response.data;
+  },
+
+  deleteAccount: async (payload: DeleteAccountPayload) => {
+    const response = await api.delete("/auth/me", { data: payload });
+    setAccessToken(null);
     return response.data;
   },
 

@@ -1,3 +1,4 @@
+import logger from "../../../shared/logger/logger";
 import mongoose, { Types, ClientSession } from "mongoose";
 import crypto from "crypto";
 import ConceptModel, { IConcept, ITopic } from "../models/concept.model";
@@ -43,8 +44,9 @@ class ConceptService {
           err.message.includes("Transaction numbers are only allowed"));
 
       if (isTransactionUnsupported) {
-        console.warn(
-          "[ConceptService] MongoDB Transactions unsupported on standalone instance. Executing fallback without session.",
+        logger.warn(
+          { service: "ConceptService" },
+          "MongoDB transactions unsupported on standalone instance. Executing fallback without session.",
         );
         return await operation(null);
       }

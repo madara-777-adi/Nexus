@@ -256,8 +256,13 @@ export class AIController {
         (req as any).user._id || (req as any).user.id,
       );
 
-      // RC-004: Resolve public workspaceId -> Mongo ObjectId
-      const workspace = await Workspace.findOne({ workspaceId });
+      // RC-004: Resolve public workspaceId -> Mongo ObjectId.
+      // Scoped by owner up front so an unauthorized workspaceId is rejected
+      // before we read any of its concepts, instead of after.
+      const workspace = await Workspace.findOne({
+        workspaceId,
+        owner: userObjectId,
+      });
 
       if (!workspace) {
         throw new NotFoundError("Workspace not found.");

@@ -68,17 +68,3 @@ export class GroqProvider implements IAIProvider {
     }
   }
 }
-
-export const groqProvider = {
-  generateJSON<T = any>(
-    prompt: string,
-    systemInstruction?: string,
-    role: "organizer" | "teacher" = "teacher",
-    options?: AIRequestOptions,
-  ): Promise<T> {
-    const provider =
-      role === "organizer" ? GroqProvider.forTier1() : GroqProvider.forTier2();
-
-    return provider.generate<T>(prompt, systemInstruction, options);
-  },
-};
