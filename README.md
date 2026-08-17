@@ -169,4 +169,4 @@ MIT
 
 ---
 
-Built by [your name] as a final-year project.
+Built by Aditya Upadhyay as a final-year project.
