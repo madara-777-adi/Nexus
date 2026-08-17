@@ -42,6 +42,7 @@ const envSchema = z.object({
 
   // Cerebras key — single shared key across all tiers that select it.
   // Optional: only required if a tier's provider is set to "cerebras".
+  CEREBRAS_API_KEY: z.string().min(1).optional(),
 
   // Google OAuth
   GOOGLE_CLIENT_ID: z.string().min(1),

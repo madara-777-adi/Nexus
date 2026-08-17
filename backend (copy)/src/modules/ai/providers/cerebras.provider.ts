@@ -30,25 +30,23 @@ export class CerebrasProvider implements IAIProvider {
   }
 
   static forTier1(): CerebrasProvider {
-    return CerebrasProvider.buildForTier(env.AI_TIER1_API_KEY, "Tier1");
+    return CerebrasProvider.buildForTier("Tier1");
   }
 
   static forTier2(): CerebrasProvider {
-    return CerebrasProvider.buildForTier(env.AI_TIER2_API_KEY, "Tier2");
+    return CerebrasProvider.buildForTier("Tier2");
   }
 
   static forTier3(): CerebrasProvider {
-    // This now passes your AI_TIER3_API_KEY to Cerebras!
-    return CerebrasProvider.buildForTier(env.AI_TIER3_API_KEY, "Tier3");
+    return CerebrasProvider.buildForTier("Tier3");
   }
 
-  private static buildForTier(
-    apiKey: string,
-    tierLabel: string,
-  ): CerebrasProvider {
-    if (!apiKey) {
-      throw new Error(`Missing API key in environment for ${tierLabel}.`);
-    }
+  private static buildForTier(tierLabel: string): CerebrasProvider {
+    const apiKey = env.CEREBRAS_API_KEY;
+    if (!apiKey)
+      throw new Error(
+        'Missing CEREBRAS_API_KEY in environment (required because a tier\'s provider is set to "cerebras").',
+      );
     return new CerebrasProvider(apiKey, tierLabel);
   }
 
