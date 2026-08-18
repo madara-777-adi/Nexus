@@ -162,7 +162,7 @@ export function Dashboard() {
       </div>
 
       {/* Top Sticky Navigation Bar[cite: 1] */}
-      <header className="border-b border-[#1E2846] bg-[#0d1117]/85 backdrop-blur-xl sticky top-0 z-40 px-6 sm:px-10 py-4 flex items-center justify-between shadow-lg shadow-black/20">
+      <header className="bg-transparent sticky top-0 z-40 px-6 sm:px-10 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="font-neovision text-[#BCFF3C] text-xl tracking-wider uppercase font-bold">
             NexusSpace
@@ -171,7 +171,6 @@ export function Dashboard() {
             Tier 1 • Skills
           </span>
         </div>
-
         {/* User Dropdown */}
         <UserDropdown />
       </header>
