@@ -38,9 +38,6 @@ export function LessonList({
   onBackToChapters,
   onGenerateLessons,
 }: LessonListProps) {
-  /**
-   * Derive lesson progress and accessibility from LessonProgress map
-   */
   const getLessonProgress = (lesson: ILessonNode) => {
     const key = `${unit.conceptId}:${chapter.id}:${lesson.id}`;
     return lessonProgressMap.get(key);
@@ -60,7 +57,7 @@ export function LessonList({
     );
   };
 
-  // Find the next upcoming/active lesson node to display as the Hero Card
+  // Compute upcoming lesson and overall chapter mastery
   const { upcomingLesson, masteredCount } = useMemo(() => {
     let nextLesson: ILessonNode | null = null;
     let mastered = 0;
@@ -75,7 +72,6 @@ export function LessonList({
       }
     }
 
-    // Default to first accessible lesson if not all are completed
     if (!nextLesson && sorted.length > 0) {
       nextLesson = sorted[0];
     }
@@ -87,19 +83,19 @@ export function LessonList({
   }, [lessons, unit, chapter, lessonProgressMap]);
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-[#080A0F] p-4 sm:p-6 md:p-10">
-      <div className="max-w-6xl mx-auto flex flex-col gap-6 sm:gap-8 pt-4 sm:pt-6 pb-12">
+    <div className="h-full w-full overflow-y-auto bg-[#080A0F] p-4 sm:p-6 lg:p-10">
+      <div className="max-w-6xl mx-auto flex flex-col gap-8 pt-4 sm:pt-6 pb-12">
         {/* Header Navigation & Sub-module context */}
-        <div className="border-b border-gray-800/80 pb-6">
+        <div className="border-b border-[#1E2846]/80 pb-6">
           <button
             onClick={onBackToChapters}
-            className="mb-3.5 flex items-center gap-2 rounded-xl border border-gray-800 bg-[#12141A] px-3.5 py-2 text-xs font-medium text-gray-300 transition-all hover:border-gray-700 hover:text-white cursor-pointer"
+            className="mb-4 flex items-center gap-2 rounded-xl border border-[#1E2846] bg-[#0d1117] px-4 py-2 text-xs font-semibold text-gray-300 transition-all hover:border-[#00E5FF]/40 hover:text-white cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4 text-[#BCFF3C]" /> Back to Chapters
           </button>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono uppercase tracking-widest text-[#00E5FF]">
-              Tier 3 • Sub-module Focus
+              Tier 3 Architecture • 3rd Pillar
             </span>
             <span className="text-slate-600">•</span>
             <span className="text-[10px] font-mono text-[#BCFF3C] uppercase">
@@ -109,25 +105,27 @@ export function LessonList({
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
             {chapter.title}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl leading-relaxed">
             {chapter.description ||
-              "Click any unlocked lesson card to launch its pop-up study studio, interactive notes, and diagnostic quiz."}
+              "Click any unlocked lesson card to launch its study studio, interactive JIT notes, and diagnostic quiz."}
           </p>
         </div>
 
         {/* NEXT UPCOMING LESSON HERO CARD */}
         {upcomingLesson && (
-          <section className="glass-card p-6 sm:p-7 rounded-2xl border-[#BCFF3C]/50 shadow-[0_0_25px_rgba(188,255,60,0.06)] flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
+          <section className="bg-[#0d1117]/90 backdrop-blur-xl p-7 sm:p-8 rounded-3xl border border-[#BCFF3C]/50 shadow-[0_0_30px_rgba(188,255,60,0.08)] flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-40 h-40 bg-[#BCFF3C]/5 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div className="space-y-2.5">
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-[#BCFF3C]/10 text-[#BCFF3C] text-[10px] font-mono font-bold uppercase tracking-wider">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#BCFF3C]/10 text-[#BCFF3C] border border-[#BCFF3C]/30 text-[10px] font-mono font-bold uppercase tracking-wider">
                   Next Upcoming Lesson
                 </span>
                 <span className="text-xs font-mono text-slate-400">
                   Lesson #{String(upcomingLesson.order || 1).padStart(2, "0")}
                 </span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white">
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                 {upcomingLesson.title}
               </h2>
               <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
@@ -135,23 +133,23 @@ export function LessonList({
                   "Interactive lesson nodes with KaTeX equations, active recall decks, and AI evaluation."}
               </p>
               <div className="flex items-center gap-4 text-xs font-mono text-slate-400 pt-1">
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-[#00E5FF]" />{" "}
                   {upcomingLesson.estimatedMinutes || 15} min study
                 </span>
-                <span className="flex items-center gap-1">
-                  <Layers className="w-3.5 h-3.5 text-[#BCFF3C]" /> Recall &amp;
-                  Quiz
+                <span className="flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-[#BCFF3C]" /> Active
+                  Recall &amp; Diagnostic Quiz
                 </span>
               </div>
             </div>
 
             <button
               onClick={() => onSelectLesson(upcomingLesson)}
-              className="px-6 py-3.5 bg-neon-lime hover:bg-[#aef525] text-midnight font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shrink-0 shadow-lg shadow-neon-lime/10"
+              className="px-6 py-3.5 bg-[#BCFF3C] hover:bg-[#aef525] text-[#080A0F] font-bold text-xs uppercase tracking-wider rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 shadow-lg shadow-[#BCFF3C]/15 hover:scale-[1.02]"
             >
               <Play className="w-4 h-4 fill-current" />
-              <span>Open Lesson Window</span>
+              <span>Open Lesson Studio</span>
             </button>
           </section>
         )}
@@ -163,8 +161,10 @@ export function LessonList({
             <span>Generating lesson nodes with AI...</span>
           </div>
         ) : lessons.length === 0 ? (
-          <div className="glass-card p-10 rounded-2xl flex flex-col items-center justify-center gap-4 text-center text-xs text-gray-500 max-w-md mx-auto">
-            <span>No lesson nodes found for this chapter yet.</span>
+          <div className="bg-[#0d1117] border border-dashed border-[#1E2846] rounded-3xl p-10 flex flex-col items-center justify-center gap-4 text-center max-w-md mx-auto">
+            <span className="text-xs text-slate-400">
+              No lesson nodes found for this chapter yet.
+            </span>
             <button
               onClick={onGenerateLessons}
               className="flex items-center gap-2 rounded-xl border border-[#00E5FF]/40 bg-[#00E5FF]/10 px-5 py-2.5 text-xs font-semibold text-[#00E5FF] transition-colors hover:bg-[#00E5FF]/20 cursor-pointer"
@@ -173,19 +173,19 @@ export function LessonList({
             </button>
           </div>
         ) : (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-white flex items-center gap-2">
+          <section className="space-y-5">
+            <div className="flex items-center justify-between border-b border-[#1E2846]/60 pb-3">
+              <h3 className="text-xs font-mono uppercase tracking-wider text-slate-300 flex items-center gap-2 font-bold">
                 <Grid className="w-4 h-4 text-[#BCFF3C]" />
-                Lesson Cards in Chapter
+                Lesson Sequence
               </h3>
-              <span className="text-xs font-mono text-slate-500">
+              <span className="text-xs font-mono text-slate-400">
                 {masteredCount} of {lessons.length} Mastered
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {lessons.map((lesson) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {lessons.map((lesson, idx) => {
                 const accessible = isLessonAccessible(lesson);
                 const prog = getLessonProgress(lesson);
                 const isMastered = prog?.status === ConceptStatus.MASTERED;
@@ -197,90 +197,97 @@ export function LessonList({
                     onClick={
                       accessible ? () => onSelectLesson(lesson) : undefined
                     }
-                    className={`glass-card p-5 rounded-2xl flex flex-col justify-between transition-all duration-200 relative ${
+                    className={`group bg-[#0d1117]/90 backdrop-blur-xl border rounded-3xl p-7 transition-all duration-300 flex flex-col justify-between min-h-[230px] relative ${
                       isMastered
-                        ? "border-[#BCFF3C]/30 hover:border-[#BCFF3C]/70 cursor-pointer"
+                        ? "border-[#BCFF3C]/40 hover:border-[#BCFF3C] hover:shadow-[0_0_25px_rgba(188,255,60,0.16)] hover:-translate-y-1 cursor-pointer"
                         : accessible
-                          ? "border-[#00E5FF]/60 bg-[#00E5FF]/5 shadow-[0_0_20px_rgba(0,229,255,0.06)] cursor-pointer"
-                          : "opacity-50 cursor-not-allowed border-gray-800"
+                          ? "border-[#00E5FF]/60 shadow-[0_0_25px_rgba(0,229,255,0.12)] hover:border-[#00E5FF] hover:shadow-[0_0_30px_rgba(0,229,255,0.22)] hover:-translate-y-1 cursor-pointer"
+                          : "opacity-40 cursor-not-allowed border-[#1E2846]"
                     }`}
                   >
-                    <div>
-                      <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`w-7 h-7 rounded-lg font-mono text-xs font-bold flex items-center justify-center ${
+                            className={`w-8 h-8 rounded-xl font-mono text-xs font-bold flex items-center justify-center border ${
                               isMastered
-                                ? "bg-[#BCFF3C]/10 text-[#BCFF3C]"
+                                ? "bg-[#BCFF3C]/10 text-[#BCFF3C] border-[#BCFF3C]/30"
                                 : accessible
-                                  ? "bg-[#00E5FF]/20 text-[#00E5FF]"
-                                  : "bg-gray-800 text-gray-500"
+                                  ? "bg-[#00E5FF]/10 text-[#00E5FF] border-[#00E5FF]/30"
+                                  : "bg-gray-800 text-gray-500 border-gray-800"
                             }`}
                           >
-                            {String(lesson.order || 1).padStart(2, "0")}
+                            {String(lesson.order || idx + 1).padStart(2, "0")}
                           </span>
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase font-semibold border ${
                               isMastered
-                                ? "bg-[#BCFF3C]/10 text-[#BCFF3C]"
+                                ? "bg-[#BCFF3C]/10 border-[#BCFF3C]/30 text-[#BCFF3C]"
                                 : accessible
-                                  ? "bg-[#00E5FF]/10 text-[#00E5FF]"
-                                  : "bg-gray-800 text-gray-500"
+                                  ? "bg-[#00E5FF]/10 border-[#00E5FF]/30 text-[#00E5FF]"
+                                  : "bg-gray-800 border-gray-800 text-gray-500"
                             }`}
                           >
                             {isMastered
                               ? "Mastered"
                               : accessible
-                                ? "In Progress"
+                                ? "Active Node"
                                 : "Locked"}
                           </span>
                         </div>
 
+                        {/* Status Icon / Blinking Active Indicator */}
                         {isMastered ? (
                           <div className="flex items-center gap-1.5 text-xs font-mono text-[#BCFF3C] font-bold">
                             <span>{score}%</span>
                             <CheckCircle2 className="w-4 h-4" />
                           </div>
                         ) : accessible ? (
-                          <span className="flex h-2 w-2 rounded-full bg-[#00E5FF] animate-ping"></span>
+                          <span className="flex h-2.5 w-2.5 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00E5FF] opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#00E5FF]"></span>
+                          </span>
                         ) : (
-                          <Lock className="w-4 h-4 text-gray-500" />
+                          <Lock className="w-4 h-4 text-gray-600" />
                         )}
                       </div>
 
                       <h4
-                        className={`text-base font-bold mb-1.5 transition-colors ${
-                          accessible
-                            ? "text-white group-hover:text-neon-lime"
-                            : "text-gray-500"
+                        className={`text-base sm:text-lg font-bold transition-colors line-clamp-1 ${
+                          isMastered
+                            ? "text-white group-hover:text-[#BCFF3C]"
+                            : accessible
+                              ? "text-white group-hover:text-[#00E5FF]"
+                              : "text-gray-500"
                         }`}
                       >
                         {lesson.title}
                       </h4>
-                      <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                      <p className="text-xs sm:text-sm text-slate-400 line-clamp-2 leading-relaxed">
                         {lesson.description ||
-                          "No lesson description provided."}
+                          "Interactive lesson node with study notes and quiz testing."}
                       </p>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-[#1E2846] flex items-center justify-between text-[11px] font-mono text-slate-500">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />{" "}
+                    {/* Lesson Footer */}
+                    <div className="mt-6 pt-4 border-t border-[#1E2846]/80 flex items-center justify-between text-xs font-mono text-slate-400">
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-slate-500" />{" "}
                         {lesson.estimatedMinutes || 15} min
                       </span>
                       <span
-                        className={
+                        className={`font-semibold ${
                           isMastered
                             ? "text-[#BCFF3C]"
                             : accessible
-                              ? "text-[#00E5FF] font-bold"
-                              : "text-gray-500"
-                        }
+                              ? "text-[#00E5FF]"
+                              : "text-gray-600"
+                        }`}
                       >
                         {isMastered
                           ? "Review Notes →"
                           : accessible
-                            ? "Open Pop-up →"
+                            ? "Launch Studio →"
                             : "Locked"}
                       </span>
                     </div>
