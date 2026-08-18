@@ -66,27 +66,27 @@ Nothing downstream generates until it's actually requested (just-in-time generat
 
 | Home                               | Login                                | Registration                                       |
 | ---------------------------------- | ------------------------------------ | -------------------------------------------------- |
-| ![Home Page](./docs/Home-Page.png) | ![Login Page](./docs/Login-Page.png) | ![Registration Page](./docs/Registration-Page.png) |
+| ![Home Page](./docs/Home-PageV1.png) | ![Login Page](./docs/Login-PageV1.png) | ![Registration Page](./docs/Registration-PageV1.png) |
 
 ### Workspace & Curriculum
 
 | Dashboard                          | Skills                                           | Create Workspace                                 |
 | ---------------------------------- | ------------------------------------------------ | ------------------------------------------------ |
-| ![Dashboard](./docs/Dashboard.png) | ![Dashboard Skills](./docs/Dashboard-Skills.png) | ![Create Workspace](./docs/Create-Workspace.png) |
+| ![Dashboard](./docs/DashboardV1.png) | ![Dashboard Skills](./docs/Dashboard-SkillsV1.png) | ![Create Workspace](./docs/Create-WorkspaceV1.png) |
 
 | Units                      | Chapters                         |
 | -------------------------- | -------------------------------- |
-| ![Units](./docs/Units.png) | ![Chapters](./docs/Chapters.png) |
+| ![Units](./docs/UnitsV1.png) | ![Chapters](./docs/ChaptersV1.png) |
 
 ### Learning Experience
 
 | Lesson List                            | Lesson Open                            | Lesson Regenerated                                   |
 | -------------------------------------- | -------------------------------------- | ---------------------------------------------------- |
-| ![Lesson List](./docs/Lesson-List.png) | ![Lesson Open](./docs/Lesson-open.png) | ![Lesson Regenerated](./docs/Lesson-Regenerated.png) |
+| ![Lesson List](./docs/Lesson-ListV1.png) | ![Lesson Open](./docs/Lesson-openV1.png) | ![Lesson Regenerated](./docs/Lesson-RegeneratedV1.png) |
 
 | Flashcards                           | Quiz                      |
 | ------------------------------------ | ------------------------- |
-| ![Flashcards](./docs/FlashCards.png) | ![Quiz](./docs/Quize.png) |
+| ![Flashcards](./docs/FlashCardsV1.png) | ![Quiz](./docs/QuizeV1.png) |
 
 ### Account & Legal
 
