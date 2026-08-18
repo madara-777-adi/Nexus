@@ -16,81 +16,88 @@ import { CreateWorkspaceModal } from "../../components/workspace/CreateWorkspace
 import { UserDropdown } from "../../components/layout/UserDropdown";
 import type { IWorkspace } from "../../types/workspace.types";
 
-const TECH_KEYWORDS = [
-  "Python",
-  "React",
-  "TypeScript",
-  "Node.js",
-  "Docker",
-  "PostgreSQL",
-  "FastAPI",
-  "GraphQL",
-  "Redis",
-  "Kubernetes",
-  "Kafka",
-  "System Design",
-  "Algorithms",
-  "Data Structures",
-  "WebSockets",
-  "Rust",
-  "CI/CD",
-  "OAuth 2.0",
-  "Next.js",
-  "Microservices",
-  "PyTorch",
-  "Tailwind CSS",
-  "Memory Allocation",
-  "Concurrency",
-  "Hash Tables",
-  "O(log n)",
+// Deep Core Computer Science Concepts
+const CORE_CSE_CONCEPTS = [
+  // Data Structures & Algorithms
+  "Red-Black Tree",
+  "Dijkstra O(E log V)",
+  "Dynamic Programming",
+  "Topological Sort",
+  "B+ Tree Index",
+  "Trie Node",
+  "Disjoint Set Union",
+  "Min-Heap Priority",
+  "QuickSelect",
+  "A* Heuristic Search",
+  "Segment Tree",
+  "Suffix Automaton",
+  "Floyd-Warshall",
+  "AVL Tree Rotation",
+  "Bloom Filter",
+  "Convex Hull",
+
+  // Operating Systems & Low-Level
+  "Mutex Lock",
+  "Semaphore Barrier",
+  "Context Switch",
+  "Virtual Memory Paging",
+  "TLB Cache Miss",
+  "Deadlock Graph",
+  "IPC Ring Buffer",
+  "Thread Preemption",
+  "DMA Controller",
+  "Kernel Space Ring 0",
+  "Copy-On-Write",
+  "Fork & Exec",
+
+  // Computer Architecture
+  "Instruction Pipelining",
+  "Branch Predictor",
+  "SIMD Vectorization",
+  "RISC-V Microarchitecture",
+  "L1 Cache Line",
+  "Out-of-Order Execution",
+  "Register Renaming",
+  "Memory Bus Arbitration",
+
+  // Distributed Systems & Networking
+  "Paxos Consensus",
+  "Raft State Machine",
+  "Two-Phase Commit",
+  "TCP 3-Way Handshake",
+  "BGP Routing Table",
+  "CAP Theorem",
+  "Vector Clocks",
+  "Gossip Protocol",
+  "Quorum Read/Write",
+  "Consistent Hashing",
+  "Zero-Copy Socket",
+
+  // Database Internals & Compilers
+  "Write-Ahead Log (WAL)",
+  "ACID Serializability",
+  "Abstract Syntax Tree (AST)",
+  "SSA Intermediate Rep",
+  "Mark-and-Sweep GC",
+  "LL(1) Parser",
+  "Query Optimization",
 ];
 
-class StreamParticle {
+interface WordEntity {
   text: string;
-  x: number;
-  y: number;
+  distance: number;
   speed: number;
   fontSize: number;
   opacity: number;
   colorStr: string;
+}
 
-  constructor(
-    laneY: number,
-    direction: number,
-    canvasWidth: number,
-    initialOffset: number,
-  ) {
-    this.y = laneY;
-    this.text = TECH_KEYWORDS[Math.floor(Math.random() * TECH_KEYWORDS.length)];
-    // Consistent speed per stream
-    this.speed = (0.35 + Math.random() * 0.45) * direction;
-    this.fontSize = Math.floor(Math.random() * 3) + 12; // 12px to 14px
-    this.opacity = Math.random() * 0.18 + 0.12; // Subtle ambient opacity
-    this.colorStr = Math.random() > 0.4 ? "188, 255, 60" : "0, 229, 255";
-
-    // Distribute across screen width initially to avoid bunching
-    this.x = (initialOffset % (canvasWidth + 400)) - 200;
-  }
-
-  update(canvasWidth: number) {
-    this.x += this.speed;
-
-    if (this.speed > 0 && this.x > canvasWidth + 200) {
-      this.x = -200;
-      this.text =
-        TECH_KEYWORDS[Math.floor(Math.random() * TECH_KEYWORDS.length)];
-    } else if (this.speed < 0 && this.x < -200) {
-      this.x = canvasWidth + 200;
-      this.text =
-        TECH_KEYWORDS[Math.floor(Math.random() * TECH_KEYWORDS.length)];
-    }
-  }
-
-  draw(ctx: CanvasRenderingContext2D) {
-    ctx.font = `bold ${this.fontSize}px monospace`;
-    ctx.fillStyle = `rgba(${this.colorStr}, ${this.opacity})`;
-    ctx.fillText(this.text, this.x, this.y);
-  }
+interface StreamLane {
+  originX: number;
+  originY: number;
+  angle: number;
+  trackLength: number;
+  words: WordEntity[];
 }
 
 export function Dashboard() {
@@ -110,51 +117,172 @@ export function Dashboard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
 
-  // Background Particle Streams Engine
+  // 4-Corner Diagonal Streams Canvas Engine with Multi-Attribute Variations
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let particles: StreamParticle[] = [];
+    let lanes: StreamLane[] = [];
 
-    const setupLanes = () => {
+    const COLOR_PALETTE = [
+      "188, 255, 60", // Neon Lime
+      "0, 229, 255", // Cyan
+      "168, 85, 247", // Electric Violet
+      "52, 211, 153", // Emerald
+      "148, 163, 184", // Slate Gray
+      "244, 114, 182", // Rose
+    ];
+
+    const generateWordEntity = (initialDistance: number): WordEntity => {
+      const text =
+        CORE_CSE_CONCEPTS[Math.floor(Math.random() * CORE_CSE_CONCEPTS.length)];
+      // Font size variations: 10px up to 21px
+      const fontSizes = [10, 11, 12, 13, 14, 16, 18, 20];
+      const fontSize = fontSizes[Math.floor(Math.random() * fontSizes.length)];
+
+      // Speed variations: Some slow and ambient, some swift
+      const speed = 0.22 + Math.random() * 0.45;
+
+      // Visibility variations: From deep ambient (0.08) to crisp neon (0.34)
+      const opacity = Number((0.08 + Math.random() * 0.26).toFixed(2));
+
+      const colorStr =
+        COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
+
+      return {
+        text,
+        distance: initialDistance,
+        speed,
+        fontSize,
+        opacity,
+        colorStr,
+      };
+    };
+
+    const initializeCanvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      lanes = [];
 
-      particles = [];
-      const laneHeight = 52; // Discrete non-overlapping lane heights
-      const totalLanes = Math.floor(canvas.height / laneHeight);
+      const W = canvas.width;
+      const H = canvas.height;
 
-      for (let i = 0; i < totalLanes; i++) {
-        const laneY = i * laneHeight + 35;
-        const direction = i % 2 === 0 ? 1 : -1;
+      // 1. TOP-LEFT CORNER: Up-Right Trajectories (↗)
+      const tlLaneCount = 4;
+      for (let i = 0; i < tlLaneCount; i++) {
+        const laneOffset = i * 85;
+        const trackLength = Math.hypot(W * 0.6, H * 0.6);
+        lanes.push({
+          originX: -80 + i * 40,
+          originY: H * 0.45 - laneOffset,
+          angle: -0.58,
+          trackLength,
+          words: [
+            generateWordEntity(0),
+            generateWordEntity(trackLength * 0.42),
+          ],
+        });
+      }
 
-        // 2 non-overlapping stream particles per lane spaced apart
-        const spacing = canvas.width / 2 + 150;
-        particles.push(new StreamParticle(laneY, direction, canvas.width, 0));
-        particles.push(
-          new StreamParticle(laneY, direction, canvas.width, spacing),
-        );
+      // 2. BOTTOM-LEFT CORNER: Up-Right Trajectories (↗)
+      const blLaneCount = 4;
+      for (let i = 0; i < blLaneCount; i++) {
+        const laneOffset = i * 90;
+        const trackLength = Math.hypot(W * 0.6, H * 0.65);
+        lanes.push({
+          originX: -70 + i * 45,
+          originY: H + 30 - laneOffset,
+          angle: -0.68,
+          trackLength,
+          words: [
+            generateWordEntity(trackLength * 0.15),
+            generateWordEntity(trackLength * 0.58),
+          ],
+        });
+      }
+
+      // 3. TOP-RIGHT CORNER: Down-Right Trajectories (↘)
+      const trLaneCount = 4;
+      for (let i = 0; i < trLaneCount; i++) {
+        const laneOffset = i * 90;
+        const trackLength = Math.hypot(W * 0.6, H * 0.6);
+        lanes.push({
+          originX: W * 0.52 + laneOffset,
+          originY: -50 + (i % 2) * 35,
+          angle: 0.65,
+          trackLength,
+          words: [
+            generateWordEntity(trackLength * 0.05),
+            generateWordEntity(trackLength * 0.52),
+          ],
+        });
+      }
+
+      // 4. BOTTOM-RIGHT CORNER: Down-Left Trajectories (↙)
+      const brLaneCount = 4;
+      for (let i = 0; i < brLaneCount; i++) {
+        const laneOffset = i * 85;
+        const trackLength = Math.hypot(W * 0.55, H * 0.55);
+        lanes.push({
+          originX: W + 60 - (i % 2) * 30,
+          originY: H * 0.48 + laneOffset,
+          angle: 2.52,
+          trackLength,
+          words: [
+            generateWordEntity(trackLength * 0.2),
+            generateWordEntity(trackLength * 0.62),
+          ],
+        });
       }
     };
 
-    const render = () => {
+    const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach((p) => {
-        p.update(canvas.width);
-        p.draw(ctx);
+
+      lanes.forEach((lane) => {
+        const cosA = Math.cos(lane.angle);
+        const sinA = Math.sin(lane.angle);
+
+        lane.words.forEach((word) => {
+          word.distance += word.speed;
+
+          // Wrap back to beginning of track with a new random CSE concept and properties
+          if (word.distance > lane.trackLength) {
+            word.distance = -90;
+            const fresh = generateWordEntity(0);
+            word.text = fresh.text;
+            word.fontSize = fresh.fontSize;
+            word.opacity = fresh.opacity;
+            word.speed = fresh.speed;
+            word.colorStr = fresh.colorStr;
+          }
+
+          const currentX = lane.originX + cosA * word.distance;
+          const currentY = lane.originY + sinA * word.distance;
+
+          ctx.save();
+          ctx.translate(currentX, currentY);
+          ctx.rotate(lane.angle);
+
+          ctx.font = `bold ${word.fontSize}px monospace`;
+          ctx.fillStyle = `rgba(${word.colorStr}, ${word.opacity})`;
+          ctx.fillText(word.text, 0, 0);
+
+          ctx.restore();
+        });
       });
-      animationRef.current = requestAnimationFrame(render);
+
+      animationRef.current = requestAnimationFrame(animate);
     };
 
-    window.addEventListener("resize", setupLanes);
-    setupLanes();
-    render();
+    window.addEventListener("resize", initializeCanvas);
+    initializeCanvas();
+    animate();
 
     return () => {
-      window.removeEventListener("resize", setupLanes);
+      window.removeEventListener("resize", initializeCanvas);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -232,13 +360,13 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#080A0F] text-white flex flex-col relative selection:bg-neon-lime selection:text-midnight overflow-x-hidden font-sans">
-      {/* Background Animated Linear Data Stream Canvas */}
+      {/* 4-Corner Diagonal Vector Streams Background Canvas */}
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 pointer-events-none z-0 opacity-80"
+        className="fixed inset-0 pointer-events-none z-0 opacity-90"
       />
 
-      {/* Top Persistent Navigation Bar (Old Clean Style) */}
+      {/* Top Persistent Navigation Bar */}
       <header className="border-b border-[#1E2846] bg-[#0d1117]/85 backdrop-blur-xl sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="font-neovision text-neon-lime text-xl tracking-wider uppercase font-bold">
