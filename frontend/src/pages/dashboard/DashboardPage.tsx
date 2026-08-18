@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { isAxiosError } from "axios";
 import {
@@ -10,12 +10,88 @@ import {
   ArrowRight,
   BookOpen,
   Calendar,
-  Zap,
 } from "lucide-react";
 import { workspaceApi } from "../../api/workspace.api";
 import { CreateWorkspaceModal } from "../../components/workspace/CreateWorkspaceModal";
 import { UserDropdown } from "../../components/layout/UserDropdown";
 import type { IWorkspace } from "../../types/workspace.types";
+
+const TECH_KEYWORDS = [
+  "Python",
+  "React",
+  "TypeScript",
+  "Node.js",
+  "Docker",
+  "PostgreSQL",
+  "FastAPI",
+  "GraphQL",
+  "Redis",
+  "Kubernetes",
+  "Kafka",
+  "System Design",
+  "Algorithms",
+  "Data Structures",
+  "WebSockets",
+  "Rust",
+  "CI/CD",
+  "OAuth 2.0",
+  "Next.js",
+  "Microservices",
+  "PyTorch",
+  "Tailwind CSS",
+  "Memory Allocation",
+  "Concurrency",
+  "Hash Tables",
+  "O(log n)",
+];
+
+class StreamParticle {
+  text: string;
+  x: number;
+  y: number;
+  speed: number;
+  fontSize: number;
+  opacity: number;
+  colorStr: string;
+
+  constructor(
+    laneY: number,
+    direction: number,
+    canvasWidth: number,
+    initialOffset: number,
+  ) {
+    this.y = laneY;
+    this.text = TECH_KEYWORDS[Math.floor(Math.random() * TECH_KEYWORDS.length)];
+    // Consistent speed per stream
+    this.speed = (0.35 + Math.random() * 0.45) * direction;
+    this.fontSize = Math.floor(Math.random() * 3) + 12; // 12px to 14px
+    this.opacity = Math.random() * 0.18 + 0.12; // Subtle ambient opacity
+    this.colorStr = Math.random() > 0.4 ? "188, 255, 60" : "0, 229, 255";
+
+    // Distribute across screen width initially to avoid bunching
+    this.x = (initialOffset % (canvasWidth + 400)) - 200;
+  }
+
+  update(canvasWidth: number) {
+    this.x += this.speed;
+
+    if (this.speed > 0 && this.x > canvasWidth + 200) {
+      this.x = -200;
+      this.text =
+        TECH_KEYWORDS[Math.floor(Math.random() * TECH_KEYWORDS.length)];
+    } else if (this.speed < 0 && this.x < -200) {
+      this.x = canvasWidth + 200;
+      this.text =
+        TECH_KEYWORDS[Math.floor(Math.random() * TECH_KEYWORDS.length)];
+    }
+  }
+
+  draw(ctx: CanvasRenderingContext2D) {
+    ctx.font = `bold ${this.fontSize}px monospace`;
+    ctx.fillStyle = `rgba(${this.colorStr}, ${this.opacity})`;
+    ctx.fillText(this.text, this.x, this.y);
+  }
+}
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -30,6 +106,60 @@ export function Dashboard() {
   } | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [error, setError] = useState("");
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationRef = useRef<number | null>(null);
+
+  // Background Particle Streams Engine
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let particles: StreamParticle[] = [];
+
+    const setupLanes = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      particles = [];
+      const laneHeight = 52; // Discrete non-overlapping lane heights
+      const totalLanes = Math.floor(canvas.height / laneHeight);
+
+      for (let i = 0; i < totalLanes; i++) {
+        const laneY = i * laneHeight + 35;
+        const direction = i % 2 === 0 ? 1 : -1;
+
+        // 2 non-overlapping stream particles per lane spaced apart
+        const spacing = canvas.width / 2 + 150;
+        particles.push(new StreamParticle(laneY, direction, canvas.width, 0));
+        particles.push(
+          new StreamParticle(laneY, direction, canvas.width, spacing),
+        );
+      }
+    };
+
+    const render = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach((p) => {
+        p.update(canvas.width);
+        p.draw(ctx);
+      });
+      animationRef.current = requestAnimationFrame(render);
+    };
+
+    window.addEventListener("resize", setupLanes);
+    setupLanes();
+    render();
+
+    return () => {
+      window.removeEventListener("resize", setupLanes);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const fetchWorkspaces = async () => {
@@ -58,7 +188,7 @@ export function Dashboard() {
   const handleDeleteClick = (
     e: React.MouseEvent,
     workspaceId: string,
-    title: string
+    title: string,
   ) => {
     e.stopPropagation();
     setDeleteError("");
@@ -72,13 +202,13 @@ export function Dashboard() {
     try {
       await workspaceApi.deleteWorkspace(deleteTarget.id);
       setWorkspaces((prev) =>
-        prev.filter((ws) => ws.workspaceId !== deleteTarget.id)
+        prev.filter((ws) => ws.workspaceId !== deleteTarget.id),
       );
       setDeleteTarget(null);
     } catch (err: unknown) {
       if (isAxiosError(err)) {
         setDeleteError(
-          err.response?.data?.message || "Failed to delete workspace."
+          err.response?.data?.message || "Failed to delete workspace.",
         );
       } else if (err instanceof Error) {
         setDeleteError(err.message);
@@ -90,38 +220,32 @@ export function Dashboard() {
     }
   };
 
-  // Filter workspaces based on search query
   const filteredWorkspaces = useMemo(() => {
     if (!searchQuery.trim()) return workspaces;
     const q = searchQuery.toLowerCase();
     return workspaces.filter(
       (ws) =>
         ws.title.toLowerCase().includes(q) ||
-        (ws.description && ws.description.toLowerCase().includes(q))
+        (ws.description && ws.description.toLowerCase().includes(q)),
     );
   }, [workspaces, searchQuery]);
 
   return (
     <div className="min-h-screen bg-[#080A0F] text-white flex flex-col relative selection:bg-neon-lime selection:text-midnight overflow-x-hidden font-sans">
-      
-      {/* Ambient Background Accents */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-neon-lime/5 rounded-full blur-[140px]"></div>
-        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-[#00E5FF]/5 rounded-full blur-[160px]"></div>
-        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-purple-600/5 rounded-full blur-[140px]"></div>
-      </div>
+      {/* Background Animated Linear Data Stream Canvas */}
+      <canvas
+        ref={canvasRef}
+        className="fixed inset-0 pointer-events-none z-0 opacity-80"
+      />
 
-      {/* Top Sticky Navigation Bar */}
-      <header className="border-b border-[#1E2846] bg-[#080A0F]/80 backdrop-blur-xl sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+      {/* Top Persistent Navigation Bar (Old Clean Style) */}
+      <header className="border-b border-[#1E2846] bg-[#0d1117]/85 backdrop-blur-xl sticky top-0 z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-neon-lime/10 border border-neon-lime/30 flex items-center justify-center text-neon-lime shadow-[0_0_15px_rgba(188,255,60,0.2)]">
-            <Zap className="w-4 h-4 fill-current" />
-          </div>
           <span className="font-neovision text-neon-lime text-xl tracking-wider uppercase font-bold">
             NexusSpace
           </span>
           <span className="px-2.5 py-0.5 rounded-full bg-[#121620] border border-[#1E2846] text-[10px] font-mono text-slate-400 uppercase hidden sm:inline-block">
-            Tier 1 • Dashboard
+            Tier 1 • Skills
           </span>
         </div>
 
@@ -129,10 +253,9 @@ export function Dashboard() {
         <UserDropdown />
       </header>
 
-      {/* Main Container */}
+      {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6 sm:gap-8 relative z-10">
-        
-        {/* Hero Section & Quick Stats */}
+        {/* Header Title Section & Metric Counters */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#1E2846]/80">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
@@ -140,7 +263,7 @@ export function Dashboard() {
                 Interactive Command Center
               </span>
               <span className="text-slate-600">•</span>
-              <span className="flex items-center gap-1 text-[10px] font-mono text-neon-lime">
+              <span className="flex items-center gap-1.5 text-[10px] font-mono text-neon-lime">
                 <span className="w-1.5 h-1.5 rounded-full bg-neon-lime animate-pulse"></span>
                 AI Graph Connected
               </span>
@@ -149,13 +272,15 @@ export function Dashboard() {
               SKILLS &amp; WORKSPACES
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
-              Manage your technical learning tracks. Launch an existing blueprint to explore module pathways or initialize a new track with AI.
+              Manage your technical learning tracks. Launch an existing
+              blueprint to explore module pathways or initialize a new track
+              with AI.
             </p>
           </div>
 
           {/* Quick Metrics & CTA */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="glass-card px-4 py-2.5 rounded-2xl flex items-center gap-3">
+            <div className="glass-card px-4 py-2.5 rounded-2xl flex items-center gap-3 bg-[#121620]/80 backdrop-blur-xl border border-[#1E2846]">
               <div className="p-2 rounded-xl bg-neon-lime/10 text-neon-lime">
                 <BookOpen className="w-4 h-4" />
               </div>
@@ -183,7 +308,7 @@ export function Dashboard() {
         {error && (
           <div
             role="alert"
-            className="bg-red-500/10 text-red-400 border border-red-500/30 p-4 rounded-2xl text-xs font-semibold"
+            className="bg-red-500/10 text-red-400 border border-red-500/30 p-4 rounded-2xl text-xs font-semibold backdrop-blur-md"
           >
             {error}
           </div>
@@ -199,7 +324,7 @@ export function Dashboard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search skill tracks, technologies..."
-                className="w-full glass-input rounded-2xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all"
+                className="w-full glass-input bg-[#080A0F]/80 backdrop-blur-xl rounded-2xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all"
               />
             </div>
             <span className="text-xs font-mono text-slate-500">
@@ -214,7 +339,7 @@ export function Dashboard() {
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
-                className="glass-card rounded-3xl p-6 animate-pulse flex flex-col justify-between h-56"
+                className="glass-card bg-[#121620]/80 backdrop-blur-xl border border-[#1E2846] rounded-3xl p-6 animate-pulse flex flex-col justify-between h-56"
               >
                 <div className="space-y-3">
                   <div className="h-5 bg-[#1E2846]/60 rounded-lg w-1/2"></div>
@@ -227,7 +352,7 @@ export function Dashboard() {
           </div>
         ) : workspaces.length === 0 ? (
           /* Empty State */
-          <div className="glass-card border-dashed border-[#1E2846] rounded-3xl p-10 sm:p-16 text-center flex flex-col items-center justify-center gap-4 max-w-lg mx-auto">
+          <div className="glass-card bg-[#121620]/80 backdrop-blur-xl border-dashed border-[#1E2846] rounded-3xl p-10 sm:p-16 text-center flex flex-col items-center justify-center gap-4 max-w-lg mx-auto">
             <div className="w-14 h-14 rounded-2xl bg-neon-lime/10 border border-neon-lime/30 flex items-center justify-center text-neon-lime shadow-[0_0_20px_rgba(188,255,60,0.15)]">
               <Layers className="w-7 h-7" />
             </div>
@@ -236,7 +361,8 @@ export function Dashboard() {
                 No Skill Blueprints Yet
               </h3>
               <p className="text-slate-400 text-xs sm:text-sm mt-1 leading-relaxed">
-                Initialize your first skill blueprint to synthesize multi-tier modules, diagnostic tests, and interactive active recall cards.
+                Initialize your first skill blueprint to synthesize multi-tier
+                modules, diagnostic tests, and interactive active recall cards.
               </p>
             </div>
             <button
@@ -254,7 +380,7 @@ export function Dashboard() {
               <div
                 key={ws.workspaceId}
                 onClick={() => navigate(`/workspace/${ws.workspaceId}`)}
-                className="group glass-card hover:border-neon-lime/60 rounded-3xl p-6 transition-all duration-300 cursor-pointer flex flex-col justify-between hover:shadow-[0_10px_30px_rgba(188,255,60,0.06)] hover:-translate-y-1 relative"
+                className="group glass-card bg-[#121620]/80 backdrop-blur-xl border border-[#1E2846] hover:border-neon-lime/60 rounded-3xl p-6 transition-all duration-300 cursor-pointer flex flex-col justify-between hover:shadow-[0_10px_30px_rgba(188,255,60,0.06)] hover:-translate-y-1 relative"
               >
                 <div>
                   {/* Card Top Metadata & Delete */}
@@ -288,7 +414,8 @@ export function Dashboard() {
                     {ws.title}
                   </h3>
                   <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">
-                    {ws.description || "Interactive structured learning track and modular curriculum."}
+                    {ws.description ||
+                      "Interactive structured learning track and modular curriculum."}
                   </p>
                 </div>
 
@@ -316,7 +443,7 @@ export function Dashboard() {
             {/* Inline Quick Add Blueprint Card */}
             <div
               onClick={() => setIsModalOpen(true)}
-              className="glass-card border-dashed border-[#1E2846] hover:border-[#00E5FF]/60 rounded-3xl p-6 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center text-center gap-3 min-h-[220px] hover:bg-[#00E5FF]/5 group"
+              className="glass-card bg-[#121620]/60 backdrop-blur-xl border-dashed border-[#1E2846] hover:border-[#00E5FF]/60 rounded-3xl p-6 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center text-center gap-3 min-h-[220px] hover:bg-[#00E5FF]/5 group"
             >
               <div className="w-12 h-12 rounded-2xl bg-[#00E5FF]/10 border border-[#00E5FF]/30 flex items-center justify-center text-[#00E5FF] group-hover:scale-110 transition-transform">
                 <Plus className="w-6 h-6" />
@@ -351,7 +478,8 @@ export function Dashboard() {
               <span className="text-neon-lime font-semibold">
                 "{deleteTarget.title}"
               </span>
-              ? This action cannot be undone and will remove all generated modules, chapters, and diagnostic progress.
+              ? This action cannot be undone and will remove all generated
+              modules, chapters, and diagnostic progress.
             </p>
             {deleteError && (
               <div className="bg-red-500/10 text-red-400 border border-red-500/30 p-3 rounded-xl text-xs font-semibold">
