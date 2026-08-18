@@ -88,7 +88,7 @@ export function LessonList({
 
   return (
     <div className="h-full w-full overflow-y-auto bg-[#080A0F] p-4 sm:p-6 md:p-10">
-      <div className="max-w-6xl mx-auto flex flex-col gap-6 sm:gap-8 pt-24 sm:pt-16 pb-12">
+      <div className="max-w-6xl mx-auto flex flex-col gap-6 sm:gap-8 pt-4 sm:pt-6 pb-12">
         {/* Header Navigation & Sub-module context */}
         <div className="border-b border-gray-800/80 pb-6">
           <button

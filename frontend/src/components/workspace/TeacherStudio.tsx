@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -61,6 +61,23 @@ export function TeacherStudio({
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
   const [evaluationScore, setEvaluationScore] = useState<number | null>(null);
+
+  // Scroll Container Ref to reset scroll position on tab switch / lesson change
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Reset scroll to top whenever tab or lesson changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [activeTab, lessonId]);
+
+  const handleTabChange = (tab: "lesson" | "quiz") => {
+    setActiveTab(tab);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  };
 
   const fetchLessonPayload = async (forceRefresh = false) => {
     setIsLoading(true);
@@ -157,9 +174,9 @@ export function TeacherStudio({
       />
 
       {/* Main Studio Modal Overlay Window */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[#080A0F]/85 backdrop-blur-xl transition-all duration-300">
-        <div className="modal-enter relative w-full max-w-4xl max-h-[92vh] rounded-3xl border border-[#1E2846] bg-[#121620] shadow-2xl flex flex-col overflow-hidden">
-          {/* Modal Header */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[#080A0F]/85 backdrop-blur-xl">
+        <div className="modal-enter relative w-full max-w-4xl h-[90vh] sm:h-[86vh] rounded-3xl border border-[#1E2846] bg-[#121620] shadow-2xl flex flex-col overflow-hidden">
+          {/* Pinned Modal Header (shrink-0) */}
           <div className="px-6 py-4 border-b border-[#1E2846] bg-[#0d1117] flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
@@ -211,10 +228,10 @@ export function TeacherStudio({
             </div>
           </div>
 
-          {/* Tab Switcher */}
+          {/* Pinned Tab Switcher (shrink-0) */}
           <div className="px-6 pt-3 border-b border-[#1E2846] bg-[#0d1117] flex items-center gap-4 shrink-0">
             <button
-              onClick={() => setActiveTab("lesson")}
+              onClick={() => handleTabChange("lesson")}
               className={`pb-3 text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-colors border-b-2 ${
                 activeTab === "lesson"
                   ? "border-[#00E5FF] text-[#00E5FF]"
@@ -224,7 +241,7 @@ export function TeacherStudio({
               <FileText className="w-3.5 h-3.5" /> JIT Notes &amp; Formulas
             </button>
             <button
-              onClick={() => setActiveTab("quiz")}
+              onClick={() => handleTabChange("quiz")}
               className={`pb-3 text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-colors border-b-2 ${
                 activeTab === "quiz"
                   ? "border-neon-lime text-neon-lime"
@@ -236,8 +253,11 @@ export function TeacherStudio({
             </button>
           </div>
 
-          {/* Modal Scrollable Body */}
-          <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+          {/* Dedicated Independent Scroll Container */}
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-8 space-y-6"
+          >
             {error && (
               <div
                 role="alert"
@@ -310,7 +330,7 @@ export function TeacherStudio({
               </article>
             ) : (
               /* TAB 2: DIAGNOSTIC QUIZ */
-              <div className="space-y-6">
+              <div className="space-y-6 pb-4">
                 {evaluationScore !== null && (
                   <div
                     role="status"
@@ -369,15 +389,17 @@ export function TeacherStudio({
                       );
                     })}
 
-                    <button
-                      onClick={handleSubmitQuiz}
-                      disabled={isEvaluating}
-                      className="w-full py-3.5 bg-neon-lime hover:bg-[#aef525] text-midnight font-bold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer shadow-lg shadow-neon-lime/10 disabled:opacity-50"
-                    >
-                      {isEvaluating
-                        ? "Evaluating Submission..."
-                        : "Submit Diagnostic Evaluation"}
-                    </button>
+                    <div className="pt-2">
+                      <button
+                        onClick={handleSubmitQuiz}
+                        disabled={isEvaluating}
+                        className="w-full py-3.5 bg-neon-lime hover:bg-[#aef525] text-midnight font-bold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer shadow-lg shadow-neon-lime/10 disabled:opacity-50"
+                      >
+                        {isEvaluating
+                          ? "Evaluating Submission..."
+                          : "Submit Diagnostic Evaluation"}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-center py-12 text-xs text-gray-500 font-mono">

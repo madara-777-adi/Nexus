@@ -76,7 +76,6 @@ export function WorkspacePage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Selection state
   const [selectedUnit, setSelectedUnit] = useState<IConcept | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<IConceptTopic | null>(
     null,
@@ -85,7 +84,6 @@ export function WorkspacePage() {
     null,
   );
 
-  // Curriculum data
   const [concepts, setConcepts] = useState<IConcept[]>([]);
   const [progressMap, setProgressMap] = useState<
     Map<string, ILearningProgress>
@@ -216,7 +214,7 @@ export function WorkspacePage() {
         }
 
         setLoadState(rawConcepts.length > 0 ? "ready" : "empty");
-      } catch (err: unknown) {
+      } catch {
         if (signal.aborted) return;
         setErrorMessage("Something went wrong loading the modules.");
         setLoadState("error");
@@ -250,7 +248,6 @@ export function WorkspacePage() {
     }
   }, [workspaceId]);
 
-  // JIT Tier 2 Chapter Generation
   const generateChaptersForUnit = useCallback(
     async (unit: IConcept) => {
       if (!workspaceId || !workspaceTitle) return;
@@ -305,7 +302,6 @@ export function WorkspacePage() {
     }
   }, [selectedUnit, generateChaptersForUnit]);
 
-  // JIT Tier 3 Lesson Generation
   const generateLessonsForChapter = useCallback(
     async (unit: IConcept, chapter: IConceptTopic) => {
       if (!workspaceId || !workspaceTitle) return;
@@ -367,7 +363,6 @@ export function WorkspacePage() {
     }
   }, [selectedUnit, selectedChapter, generateLessonsForChapter]);
 
-  // AI Planner Path
   const handleAskPlanner = async () => {
     if (!workspaceId) return;
     setIsPlanning(true);
@@ -403,7 +398,7 @@ export function WorkspacePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#080A0F] text-slate-100 relative overflow-x-hidden selection:bg-neon-lime selection:text-midnight">
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#080A0F] text-slate-100 selection:bg-neon-lime selection:text-midnight">
       {/* Toast Overlay */}
       <div className="fixed bottom-5 right-5 z-70 flex flex-col gap-2 max-w-sm pointer-events-none">
         {toasts.map((t) => (
@@ -416,8 +411,8 @@ export function WorkspacePage() {
         ))}
       </div>
 
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-30 glass-nav h-16 px-4 lg:px-8 flex items-center justify-between">
+      {/* Top Navigation Bar (Fixed 64px height) */}
+      <header className="h-16 shrink-0 glass-nav px-4 lg:px-8 flex items-center justify-between z-30">
         <div className="flex items-center gap-4 sm:gap-6">
           <button
             onClick={() => navigate("/dashboard")}
@@ -451,10 +446,10 @@ export function WorkspacePage() {
         </div>
       </header>
 
-      {/* Main Workspace Body */}
-      <div className="flex-1 flex relative z-10">
-        {/* Workspace Sidebar */}
-        <aside className="w-16 lg:w-64 glass-sidebar min-h-[calc(100vh-4rem)] p-3 lg:p-4 flex flex-col justify-between shrink-0">
+      {/* Main Workspace Dual-Panel Body */}
+      <div className="flex-1 flex overflow-hidden min-h-0 relative z-10">
+        {/* Left Sidebar (Independent vertical scroll) */}
+        <aside className="w-16 lg:w-64 glass-sidebar h-full overflow-y-auto p-3 lg:p-4 flex flex-col justify-between shrink-0 border-r border-[#1E2846]">
           <div className="space-y-6">
             <div>
               <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider hidden lg:block mb-3 px-2">
@@ -508,8 +503,8 @@ export function WorkspacePage() {
           </div>
         </aside>
 
-        {/* Dynamic Canvas Container */}
-        <main className="flex-1 h-full w-full overflow-hidden">
+        {/* Right Content Area (Independent vertical scroll) */}
+        <main className="flex-1 h-full overflow-y-auto relative">
           <ErrorBoundary
             key={`${workspaceId}_${refreshKey}`}
             fallbackTitle="Workspace view failed to load"
@@ -561,7 +556,7 @@ export function WorkspacePage() {
         </main>
       </div>
 
-      {/* POP-UP LESSON STUDIO MODAL OVERLAY (TIER 4) */}
+      {/* Pop-up Studio Modal Overlay (Tier 4) */}
       {selectedLesson && selectedUnit && (
         <ErrorBoundary
           key={selectedLesson.id}
