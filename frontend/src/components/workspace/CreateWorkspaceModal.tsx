@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isAxiosError } from "axios";
 import { workspaceApi } from "../../api/workspace.api";
 import type { IWorkspace } from "../../types/workspace.types";
 import { X, Sparkles } from "lucide-react";
@@ -25,23 +26,25 @@ export function CreateWorkspaceModal({
     e.preventDefault();
     setLoading(true);
     setErrorMessage("");
-
     try {
       const response = await workspaceApi.createWorkspace({
         title,
         description,
       });
-
       onWorkspaceCreated(response.data);
       setTitle("");
       setDescription("");
       onClose();
-    } catch (err: any) {
-      setErrorMessage(
-        err.response?.data?.message ||
-          err.message ||
-          "Failed to create workspace.",
-      );
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        setErrorMessage(
+          err.response?.data?.message || "Failed to create workspace.",
+        );
+      } else if (err instanceof Error) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage("Failed to create workspace.");
+      }
     } finally {
       setLoading(false);
     }
@@ -49,7 +52,7 @@ export function CreateWorkspaceModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#080A0F]/80 backdrop-blur-md p-4 transition-all">
-      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-800 bg-[#12141A] p-4 sm:p-6 shadow-2xl flex flex-col gap-4 sm:gap-5">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-800 bg-[#12141A] p-4 sm:p-6 shadow-2xl flex flex-col gap-4 sm:gap-5 modal-enter">
         {/* Modal Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -57,14 +60,13 @@ export function CreateWorkspaceModal({
               Learning Hub
             </p>
             <h2 className="mt-1 font-neovision text-xl tracking-wide text-white">
-              New Workspace Blueprint
+              New Skill Blueprint
             </h2>
           </div>
-
           <button
             type="button"
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] rounded-xl border border-gray-800 bg-[#181B22] p-2 text-gray-400 transition-all hover:border-gray-700 hover:text-white cursor-pointer flex items-center justify-center"
+            className="min-h-[40px] min-w-[40px] rounded-xl border border-gray-800 bg-[#181B22] p-2 text-gray-400 transition-all hover:border-gray-700 hover:text-white cursor-pointer flex items-center justify-center"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
@@ -81,7 +83,7 @@ export function CreateWorkspaceModal({
           {/* Workspace Title */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-              Workspace Title *
+              Skill / Workspace Title *
             </label>
             <input
               type="text"
@@ -101,13 +103,13 @@ export function CreateWorkspaceModal({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief summary of concepts covered..."
+              placeholder="Brief summary of topics covered in this blueprint..."
               rows={3}
               className="w-full min-h-[44px] rounded-xl border border-gray-800 bg-[#181B22] p-3 text-sm text-white placeholder-gray-600 focus:border-[#00E5FF] focus:outline-none transition-colors resize-none"
             />
           </div>
 
-          {/* Buttons */}
+          {/* Action Buttons */}
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-800/80">
             <button
               type="button"
@@ -116,14 +118,19 @@ export function CreateWorkspaceModal({
             >
               Cancel
             </button>
-
             <button
               type="submit"
               disabled={loading}
-              className="flex min-h-[44px] items-center gap-2 rounded-xl bg-[#BCFF3C] px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-black transition-all hover:bg-[#aef525] disabled:opacity-50 cursor-pointer"
+              className="flex min-h-[44px] items-center gap-2 rounded-xl bg-neon-lime px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-midnight transition-all hover:bg-[#aef525] disabled:opacity-50 cursor-pointer"
             >
-              {loading && <Sparkles className="h-3.5 w-3.5 animate-spin" />}
-              <span>{loading ? "Initializing..." : "Create Workspace"}</span>
+              {loading ? (
+                <Sparkles className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              <span>
+                {loading ? "Initializing..." : "Create Skill Blueprint"}
+              </span>
             </button>
           </div>
         </form>

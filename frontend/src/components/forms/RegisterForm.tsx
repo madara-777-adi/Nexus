@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isAxiosError } from "axios";
+import { User, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import {
   registerSchema,
   type RegisterFormData,
@@ -15,6 +16,7 @@ export function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -30,7 +32,9 @@ export function RegisterForm() {
     setError(null);
     setSuccessMsg(null);
     try {
-      const message = await registerUser(data as unknown as import("../../api/auth.api").RegisterPayload);
+      const message = await registerUser(
+        data as unknown as import("../../api/auth.api").RegisterPayload,
+      );
       setSuccessMsg(
         message ||
           "Registration successful! Please check your email to verify your account.",
@@ -50,15 +54,23 @@ export function RegisterForm() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 w-full">
       <div>
-        <span className="font-merkur text-neon-lime text-lg block mb-1">
-          Join NexusSpace
-        </span>
-        <h2 className="font-neovision text-3xl tracking-wide text-white">
-          CREATE ACCOUNT
-        </h2>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-2">
+          Create your account
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-400">
+          Already registered?{" "}
+          <Link
+            to="/login"
+            className="font-semibold text-neon-lime hover:underline transition"
+          >
+            Sign in
+          </Link>
+        </p>
       </div>
+
+      <SocialAuthButtons />
 
       {error && (
         <div
@@ -84,125 +96,152 @@ export function RegisterForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Name Fields Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label htmlFor="register-firstName" className="sr-only">
+            <label
+              htmlFor="register-firstName"
+              className="block text-xs font-medium text-slate-300 mb-1.5"
+            >
               First Name
             </label>
-            <input
-              id="register-firstName"
-              type="text"
-              placeholder="First Name"
-              aria-label="First Name"
-              aria-invalid={Boolean(errors.firstName)}
-              aria-describedby={errors.firstName ? "reg-fn-error" : undefined}
-              {...register("firstName")}
-              className="w-full bg-midnight border border-surface-border rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-neon-lime transition-all"
-            />
+            <div className="relative">
+              <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              <input
+                id="register-firstName"
+                type="text"
+                placeholder="Aditya"
+                {...register("firstName")}
+                className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition"
+              />
+            </div>
             {errors.firstName && (
-              <span
-                id="reg-fn-error"
-                className="text-xs text-red-400 mt-1 block"
-              >
+              <span className="text-[11px] text-red-400 mt-1 block">
                 {errors.firstName.message}
               </span>
             )}
           </div>
+
           <div>
-            <label htmlFor="register-lastName" className="sr-only">
+            <label
+              htmlFor="register-lastName"
+              className="block text-xs font-medium text-slate-300 mb-1.5"
+            >
               Last Name
             </label>
-            <input
-              id="register-lastName"
-              type="text"
-              placeholder="Last Name"
-              aria-label="Last Name"
-              aria-invalid={Boolean(errors.lastName)}
-              aria-describedby={errors.lastName ? "reg-ln-error" : undefined}
-              {...register("lastName")}
-              className="w-full bg-midnight border border-surface-border rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-neon-lime transition-all"
-            />
+            <div className="relative">
+              <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              <input
+                id="register-lastName"
+                type="text"
+                placeholder="Upadhyay"
+                {...register("lastName")}
+                className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition"
+              />
+            </div>
             {errors.lastName && (
-              <span
-                id="reg-ln-error"
-                className="text-xs text-red-400 mt-1 block"
-              >
+              <span className="text-[11px] text-red-400 mt-1 block">
                 {errors.lastName.message}
               </span>
             )}
           </div>
         </div>
 
+        {/* Email Field */}
         <div>
-          <label htmlFor="register-email" className="sr-only">
+          <label
+            htmlFor="register-email"
+            className="block text-xs font-medium text-slate-300 mb-1.5"
+          >
             Email Address
           </label>
-          <input
-            id="register-email"
-            type="email"
-            placeholder="Email Address"
-            aria-label="Email Address"
-            aria-invalid={Boolean(errors.email)}
-            aria-describedby={errors.email ? "reg-email-error" : undefined}
-            {...register("email")}
-            className="w-full bg-midnight border border-surface-border rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-neon-lime transition-all"
-          />
+          <div className="relative">
+            <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            <input
+              id="register-email"
+              type="email"
+              placeholder="you@example.com"
+              {...register("email")}
+              className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition"
+            />
+          </div>
           {errors.email && (
-            <span
-              id="reg-email-error"
-              className="text-xs text-red-400 mt-1 block"
-            >
+            <span className="text-[11px] text-red-400 mt-1 block">
               {errors.email.message}
             </span>
           )}
         </div>
 
+        {/* Password Field */}
         <div>
-          <label htmlFor="register-password" className="sr-only">
+          <label
+            htmlFor="register-password"
+            className="block text-xs font-medium text-slate-300 mb-1.5"
+          >
             Password
           </label>
-          <input
-            id="register-password"
-            type="password"
-            placeholder="Password"
-            aria-label="Password"
-            aria-invalid={Boolean(errors.password)}
-            aria-describedby={errors.password ? "reg-pwd-error" : undefined}
-            {...register("password")}
-            className="w-full bg-midnight border border-surface-border rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-neon-lime transition-all"
-          />
-          {errors.password && (
-            <span
-              id="reg-pwd-error"
-              className="text-xs text-red-400 mt-1 block"
+          <div className="relative">
+            <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            <input
+              id="register-password"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              {...register("password")}
+              className="w-full glass-input rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
             >
+              {showPassword ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+          {errors.password && (
+            <span className="text-[11px] text-red-400 mt-1 block">
               {errors.password.message}
             </span>
           )}
         </div>
 
-
-        <div className="flex items-start gap-2 mt-2">
+        {/* Terms Checkbox */}
+        <div className="flex items-start gap-2 pt-1">
           <input
             id="register-terms"
             type="checkbox"
             {...register("termsAccepted")}
-            className="mt-1 h-4 w-4 rounded border-surface-border bg-midnight text-neon-lime focus:ring-neon-lime focus:ring-offset-midnight"
+            className="mt-0.5 h-4 w-4 rounded border-surface-border bg-midnight text-neon-lime focus:ring-neon-lime"
           />
-          <label htmlFor="register-terms" className="text-xs text-gray-400 leading-relaxed">
+          <label
+            htmlFor="register-terms"
+            className="text-xs text-gray-400 leading-relaxed"
+          >
             I agree to the{" "}
-            <Link to="/terms" className="text-neon-lime hover:underline" target="_blank">
+            <Link
+              to="/terms"
+              className="text-neon-lime hover:underline"
+              target="_blank"
+            >
               Terms of Use
             </Link>{" "}
             and acknowledge the{" "}
-            <Link to="/privacy" className="text-neon-lime hover:underline" target="_blank">
+            <Link
+              to="/privacy"
+              className="text-neon-lime hover:underline"
+              target="_blank"
+            >
               Privacy Policy
-            </Link>.
+            </Link>
+            .
           </label>
         </div>
         {errors.termsAccepted && (
-          <span className="text-xs text-red-400 mt-0">
+          <span className="text-xs text-red-400 block">
             {errors.termsAccepted.message}
           </span>
         )}
@@ -210,13 +249,11 @@ export function RegisterForm() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-neon-lime text-midnight font-neovision font-bold py-3.5 rounded-xl hover:opacity-90 transition-opacity cursor-pointer uppercase tracking-wider mt-2 disabled:opacity-50"
+          className="w-full mt-2 bg-neon-lime text-midnight hover:bg-[#a8eb2a] font-bold py-3 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(188,255,60,0.25)] hover:shadow-[0_0_25px_rgba(188,255,60,0.4)] disabled:opacity-50 cursor-pointer uppercase tracking-wider"
         >
-          {isSubmitting ? "Registering..." : "Sign Up"}
+          <span>{isSubmitting ? "Creating Account..." : "Get Started"}</span>
+          <ArrowRight className="w-4 h-4" />
         </button>
-
-        {/* Social OAuth Buttons */}
-        <SocialAuthButtons />
       </form>
     </div>
   );

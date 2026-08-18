@@ -28,23 +28,16 @@
   /* Color Utility Classes */
   --color-midnight: #080a0f;
   --color-neon-lime: #bcff3c;
+  --color-cyan: #00ffff;
   --color-surface: #121620;
   --color-surface-border: #1e2846;
 
-  /*
-   * Locked responsive breakpoints:
-   * Mobile  < 640px
-   * Tablet  640px–1023px
-   * Desktop >= 1024px
-   *
-   * md is intentionally aligned with lg so legacy md:
-   * utilities do not activate inside the tablet range.
-   */
+  /* Locked responsive breakpoints */
   --breakpoint-sm: 40rem; /* 640px */
-  --breakpoint-md: 64rem; /* 1024px */
+  --breakpoint-md: 48rem; /* 768px */
   --breakpoint-lg: 64rem; /* 1024px */
-  --breakpoint-xl: 80rem;
-  --breakpoint-2xl: 96rem;
+  --breakpoint-xl: 80rem; /* 1280px */
+  --breakpoint-2xl: 96rem; /* 1536px */
 }
 
 /* 3. Base Body Defaults */
@@ -60,4 +53,69 @@ body {
     -apple-system,
     sans-serif;
   min-height: 100vh;
+}
+
+/* 4. Global Glassmorphism & UI Primitives */
+@layer utilities {
+  .glass-panel {
+    background: rgba(18, 22, 32, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(30, 40, 70, 0.8);
+  }
+
+  .glass-input {
+    background: rgba(8, 10, 15, 0.8);
+    border: 1px solid rgba(30, 40, 70, 0.9);
+  }
+
+  .glass-input:focus {
+    border-color: #bcff3c;
+    box-shadow: 0 0 12px rgba(188, 255, 60, 0.15);
+  }
+
+  /* 3D Flip Utilities */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  .transform-style-3d {
+    transform-style: preserve-3d;
+  }
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+  .flip-card-inner {
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .is-flipped .flip-card-inner {
+    transform: rotateY(180deg);
+  }
+
+  /* Modal Animations */
+  .modal-enter {
+    animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes modalFadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.96) translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* Hide scrollbar for clean UI where needed */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

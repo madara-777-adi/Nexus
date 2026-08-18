@@ -1,84 +1,71 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Sparkles, Check } from "lucide-react";
 import { RegisterForm } from "../../components/forms/RegisterForm";
 
 export function RegisterPage() {
-  const navigate = useNavigate();
-  const [isSwitching, setIsSwitching] = useState(false);
-
-  const handleSwitchToLogin = () => {
-    setIsSwitching(true);
-
-    // 500ms timing matches the GPU slide duration before route change
-    setTimeout(() => {
-      navigate("/login");
-    }, 500);
-  };
-
   return (
-    <div className="min-h-screen bg-midnight text-white flex flex-col items-center justify-center px-4 sm:px-6 py-6 sm:py-8 relative overflow-x-hidden overflow-y-auto font-sans">
-      {/* AUTH CONTAINER CARD
-          Mobile/Tablet (< lg): single-column form card only.
-          Desktop (>= lg): dual-panel with sliding lime overlay. */}
-      <div className="w-full max-w-md lg:max-w-4xl bg-surface border border-surface-border rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden lg:min-h-[520px] flex flex-col lg:flex-row relative">
-        {/* SLIDING COLOR PANEL OVERLAY — desktop only */}
-        <div
-          className={`hidden lg:block absolute top-0 left-0 w-1/2 h-full bg-neon-lime rounded-3xl z-20 transition-transform duration-500 ease-in-out will-change-[transform] ${
-            isSwitching ? "translate-x-full" : "translate-x-0"
-          }`}
-        />
+    <div className="min-h-screen bg-midnight text-slate-100 flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-x-hidden">
+      {/* Ambient Glows */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-neon-lime/10 rounded-full blur-[120px]"></div>
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-purple-600/15 rounded-full blur-[120px]"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan/5 rounded-full blur-[140px]"></div>
+      </div>
 
-        {/* LEFT PANEL: Banner Content — desktop only */}
-        <div
-          className={`hidden lg:flex w-1/2 p-8 lg:p-12 flex-col items-center justify-center text-center gap-4 text-midnight z-30 transition-all duration-500 ease-in-out will-change-[transform,opacity] ${
-            isSwitching
-              ? "opacity-0 translate-x-6"
-              : "opacity-100 translate-x-0"
-          }`}
-        >
-          <span className="font-merkur text-xl text-midnight/80">
-            Already a Member?
-          </span>
-          <h2 className="font-neovision text-4xl font-bold tracking-wider">
-            WELCOME BACK!
-          </h2>
-          <p className="text-sm text-midnight/80 max-w-xs leading-relaxed">
-            Sign in with your credentials to continue your progress in
-            NexusSpace.
-          </p>
-          <button
-            onClick={handleSwitchToLogin}
-            disabled={isSwitching}
-            className="mt-4 border-2 border-midnight text-midnight font-neovision font-bold px-8 py-3 rounded-full hover:bg-midnight hover:text-neon-lime transition-all cursor-pointer uppercase tracking-wider min-h-[44px]"
-          >
-            Sign In
-          </button>
+      {/* Main Split-Screen Auth Card */}
+      <div className="relative z-10 w-full max-w-5xl glass-panel rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[660px]">
+        {/* Left Value Proposition & Branding Panel */}
+        <div className="lg:col-span-5 bg-gradient-to-br from-surface/90 via-[#1a2030]/80 to-midnight/90 p-6 sm:p-8 lg:p-12 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-surface-border">
+          <div>
+            <div className="flex items-center gap-3 mb-8 sm:mb-10">
+              <div className="w-10 h-10 rounded-xl bg-neon-lime flex items-center justify-center text-midnight font-extrabold shadow-[0_0_20px_rgba(188,255,60,0.35)]">
+                <Sparkles className="w-5 h-5 fill-current" />
+              </div>
+              <span className="text-2xl font-black tracking-tight text-white font-mono">
+                Nexus<span className="text-neon-lime">Space</span>
+              </span>
+            </div>
+
+            <h2 className="text-2xl lg:text-3xl font-extrabold text-white mb-4 leading-tight">
+              Build your technical mastery path today.
+            </h2>
+            <p className="text-slate-400 text-sm mb-8 leading-relaxed">
+              Create an account to track your multi-tier blueprints,
+              personalized curriculum paths, and mastery scores.
+            </p>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-300">
+                <div className="p-1 rounded-lg bg-neon-lime/10 border border-neon-lime/20 text-neon-lime">
+                  <Check className="w-3.5 h-3.5" />
+                </div>
+                <span>Curated AI learning tracks</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-300">
+                <div className="p-1 rounded-lg bg-neon-lime/10 border border-neon-lime/20 text-neon-lime">
+                  <Check className="w-3.5 h-3.5" />
+                </div>
+                <span>Session versioning &amp; token security</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-300">
+                <div className="p-1 rounded-lg bg-neon-lime/10 border border-neon-lime/20 text-neon-lime">
+                  <Check className="w-3.5 h-3.5" />
+                </div>
+                <span>Continuous spaced recall tracking</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-surface-border/60 text-xs text-slate-500 flex items-center justify-between">
+            <span>&copy; {new Date().getFullYear()} NexusSpace</span>
+            <span className="font-mono text-[10px] text-slate-600">
+              AUTH • PROTOTYPE
+            </span>
+          </div>
         </div>
 
-        {/* RIGHT PANEL: Register Form Content */}
-        <div
-          className={`w-full lg:w-1/2 p-5 sm:p-8 lg:p-12 flex flex-col justify-center bg-surface text-white z-10 transition-all duration-500 ease-in-out will-change-[transform,opacity] ${
-            isSwitching
-              ? "opacity-20 -translate-x-6"
-              : "opacity-100 translate-x-0"
-          }`}
-        >
+        {/* Right Form Panel */}
+        <div className="lg:col-span-7 p-6 sm:p-8 lg:p-12 flex flex-col justify-center bg-surface/40">
           <RegisterForm />
-
-          {/* Mobile/Tablet secondary nav — replaces desktop banner CTA */}
-          <div className="mt-6 pt-5 border-t border-surface-border lg:hidden text-center">
-            <p className="text-xs text-gray-400">
-              Already a member?{" "}
-              <button
-                type="button"
-                onClick={handleSwitchToLogin}
-                disabled={isSwitching}
-                className="text-neon-lime font-semibold hover:underline transition-all cursor-pointer min-h-[44px] inline-flex items-center px-1"
-              >
-                Sign In
-              </button>
-            </p>
-          </div>
         </div>
       </div>
     </div>
