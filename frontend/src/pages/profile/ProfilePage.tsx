@@ -3,7 +3,17 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { authApi } from "../../api/auth.api";
-import { ArrowLeft, User, Mail, Shield, Check, Save, Lock, Trash2, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  User,
+  Mail,
+  Shield,
+  Check,
+  Save,
+  Lock,
+  Trash2,
+  AlertTriangle,
+} from "lucide-react";
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -49,7 +59,7 @@ export function ProfilePage() {
     } catch (error: unknown) {
       if (isAxiosError(error)) {
         setPasswordError(
-          error.response?.data?.message || "Failed to change password."
+          error.response?.data?.message || "Failed to change password.",
         );
       } else if (error instanceof Error) {
         setPasswordError(error.message);
@@ -67,13 +77,15 @@ export function ProfilePage() {
     setDeleteError("");
 
     try {
-      await authApi.deleteAccount({ password: deletePassword });
+      await authApi.deleteAccount(
+        user?.provider === "LOCAL" ? { password: deletePassword } : {},
+      );
       await logout();
       window.location.href = "/";
     } catch (error: unknown) {
       if (isAxiosError(error)) {
         setDeleteError(
-          error.response?.data?.message || "Failed to delete account."
+          error.response?.data?.message || "Failed to delete account.",
         );
       } else if (error instanceof Error) {
         setDeleteError(error.message);
@@ -108,7 +120,8 @@ export function ProfilePage() {
     } catch (error: unknown) {
       if (isAxiosError(error)) {
         setErrorMessage(
-          error.response?.data?.message || "Failed to update profile. Please try again."
+          error.response?.data?.message ||
+            "Failed to update profile. Please try again.",
         );
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -233,7 +246,6 @@ export function ProfilePage() {
           </form>
         </div>
 
-
         {/* Security / Password Card */}
         {user?.provider === "LOCAL" && (
           <div className="space-y-6 rounded-2xl border border-gray-800 bg-[#12141A] p-6 md:p-8">
@@ -300,7 +312,9 @@ export function ProfilePage() {
                 )}
                 <button
                   type="submit"
-                  disabled={isChangingPassword || !currentPassword || !newPassword}
+                  disabled={
+                    isChangingPassword || !currentPassword || !newPassword
+                  }
                   className="flex cursor-pointer items-center gap-2 rounded-xl bg-gray-800 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-white transition-all hover:bg-gray-700 disabled:opacity-50"
                 >
                   {isChangingPassword ? "Updating..." : "Update Password"}
@@ -329,7 +343,8 @@ export function ProfilePage() {
           {!showDeleteConfirm ? (
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-400 max-w-sm">
-                Once you delete your account, there is no going back. All your workspaces, concepts, and progress will be permanently erased.
+                Once you delete your account, there is no going back. All your
+                workspaces, concepts, and progress will be permanently erased.
               </p>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
@@ -339,12 +354,19 @@ export function ProfilePage() {
               </button>
             </div>
           ) : (
-            <form onSubmit={handleDeleteAccount} className="space-y-4 rounded-xl border border-red-900/50 bg-red-900/10 p-5">
+            <form
+              onSubmit={handleDeleteAccount}
+              className="space-y-4 rounded-xl border border-red-900/50 bg-red-900/10 p-5"
+            >
               <div className="flex gap-3 text-red-400">
                 <AlertTriangle className="h-5 w-5 shrink-0" />
                 <div className="text-xs leading-relaxed">
-                  <strong className="block font-semibold mb-1">Are you absolutely sure?</strong>
-                  This action cannot be undone. This will permanently delete your account, workspaces, concepts, and remove your data from our servers.
+                  <strong className="block font-semibold mb-1">
+                    Are you absolutely sure?
+                  </strong>
+                  This action cannot be undone. This will permanently delete
+                  your account, workspaces, concepts, and remove your data from
+                  our servers.
                 </div>
               </div>
 
@@ -384,7 +406,10 @@ export function ProfilePage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isDeleting || (user?.provider === "LOCAL" && !deletePassword)}
+                  disabled={
+                    isDeleting ||
+                    (user?.provider === "LOCAL" && !deletePassword)
+                  }
                   className="flex-1 cursor-pointer rounded-xl bg-red-600 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-white transition-all hover:bg-red-700 disabled:opacity-50"
                 >
                   {isDeleting ? "Deleting..." : "Yes, Delete My Account"}
