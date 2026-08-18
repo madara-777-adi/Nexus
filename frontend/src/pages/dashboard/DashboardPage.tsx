@@ -7,7 +7,6 @@ import {
   Layers,
   AlertTriangle,
   Search,
-  Sparkles,
   ArrowRight,
   BookOpen,
   Calendar,
