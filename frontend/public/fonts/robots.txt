@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /workspace/
+Disallow: /reset-password/
+Disallow: /verify-email
+
+Sitemap: https://nexusspace.tech/sitemap.xml
