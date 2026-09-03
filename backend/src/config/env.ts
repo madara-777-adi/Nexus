@@ -26,9 +26,9 @@ const envSchema = z.object({
 
   FRONTEND_URL: z.string().url(),
 
-  CEREBRAS_MODEL: z.string().min(1),
+  CEREBRAS_MODEL: z.string().min(1).optional(),
 
-  GROQ_MODEL: z.string().min(1),
+  GROQ_MODEL: z.string().min(1).optional(),
 
   GEMINI_MODEL: z.string().default("gemini-2.0-flash"),
 
@@ -56,6 +56,27 @@ const envSchema = z.object({
   GITHUB_CALLBACK_URL: z.string().url(),
 });
 
-export const env = envSchema.parse(process.env);
+const parsedEnv = envSchema.parse(process.env);
+
+const checkProviderModel = (tier: string, provider: string) => {
+  if (provider === "cerebras" && !parsedEnv.CEREBRAS_MODEL) {
+    throw new Error(`Configuration Error: ${tier} is set to "cerebras", but CEREBRAS_MODEL is missing.`);
+  }
+  if (provider === "groq" && !parsedEnv.GROQ_MODEL) {
+    throw new Error(`Configuration Error: ${tier} is set to "groq", but GROQ_MODEL is missing.`);
+  }
+  if (provider === "gemini" && !parsedEnv.GEMINI_MODEL) {
+    throw new Error(`Configuration Error: ${tier} is set to "gemini", but GEMINI_MODEL is missing.`);
+  }
+};
+
+checkProviderModel("AI_TIER1_PROVIDER", parsedEnv.AI_TIER1_PROVIDER);
+checkProviderModel("AI_TIER2_PROVIDER", parsedEnv.AI_TIER2_PROVIDER);
+checkProviderModel("AI_TIER3_PROVIDER", parsedEnv.AI_TIER3_PROVIDER);
+
+export const env = parsedEnv as typeof parsedEnv & {
+  CEREBRAS_MODEL: string;
+  GROQ_MODEL: string;
+};
 
 export default env;
