@@ -2,9 +2,10 @@ import logger from "../../../shared/logger/logger";
 import { IAIProvider } from "./provider.interface";
 import { GroqProvider } from "./groq.provider";
 import { CerebrasProvider } from "./cerebras.provider";
+import { GeminiProvider } from "./gemini.provider";
 import env from "../../../config/env";
 
-type TierProviderName = "groq" | "cerebras";
+type TierProviderName = "groq" | "cerebras" | "gemini";
 
 export class ProviderFactory {
   private static instance: ProviderFactory | null = null;
@@ -47,6 +48,8 @@ export class ProviderFactory {
         return GroqProvider[factoryMethod]();
       case "cerebras":
         return CerebrasProvider[factoryMethod]();
+      case "gemini":
+        return GeminiProvider[factoryMethod]();
       default:
         throw new Error(`Unknown AI provider: ${providerName}`);
     }

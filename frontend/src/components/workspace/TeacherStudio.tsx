@@ -4,7 +4,8 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { isAxiosError } from "axios";
-import { getLearningExperience, evaluateSubmission } from "../../api/ai.api";
+import { getLearningExperience, evaluateSubmission, generateResources } from "../../api/ai.api";
+import { recordEvaluationResult } from "../../api/learning.api";
 import { ActiveRecallModal } from "./ActiveRecallModal";
 import { ConceptStatus } from "../../types/learning.types";
 import type { Flashcard, QuizQuestion } from "../../types/ai.types";
@@ -61,6 +62,9 @@ export function TeacherStudio({
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
   const [evaluationScore, setEvaluationScore] = useState<number | null>(null);
+
+  const [isGeneratingResources, setIsGeneratingResources] = useState(false);
+  const [generatedResources, setGeneratedResources] = useState<any>(null);
 
   // Scroll Container Ref to reset scroll position on tab switch / lesson change
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -153,6 +157,13 @@ export function TeacherStudio({
         0;
 
       setEvaluationScore(masteryScore);
+      
+      try {
+        await recordEvaluationResult(conceptId, masteryScore);
+      } catch (err) {
+        console.error("Failed to record evaluation result", err);
+      }
+
       if (onProgressUpdated) {
         onProgressUpdated();
       }
@@ -210,6 +221,27 @@ export function TeacherStudio({
                   </span>
                 </button>
               )}
+              <button
+                onClick={async () => {
+                  setIsGeneratingResources(true);
+                  try {
+                    const res = await generateResources({ conceptTitle, domain: workspaceTitle });
+                    setGeneratedResources(res);
+                  } catch (err) {
+                    console.error("Failed to generate resources", err);
+                  } finally {
+                    setIsGeneratingResources(false);
+                  }
+                }}
+                disabled={isGeneratingResources}
+                title="Generate Resources"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#00E5FF]/40 bg-[#00E5FF]/10 text-xs font-semibold text-[#00E5FF] hover:bg-[#00E5FF]/20 transition cursor-pointer disabled:opacity-50"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">
+                  {isGeneratingResources ? "Generating..." : "Resources"}
+                </span>
+              </button>
               <button
                 onClick={() => fetchLessonPayload(true)}
                 title="Re-synthesize with AI"
@@ -327,6 +359,12 @@ export function TeacherStudio({
                     {markdownContent}
                   </ReactMarkdown>
                 </div>
+                {generatedResources && (
+                  <div className="mt-8 pt-6 border-t border-[#1E2846]">
+                     <h3 className="text-sm font-semibold text-[#00E5FF] mb-4">External Resources</h3>
+                     <pre className="text-xs bg-[#080A0F] p-4 rounded-xl overflow-auto whitespace-pre-wrap">{JSON.stringify(generatedResources, null, 2)}</pre>
+                  </div>
+                )}
               </article>
             ) : (
               /* TAB 2: DIAGNOSTIC QUIZ */

@@ -117,10 +117,14 @@ api.interceptors.response.use(
           return api(originalRequest);
         } else {
           processQueue(error, null);
+          window.location.href = "/login";
           return Promise.reject(error);
         }
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         processQueue(refreshError, null);
+        if (refreshError?.response?.status === 401) {
+          window.location.href = "/login";
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

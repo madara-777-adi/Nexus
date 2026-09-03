@@ -30,15 +30,17 @@ const envSchema = z.object({
 
   GROQ_MODEL: z.string().min(1),
 
+  GEMINI_MODEL: z.string().default("gemini-2.0-flash"),
+
   // Groq AI Keys (Dual-Key Routing)
   AI_TIER1_API_KEY: z.string().min(1, "AI_TIER1_API_KEY is required"),
   AI_TIER2_API_KEY: z.string().min(1, "GROQ_API_KEY_TEACHER is required"),
   AI_TIER3_API_KEY: z.string().min(1, "AI_TIER3_API_KEY is required"),
 
   // Per-tier provider selection (ECR-001). Each tier independently selects its provider.
-  AI_TIER1_PROVIDER: z.enum(["groq", "cerebras"]).default("groq"),
-  AI_TIER2_PROVIDER: z.enum(["groq", "cerebras"]).default("groq"),
-  AI_TIER3_PROVIDER: z.enum(["groq", "cerebras"]).default("groq"),
+  AI_TIER1_PROVIDER: z.enum(["groq", "cerebras", "gemini"]).default("groq"),
+  AI_TIER2_PROVIDER: z.enum(["groq", "cerebras", "gemini"]).default("groq"),
+  AI_TIER3_PROVIDER: z.enum(["groq", "cerebras", "gemini"]).default("groq"),
 
   // Cerebras key — single shared key across all tiers that select it.
   // Optional: only required if a tier's provider is set to "cerebras".

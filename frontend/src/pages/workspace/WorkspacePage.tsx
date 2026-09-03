@@ -7,6 +7,7 @@ import {
 import { ChapterList } from "../../components/workspace/ChapterList";
 import { LessonList } from "../../components/workspace/LessonList";
 import { TeacherStudio } from "../../components/workspace/TeacherStudio";
+import { CurriculumGraph } from "../../components/workspace/CurriculumGraph";
 import { ErrorBoundary } from "../../components/common/ErrorBoundary";
 import {
   initializeWorkspaceProgress,
@@ -30,7 +31,7 @@ import type {
   IConceptTopic,
   ILessonNode,
 } from "../../types/workspace.types";
-import { Sparkles, ArrowLeft, Compass, Layers, GitBranch } from "lucide-react";
+import { Sparkles, ArrowLeft, Compass, Layers, GitBranch, Network } from "lucide-react";
 
 interface Toast {
   id: string;
@@ -84,6 +85,7 @@ export function WorkspacePage() {
     null,
   );
 
+  const [viewMode, setViewMode] = useState<"standard" | "graph">("standard");
   const [concepts, setConcepts] = useState<IConcept[]>([]);
   const [progressMap, setProgressMap] = useState<
     Map<string, ILearningProgress>
@@ -461,9 +463,10 @@ export function WorkspacePage() {
                     setSelectedUnit(null);
                     setSelectedChapter(null);
                     setSelectedLesson(null);
+                    setViewMode("standard");
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${
-                    !selectedUnit
+                    !selectedUnit && viewMode === "standard"
                       ? "bg-neon-lime/10 border border-neon-lime/20 text-neon-lime"
                       : "text-slate-400 hover:text-slate-100 hover:bg-[#1E2846]/40"
                   }`}
@@ -476,9 +479,10 @@ export function WorkspacePage() {
                   onClick={() => {
                     setSelectedChapter(null);
                     setSelectedLesson(null);
+                    setViewMode("standard");
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition ${
-                    selectedUnit && !selectedChapter
+                    selectedUnit && !selectedChapter && viewMode === "standard"
                       ? "bg-neon-lime/10 border border-neon-lime/20 text-neon-lime cursor-pointer"
                       : selectedUnit
                         ? "text-slate-400 hover:text-slate-100 hover:bg-[#1E2846]/40 cursor-pointer"
@@ -487,6 +491,22 @@ export function WorkspacePage() {
                 >
                   <GitBranch className="w-4 h-4 shrink-0" />
                   <span className="hidden lg:inline">Tier 3 • Chapters</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setViewMode("graph");
+                    setSelectedUnit(null);
+                    setSelectedChapter(null);
+                    setSelectedLesson(null);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${
+                    viewMode === "graph"
+                      ? "bg-[#00E5FF]/10 border border-[#00E5FF]/20 text-[#00E5FF]"
+                      : "text-slate-400 hover:text-slate-100 hover:bg-[#1E2846]/40"
+                  }`}
+                >
+                  <Network className="w-4 h-4 shrink-0" />
+                  <span className="hidden lg:inline">Curriculum Graph</span>
                 </button>
               </nav>
             </div>
@@ -506,10 +526,16 @@ export function WorkspacePage() {
         {/* Right Content Area (Independent vertical scroll) */}
         <main className="flex-1 h-full overflow-y-auto relative">
           <ErrorBoundary
-            key={`${workspaceId}_${refreshKey}`}
+            key={`${workspaceId}_${refreshKey}_${viewMode}`}
             fallbackTitle="Workspace view failed to load"
           >
-            {selectedUnit ? (
+            {viewMode === "graph" ? (
+              <CurriculumGraph
+                concepts={concepts}
+                progressMap={progressMap}
+                lessonProgressMap={lessonProgressMap}
+              />
+            ) : selectedUnit ? (
               selectedChapter ? (
                 <LessonList
                   unit={selectedUnit}
